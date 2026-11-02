@@ -1,0 +1,21 @@
+# 秘密情報
+.env
+.env.*
+!.env.example
+
+# 依存とビルド成果物
+node_modules/
+dist/
+build/
+.venv/
+__pycache__/
+*.pyc
+
+# OS・エディタ
+.DS_Store
+.idea/
+.vscode/
+
+# ローカル専用
+*.log
+.claude/settings.local.json
