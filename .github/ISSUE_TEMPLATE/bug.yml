@@ -1,0 +1,34 @@
+name: 不具合
+description: 動かない・期待と違う
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 起きていること
+      description: 何をしたら、何が起きたか
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待していたこと
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 再現の手順
+      placeholder: |
+        1.
+        2.
+  - type: dropdown
+    id: demo
+    attributes:
+      label: デモに影響するか
+      options:
+        - する
+        - しない
+        - 分からない
+    validations:
+      required: true

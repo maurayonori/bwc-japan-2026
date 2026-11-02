@@ -1,0 +1,29 @@
+name: 決めること
+description: 選択肢があって判断が要るもの。決まったら ADR に残す
+labels: ["decision"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: 決めること
+      description: 何を、いつまでに決めるか
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: 選択肢
+      description: 案ごとに、良い点と困る点
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: 決め方
+      description: 何を基準に選ぶか（審査基準のどこに効くか、など）
+  - type: input
+    id: adr
+    attributes:
+      label: ADR
+      description: 決まったら番号を書いて閉じる
+      placeholder: docs/adr/NNNN-....md

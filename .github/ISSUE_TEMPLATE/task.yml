@@ -1,0 +1,25 @@
+name: タスク
+description: やること（実装・調査・ドキュメント・提出物の準備）
+labels: ["task"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: やること
+      description: 何をするか。終わったら何ができるようになるか
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: 完了の条件
+      description: どうなったら閉じてよいか。確かめ方も書く
+      placeholder: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: メモ
+      description: 関係する ADR・ワークログ・参考資料

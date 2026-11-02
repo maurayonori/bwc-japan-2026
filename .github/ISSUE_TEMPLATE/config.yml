@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 大会の要項（要約）
+    url: https://github.com/maurayonori/bwc-japan-2026/blob/main/docs/hackathon.md
+    about: ルール・テーマ・審査基準・日程
+  - name: 提出物の一覧
+    url: https://github.com/maurayonori/bwc-japan-2026/blob/main/docs/submission/README.md
+    about: 提出フォームの下書きとチェックリスト
