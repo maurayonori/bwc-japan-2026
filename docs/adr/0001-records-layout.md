@@ -21,6 +21,7 @@
 | その日の作業                 | `docs/worklog/YYYYMMDD.md`                                    | 1 日で 1 ファイル   |
 | 提出物の下書きと状態         | `docs/submission/`                                            | 項目ごと            |
 | Claude Code への指示         | `CLAUDE.md`                                                   | 1 ファイル          |
+| 進め方と仕様（11/3 追記）    | `docs/plan.md`・`docs/spec.md`                                | 1 ファイルずつ      |
 
 ## 検討したほかの案
 
