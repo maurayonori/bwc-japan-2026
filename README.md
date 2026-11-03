@@ -52,6 +52,7 @@ Anthropic と Cerebral Valley が主催するオンラインハッカソン **[B
 | -------------------------- | ----------------------------------------------------------------------------------------------- |
 | タスク・不具合・決めること | [GitHub Issues](https://github.com/maurayonori/bwc-japan-2026/issues)（マイルストーン「提出」） |
 | 設計の判断とその理由       | [docs/adr/](docs/adr/)                                                                          |
+| 調査の事実記録             | [docs/research/](docs/research/)                                                                |
 | 日々の作業記録             | [docs/worklog/](docs/worklog/)                                                                  |
 | Claude Code への指示       | [CLAUDE.md](CLAUDE.md)                                                                          |
 
