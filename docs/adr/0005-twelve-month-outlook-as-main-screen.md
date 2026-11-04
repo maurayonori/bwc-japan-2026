@@ -1,6 +1,6 @@
 # 0005. 主画面を TODO の一覧ではなく「これからの 12 か月の見通し」にする
 
-- 状態: 採用
+- 状態: 採用（初期表示の範囲と削る順は [ADR 0006](0006-next-two-months-first-and-calendar-export.md) で変えた）
 - 日付: 2026-11-04
 - 関連: [spec.md](../spec.md)、[ADR 0003](0003-first-version-scope-cuts.md)、[ADR 0004](0004-evidence-from-public-surveys-and-registration-first.md)、#10
 
