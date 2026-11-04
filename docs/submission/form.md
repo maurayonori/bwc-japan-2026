@@ -4,11 +4,11 @@
 
 ## プロジェクト名
 
-（未記入）
+さきよみ（先読み）。リポジトリ名は `sakiyomi`（改名は #2。改名後の URL は https://github.com/maurayonori/sakiyomi ）
 
 ## 選んだテーマ
 
-2「本来、誰にでも届くべきものを」（[ADR 0002](../adr/0002-topic-gaps-left-by-existing-apps.md)。11/3〜4 の聞き取りで見直す）
+2「本来、誰にでも届くべきものを」（[ADR 0002](../adr/0002-topic-gaps-left-by-existing-apps.md)。11/4 に ADR 0004 で維持を決めた）
 
 ## プロジェクトの概要
 

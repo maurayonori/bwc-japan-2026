@@ -1,0 +1,266 @@
+# 候補。人が確かめる前のもの。確認日 2026-11-04。接種するかの判断は親と医師のもの
+#
+# 領域: 任意接種の時期と費用（domain: vaccines）
+# - 「この月齢から受けられる」「何回・間隔」「費用・助成・窓口」としてだけ書く。「打つべき」「おすすめ」は使わない（ADR 0003）
+# - 定期接種（ロタ・B 型肝炎・五種混合・Hib・小児肺炎球菌・BCG・MR・水痘・日本脳炎・HPV）は入れない。母子モにある
+# - 出典は公式のみ。費用は公的機関が示す額だけを書き、医療機関ごとの掲示は書かない
+# - URL はすべて 2026-11-04 に実際に開いて確かめた
+# - 項目にしなかったもの（三種混合・不活化ポリオの就学前追加、RS ウイルスの抗体製剤と母子免疫ワクチン、骨髄移植等の再接種助成）は末尾のコメントに書いた
+
+items:
+  # ---------------------------------------------------------------------------
+  # 季節性インフルエンザ 1 回目（毎年の時期）
+  # ---------------------------------------------------------------------------
+  - id: sapporo-vaccines-influenza-first
+    municipality: 札幌市
+    domain: vaccines
+    name: "季節性インフルエンザワクチン 1 回目（生後 6 か月から受けられる。13 歳未満は 2 回）"
+    eligibility:
+      age_months: { from: 6, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: annual_period
+      start: "10-01"
+      end: "01-31"
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "各区健康・子ども課（保健センター）。電話番号は出典ページの末尾に区ごとに掲載"
+        url: https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html
+    source_url: https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html
+    checked_on: 2026-11-04
+    evidence: "「任意予防接種は、医師と相談の上、接種者や保護者の判断により接種するもので、接種費用は自己負担となります。」「主な任意予防接種の種類」の表、季節性インフルエンザワクチンの行:「6か月以上」「生後6か月～13歳未満：2回」「13歳以上：1回」「※市販されている一部のワクチンは1歳以上の接種となります。」"
+    notes: "札幌市の小児助成は無し（2026-11-04 確認。予防接種全般ページの任意接種一覧で「自己負担」。市のサイトに小児向けインフルエンザ助成のページは無く、定期接種は高齢者のみ）。費用は医療機関ごとに異なる（厚生労働省「インフルエンザワクチン（季節性）」Q&A 2025-12-19 版: 原則全額自己負担、費用は医療機関によって異なる。https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/kenkou/kekkaku-kansenshou/yobou-sesshu/vaccine/influenza/index.html ）。時期の根拠: 小児向けの公式な接種期間は無いので、札幌市の令和 8 年度高齢者インフルエンザ定期予防接種の実施期間「令和8年10月1日（木曜日）～令和9年1月31日（日曜日）」と同じ期間を置いた（ https://www.city.sapporo.jp/hokenjo/f1kansen/fy04koureiinflu.html 2026-10-06 更新）。厚生労働省「令和８年度冬季 急性呼吸器感染症（ARI）総合対策に関するQ&A」（令和8年9月30日版）Q27 は「12月中旬までにワクチン接種を終えることが望ましいと考えられます」とし、流行は例年 12 月〜3 月頃としている（ https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/kenkou/kekkaku-kansenshou/infulenza/QA2026.html ）。end を 12-15 にする案もある。年をまたぐ期間なので計算の扱いを確認。一部の製品は 1 歳以上から。2 回目は sapporo-vaccines-influenza-second。"
+
+  # ---------------------------------------------------------------------------
+  # 季節性インフルエンザ 2 回目（前回から N 日後）
+  # ---------------------------------------------------------------------------
+  - id: sapporo-vaccines-influenza-second
+    municipality: 国
+    domain: vaccines
+    name: "季節性インフルエンザワクチン 2 回目（13 歳未満。1 回目から 2〜4 週後）"
+    eligibility:
+      age_months: { from: 6, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: after_previous
+      days_after: 28
+      dose: 2
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "各区健康・子ども課（保健センター）。電話番号は札幌市の予防接種全般ページの末尾に区ごとに掲載"
+        url: https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html
+    source_url: https://id-info.jihs.go.jp/surveillance/iasr/IASR/Vol46/549/549r04.html
+    checked_on: 2026-11-04
+    evidence: "「また, 生後6か月から任意接種として接種が可能で, 13歳未満の小児においては2～4週間の間隔をおいて毎シーズン2回の接種が推奨されている。」（IASR Vol.46 p222-224、2025 年 11 月号「2024年度感染症流行予測調査におけるインフルエンザ予防接種状況および抗体保有状況（2025年9月現在）」）"
+    notes: "間隔は 2〜4 週（14〜28 日）。days_after は上限の 28 日を置いた。14 日にするかは作者判断。札幌市の予防接種全般ページ（ https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html 2026-09-11 更新）の任意接種一覧でも「生後6か月～13歳未満：2回」。厚生労働省の Q&A（2025-12-19 版）は「13歳未満の方は、２回接種です。」とするが接種間隔の記載は無い。札幌市の小児助成は無し（2026-11-04 確認）。費用は医療機関ごとに異なる。1 回目は sapporo-vaccines-influenza-first。"
+
+  # ---------------------------------------------------------------------------
+  # 新型コロナワクチン（生後 6 か月から。任意接種・自費）
+  # ---------------------------------------------------------------------------
+  - id: sapporo-vaccines-covid-child
+    municipality: 札幌市
+    domain: vaccines
+    name: "新型コロナワクチン（生後 6 か月から受けられる。任意接種・自費）"
+    eligibility:
+      age_months: { from: 6, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 6
+      recommended_lead_days: null
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "札幌市保健所感染症総合対策課（予防接種担当） 電話 011-211-8189（平日 8 時 45 分〜17 時 15 分）"
+        url: https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html
+    source_url: https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html
+    checked_on: 2026-11-04
+    evidence: "「主な任意予防接種の種類」の表、新型コロナワクチンの行:「6か月以上」「1回」「※接種についての詳細は接種医にご相談ください。」「任意予防接種は、医師と相談の上、接種者や保護者の判断により接種するもので、接種費用は自己負担となります。」"
+    notes: "費用は医療機関ごとに異なる。札幌市の小児助成は無し（2026-11-04 確認）。厚生労働省「新型コロナワクチンQ&A」: 「令和6年4月1日以降に定期接種以外で接種を希望される方には、任意接種として、自費で接種を受けていただいております。」（ https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/vaccine_qa.html ）。令和 8 年度の定期接種は 65 歳以上と 60〜64 歳の一部が対象で、令和 8 年 10 月から自治体が実施（厚生労働省「新型コロナワクチンについて」 https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/vaccine_00184.html ）。小児は対象外なので任意接種。2026/27 シーズンに生後 6 か月〜4 歳向けの製剤が医療機関で使えるかは公式ページで確認できなかった。医療機関に要確認。札幌市の表では回数は 1 回。健康被害は PMDA の医薬品副作用被害救済制度の対象になる場合がある。"
+
+  # ---------------------------------------------------------------------------
+  # おたふくかぜ（1 歳から。札幌市の一部費用助成）
+  # ---------------------------------------------------------------------------
+  - id: sapporo-vaccines-mumps-subsidy
+    municipality: 札幌市
+    domain: vaccines
+    name: "おたふくかぜワクチン（1 歳から受けられる。札幌市の一部費用助成は生後 36 か月未満に 1 回 3,000 円）"
+    eligibility:
+      age_months: { from: 12, to: 35 }
+      work_status: null
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: age_start
+      start_months: 12
+      recommended_lead_days: null
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: "札幌市が 1 回 3,000 円を助成（札幌市にお住まいの生後 12 か月以上 36 か月未満。札幌市内の実施医療機関で接種した場合）。事前申請は不要で、医療機関の窓口で実費から 3,000 円を差し引いた額を支払う。市外の医療機関で接種した場合は対象外"
+    contacts:
+      - ward: null
+        name: "札幌市保健福祉局保健所感染症総合対策課（予防接種担当） 電話 011-211-8189"
+        url: https://www.city.sapporo.jp/hokenjo/f1kansen/0801otafuku.html
+      - ward: null
+        name: "子どもと妊婦の予防接種実施医療機関名簿（区ごとの PDF。各区健康・子ども課の電話番号も掲載）"
+        url: https://www.city.sapporo.jp/hokenjo/f1kansen/teikiaruimeibo.html
+    source_url: https://www.city.sapporo.jp/hokenjo/f1kansen/0801otafuku.html
+    checked_on: 2026-11-04
+    evidence: "「■助成対象者: 札幌市にお住まいの生後12ヶ月以上36か月未満の方」「■助成回数:1回」「■助成金額: 3,000円」「※医療機関では、接種時にかかった実費から助成金額を差し引いた金額をお支払いください。」"
+    notes: "要確認: 「おたふくかぜワクチンの予防接種歴がある方」「おたふくかぜに罹患したことのある方」は助成の対象外（入力から判定できない）。接種費用そのものは医療機関ごとに異なる。持ち物: 氏名・生年月日・住所が分かるもの（マイナンバーカード、資格確認書など）、母子健康手帳、予診票（市のページから入手できるほか実施医療機関でも配布）。助成ページの更新日は 2025-12-23 で添付資料は令和 7 年度版だが、予防接種全般ページ（2026-09-11 更新）で「札幌市では、接種費用の一部費用助成を行っています」と助成が続いていることを確認した。令和 8 年度の予診票が差し替わっていないかは要確認。札幌市の任意接種一覧では「1歳以上」「1回」。2 回目については札幌市・厚生労働省のページに記載が無い。日本小児科学会の予防接種スケジュール（jpeds.or.jp）では任意接種として 2 回（1 歳以降と小学校入学前の 1 年間）が示されているが、補足であり出典にはしない。36 か月以降も受けられるが全額自己負担。その期間を別項目にするかは作者判断。"
+
+  # ---------------------------------------------------------------------------
+  # A 型肝炎 1 回目（1 歳から）
+  # ---------------------------------------------------------------------------
+  - id: national-vaccines-hepatitis-a-first
+    municipality: 国
+    domain: vaccines
+    name: "A 型肝炎ワクチン 1 回目（1 歳から受けられる。任意接種・自己負担）"
+    eligibility:
+      age_months: { from: 12, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 12
+      recommended_lead_days: null
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "各区健康・子ども課（保健センター）。電話番号は札幌市の予防接種全般ページの末尾に区ごとに掲載"
+        url: https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html
+    source_url: https://id-info.jihs.go.jp/niid/ja/typhi-m/iasr-reference/9121-475r08.html
+    checked_on: 2026-11-04
+    evidence: "「日本ではA型肝炎ワクチンは任意接種である。」「適用の年齢制限はなく, 世界保健機関（WHO）の勧告に従って1歳以上からの接種が薦められている。」（IASR Vol.40 p.157、2019 年 9 月号「A型肝炎ワクチン」）"
+    notes: "費用は医療機関ごとに異なる。札幌市の助成は無く、札幌市の任意接種一覧（2026-09-11 更新）にも載っていない（2026-11-04 確認）。出典は 2019 年の解説記事。JIHS「日本で接種可能なワクチンの種類」（2026 年 4 月現在。 https://id-info.jihs.go.jp/immunization/basics/vaccine-list-in-japan/index.html ）で任意接種に分類されていることを確認した。厚生労働省の令和 6 年度予防接種基礎講座資料では「主に海外渡航で、感染の流行地に行く人を対象とするワクチン」に分類されている（JIHS 掲載 PDF https://www.hosp.jihs.go.jp/isc/080/FY2024/2024_09_seisaku.pdf ）。3 回接種。2 回目は national-vaccines-hepatitis-a-second、3 回目は national-vaccines-hepatitis-a-third。"
+
+  # ---------------------------------------------------------------------------
+  # A 型肝炎 2 回目（前回から 2〜4 週後）
+  # ---------------------------------------------------------------------------
+  - id: national-vaccines-hepatitis-a-second
+    municipality: 国
+    domain: vaccines
+    name: "A 型肝炎ワクチン 2 回目（1 回目から 2〜4 週後）"
+    eligibility:
+      age_months: { from: 12, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: after_previous
+      days_after: 28
+      dose: 2
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "各区健康・子ども課（保健センター）。電話番号は札幌市の予防接種全般ページの末尾に区ごとに掲載"
+        url: https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html
+    source_url: https://id-info.jihs.go.jp/niid/ja/typhi-m/iasr-reference/9121-475r08.html
+    checked_on: 2026-11-04
+    evidence: "「0.5mLずつを2～4週間隔で2回, 筋肉内または皮下に接種し, さらに初回接種後24週を経過した後に同用量を追加接種する」（IASR Vol.40 p.157、2019 年 9 月号「A型肝炎ワクチン」）"
+    notes: "間隔は 2〜4 週（14〜28 日）。days_after は上限の 28 日を置いた。費用は医療機関ごとに異なる。札幌市の助成は無し（2026-11-04 確認）。1 回目は national-vaccines-hepatitis-a-first。"
+
+  # ---------------------------------------------------------------------------
+  # A 型肝炎 3 回目（初回から 24 週後）
+  # ---------------------------------------------------------------------------
+  - id: national-vaccines-hepatitis-a-third
+    municipality: 国
+    domain: vaccines
+    name: "A 型肝炎ワクチン 3 回目（1 回目から 24 週を経過した後）"
+    eligibility:
+      age_months: { from: 12, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: after_previous
+      days_after: 154
+      dose: 3
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "各区健康・子ども課（保健センター）。電話番号は札幌市の予防接種全般ページの末尾に区ごとに掲載"
+        url: https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html
+    source_url: https://id-info.jihs.go.jp/niid/ja/typhi-m/iasr-reference/9121-475r08.html
+    checked_on: 2026-11-04
+    evidence: "「0.5mLずつを2～4週間隔で2回, 筋肉内または皮下に接種し, さらに初回接種後24週を経過した後に同用量を追加接種する」（IASR Vol.40 p.157、2019 年 9 月号「A型肝炎ワクチン」）"
+    notes: "出典の決まりは「初回接種後 24 週（168 日）を経過した後」だが、schedule の after_previous は前回（2 回目）からの日数なので、2 回目が 1 回目の 2〜4 週後のどちらでも初回から 24 週以上になる 154 日（22 週）を置いた。2 回目が 1 回目の 4 週後なら 3 回目は初回から 26 週になる。1 回目の日付から計算する形にするかは作者判断。費用は医療機関ごとに異なる。札幌市の助成は無し（2026-11-04 確認）。"
+
+  # ---------------------------------------------------------------------------
+  # 髄膜炎菌（4 価、2 歳から）
+  # ---------------------------------------------------------------------------
+  - id: national-vaccines-meningococcal
+    municipality: 国
+    domain: vaccines
+    name: "髄膜炎菌ワクチン（4 価。2 歳から受けられる。任意接種・自己負担）"
+    eligibility:
+      age_months: { from: 24, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 24
+      recommended_lead_days: null
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "各区健康・子ども課（保健センター）。電話番号は札幌市の予防接種全般ページの末尾に区ごとに掲載"
+        url: https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html
+    source_url: https://www.mhlw.go.jp/content/imd-guideline-20250328.pdf
+    checked_on: 2026-11-04
+    evidence: "「IMD発生時の中・長期的予防の観点からは、任意接種として対象者負担であるが、ワクチンは有効である。」「国内では2015年5月より4価の結合型髄膜炎菌ワクチン（A/C/Y/W群、以下MCV4とする）が接種可能となり、2023年2月10日からは、4価髄膜炎菌ワクチン（破傷風トキソイド結合体）（製品名:メンクアッドフィ®筋注）が国内で接種可能となっている。2歳未満の小児等に対する安全性及び有効性は確立していないこと」（侵襲性髄膜炎菌感染症発生時対応ガイドライン〔第二版〕2025 年 3 月 28 日、厚生労働省掲載）"
+    notes: "費用は医療機関ごとに異なる。札幌市の助成は無く、札幌市の任意接種一覧（2026-09-11 更新）にも載っていない（2026-11-04 確認）。回数は原則 1 回だが、ガイドラインの記述はアウトブレイク対応の文脈（「ワクチンを1回接種する」）なので、製品ごとの用法は添付文書で要確認。現在国内で使える製品はメンクアッドフィ筋注（2023-02-10 から）。メナクトラは供給停止（ガイドラインの参考文献名「髄膜炎菌ワクチンメナクトラ®筋注供給停止ならびにメンクアッドフィ®筋注のご案内」で確認）。JIHS「日本で接種可能なワクチンの種類」（2026 年 4 月現在）で「髄膜炎菌：4価」が任意接種に分類されていることを確認。厚生労働省の令和 6 年度予防接種基礎講座資料では「主に海外渡航で、感染の流行地に行く人を対象とするワクチン」に分類。出典 PDF は WebFetch では本文を読めず、ダウンロードして pdftotext で本文を確認した。"
+
+# ---------------------------------------------------------------------------
+# 項目にしなかったもの（2026-11-04 確認）
+# ---------------------------------------------------------------------------
+# - 三種混合（DPT）・不活化ポリオ（IPV）の就学前の追加接種（5〜6 歳）:
+#   厚生労働省・札幌市のページに「就学前に任意で追加接種できる」という記載が見つからなかった。
+#   厚生労働省の事務連絡（令和 8 年 4 月 27 日 https://www.mhlw.go.jp/content/001695990.pdf ）は
+#   三種混合ワクチンを「成人等への任意接種に用いることが可能」とし、令和 8 年 4 月 20 日に出荷調整を解除したと書くだけ。
+#   JIHS「日本で接種可能なワクチンの種類」は「定期接種ワクチンを定期接種対象年齢以外で受ける場合は任意接種となります」とする。
+#   日本小児科学会のスケジュールには 5 歳以上 7 歳未満での三種混合・不活化ポリオの任意接種の推奨があるが、出典にはしない決まり。
+# - RS ウイルス:
+#   母子免疫ワクチン（アブリスボ）は令和 8 年 4 月 1 日から妊婦（妊娠 28 週 0 日〜36 週 6 日）の定期接種（無料）。
+#   妊娠中の手続きは入れない決まり（spec §2）なので項目にしない。
+#   （札幌市 https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html 、厚生労働省
+#   https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kenkou_iryou/kenkou/kekkaku-kansenshou/yobou-sesshu/vaccine/rs/index.html ）
+#   乳児への抗体製剤（ニルセビマブ＝ベイフォータス）は 2024 年 3 月に「生後初回の RS 感染流行期のすべての新生児及び乳児」も対象として承認されたが、
+#   保険給付は「重篤な RS 感染症のリスクを有する新生児、乳児及び幼児」に限られ、定期接種の対象でもない
+#   （JIHS ファクトシート 2025-10-22 https://id-info.jihs.go.jp/immunization/basics/facts-sheets/RS_20251022.pdf 、厚生労働省 RS ページ）。
+#   一般の乳児が自費で受ける場合の位置づけ・費用を示す公的ページが無く、医療判断の領域なので項目にしない。
+# - 骨髄移植等の医療行為により免疫を失った方に対する任意予防接種費用助成（札幌市、20 歳未満、事前申請）:
+#   https://www.city.sapporo.jp/hokenjo/f1kansen/kotuzuiisyoku.html （2026-04-24 更新）。
+#   対象かどうかを 4 つの入力から判定できず、ほとんどの家庭に関係しないので項目にしない。入れるかは作者判断。

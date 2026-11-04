@@ -1,0 +1,506 @@
+# 候補。人が確かめる前のもの。確認日 2026-11-04
+# 領域: procedures（手続きとお金）。札幌市で就学前の子を育てる親向け。0〜2 歳を厚くした。
+# 形は data/README.md のとおり。出典は WebFetch で実際に開いた公式ページだけ。
+# 国の制度の PDF（厚生労働省リーフレット）は取得したファイルを読んで原文を写した。
+# 期日に関わる値のうち、出典に日数の記載が無く作者の判断が要るものは notes に「目安」と書いた。
+items:
+  - id: sapporo-procedures-shussho-todoke
+    municipality: 札幌市
+    domain: procedures
+    name: 出生届の提出（出生した日から 14 日以内に区役所の戸籍住民課へ）
+    eligibility:
+      age_months: { from: 0, to: 1 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: birth_offset
+      start_days: 0
+      deadline_days: 14
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "各区役所 戸籍住民課 戸籍係（電話・所在地は出典ページのリンク先）"
+        url: https://www.city.sapporo.jp/shimin/koseki/koseki/syussyo.html
+    source_url: https://www.city.sapporo.jp/shimin/koseki/koseki/syussyo.html
+    checked_on: 2026-11-04
+    evidence: "「出生した日から14日以内（国外で出生した場合は3ヶ月以内）」「令和7年5月26日以降、出生子の名の振り仮名の届出が必須になります。」"
+    notes: "期間は「出生した日から」なので、出生日を 1 日目と数えるかは計算時に要確認（戸籍法の数え方。14 日目が閉庁日のときの扱いもページに記載なし）。届出人は「嫡出子の場合は、父または母。嫡出子でない子の場合は、母。」。必要なものとして母子手帳（出生届済証明欄に証明）。ページ更新日 2025-05-26。同じ区役所で続けて行う手続き: sapporo-procedures-jido-teate、sapporo-procedures-kodomo-iryohi、sapporo-procedures-kokuho-kanyu"
+
+  - id: sapporo-procedures-jido-teate
+    municipality: 札幌市
+    domain: procedures
+    name: 児童手当の認定請求（出生日の翌日から 15 日以内なら出生月の翌月分から支給）
+    eligibility:
+      age_months: { from: 0, to: 12 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: birth_offset
+      start_days: 0
+      deadline_days: 15
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: "月額は 3 歳未満 15,000 円、3 歳から 18 歳到達後の最初の年度末までは第 1 子・第 2 子 10,000 円、第 3 子以降 30,000 円（第 3 子以降の 3 歳未満の額は出典の表で要確認）。所得制限は 2024-10 に撤廃。原則偶数月の 13 日に年 6 回支給"
+    contacts:
+      - ward: null
+        name: "各区役所 保健福祉課 福祉助成係"
+        url: https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html
+      - ward: null
+        name: "札幌市子ども未来局子育て支援部子育て支援課 手当給付係 011-211-3944"
+        url: https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html
+    checked_on: 2026-11-04
+    evidence: "「出生日の翌日から15日以内に認定請求すると、出生月の翌月分から支給されます。」「申請が遅れると、遅れた月分の手当を受けられなくなりますので、ご注意ください。」"
+    notes: "「15日目が閉庁日の場合、翌開庁日までが申請期限となります。」。原則は「手当は、原則として請求した月の翌月分から支給します。」。公務員は勤務先に認定請求（独立行政法人・国立大学法人などで勤務先から支給されない場合は区役所）。2 人目以降で既に受給中の場合は認定請求ではなく額改定請求になり「額改定請求をした日の属する月の翌月分から児童手当の額が増額されます。」。ページ更新日 2026-03-26"
+
+  - id: sapporo-procedures-kodomo-iryohi
+    municipality: 札幌市
+    domain: procedures
+    name: 子ども医療費受給者証の申請（事前に交付を受けて受診時に提示する）
+    eligibility:
+      age_months: { from: 0, to: 12 }
+      work_status: null
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: birth_offset
+      start_days: 0
+      deadline_days: null
+    prep_days: null
+    cost:
+      amount: "一部負担金は医科の初診 580 円、歯科の初診 510 円。再診・調剤薬局などは 0 円（保険診療分）。訪問看護療養費は 1 割負担（1 か所あたり月 3,000 円が限度）"
+      subsidy: "保険診療の自己負担額から一部負担金を除いた額を札幌市が助成。対象は高校生世代まで（18 歳に達する日以後の最初の 3 月 31 日まで）"
+    contacts:
+      - ward: null
+        name: "各区役所 保健福祉課 福祉助成係（新規申請・各種届出・払戻し）"
+        url: https://www.city.sapporo.jp/hoken-iryo/iryojosei/nyuyoji.html
+      - ward: null
+        name: "札幌市保健福祉局保険医療部保険企画課 011-211-2960（制度の問い合わせ）"
+        url: https://www.city.sapporo.jp/hoken-iryo/iryojosei/nyuyoji.html
+    source_url: https://www.city.sapporo.jp/hoken-iryo/iryojosei/nyuyoji.html
+    checked_on: 2026-11-04
+    evidence: "「高校生世代※まで（18歳に達する日以後の最初の3月31日まで）のお子さんの医療費の一部を札幌市が助成します。」"
+    notes: "要確認: 所得制限がある（主たる生計維持者の前年の所得が限度額未満。助成対象月が 1〜7 月なら前々年。両親の場合は所得が高いほうで判定）。限度額は https://www.city.sapporo.jp/hoken-iryo/iryojosei/gendo.html （更新 2026-08-27）に「扶養親族数 0 人 所得限度額 622.0万円」「1 人 660.0万円」「2 人 698.0万円」「3 人 736.0万円」、以下 1 人につき 38 万円加算。対象条件は札幌市に住民登録・公的医療保険に加入・高校生世代まで・所得が限度額未満の 4 つ。申請はオンライン・郵送・区役所の 3 通り。区役所申請の必要書類: 受給資格登録申請書、申請者の本人確認書類、子の公的医療保険情報を確認できる書類（資格確認書・資格情報のお知らせ・マイナポータルの画面のいずれか）、市外に所得情報がある人は同意書か所得・課税証明書。出生後いつまでに申請するか、いつから有効かの記載はページに無い（要確認）。ページ更新日 2026-10-24"
+
+  - id: kuni-procedures-shussan-ichijikin
+    municipality: 国
+    domain: procedures
+    name: 出産育児一時金（1 児 50 万円。直接支払制度を使わなかった分・差額は加入する健康保険へ申請）
+    eligibility:
+      age_months: { from: 0, to: 24 }
+      work_status: null
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: birth_offset
+      start_days: 0
+      deadline_days: 730
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: "1 児につき 50 万円（産科医療補償制度に加入する医療機関等で在胎週数 22 週以降の出産）。在胎週数 22 週に達しない出産などは 48.8 万円。多胎は胎児数分"
+    contacts:
+      - ward: null
+        name: "加入する健康保険（協会けんぽの場合。直接支払制度は医療機関の窓口で代理契約を結ぶ）"
+        url: https://www.kyoukaikenpo.or.jp/benefit/childbirth/002/index.html
+      - ward: null
+        name: "札幌市国民健康保険の場合: 各区役所 保険年金課"
+        url: https://www.city.sapporo.jp/hoken-iryo/kokuho/shussan.html
+    source_url: https://www.kyoukaikenpo.or.jp/benefit/childbirth/002/index.html
+    checked_on: 2026-11-04
+    evidence: "「直接支払制度は、協会けんぽから支給される出産育児一時金を医療機関等における出産費用に充てることができるよう、出産育児一時金を協会けんぽから医療機関等に対して直接支払う制度のことです。」「1児につき50万円」"
+    notes: "要確認: 加入する健康保険の種類（会社の健保・協会けんぽ・国保・共済）は入力から判定できない。直接支払制度を使った場合は本人の申請は不要で、出産費用が 50 万円未満なら差額を保険者に申請する。deadline_days 730 の根拠は札幌市国保のページ（ https://www.city.sapporo.jp/hoken-iryo/kokuho/shussan.html 更新 2026-08-27）の「出産日の翌日から起算して2年を過ぎると時効となります。」。協会けんぽのページには時効の記載が無いので、会社の健保の期限は要確認。札幌市国保のページでは、他の健康保険に 1 年以上加入していた人がやめてから 6 か月以内に出産した場合は以前の健康保険から支給（国保からは支給されない）。協会けんぽのページに更新日の記載なし"
+
+  - id: sapporo-procedures-ninpu-shien-kyufu-2
+    municipality: 札幌市
+    domain: procedures
+    name: 妊婦のための支援給付の 2 回目（胎児 1 人につき 5 万円）の申請
+    eligibility:
+      age_months: { from: 0, to: 24 }
+      work_status: null
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: birth_offset
+      start_days: 0
+      deadline_days: null
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: "1 回目は妊娠届出に基づき 5 万円、2 回目は胎児の数 1 人につき 5 万円（双子は 10 万円）。申請から支給まで 2〜3 か月程度"
+    contacts:
+      - ward: null
+        name: "札幌市妊婦のための支援給付コールセンター 011-213-0383（9:00〜18:00、土日祝・年末年始を除く）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/13589.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/13589.html
+    checked_on: 2026-11-04
+    evidence: "2 回目の申請期限は「出産予定日の８週前から2年を経過する日まで」。支給までの期間は「２か月～３か月程度かかります」"
+    notes: "2025 年（令和 7 年）4 月に始まった制度で、旧「札幌市妊娠・出産寄り添い給付金」の後継。2 回目は出産予定日の前月中に申請用 URL がメールで届き、スマートフォンで申請する。郵送申請は受け付けていない。現行ページに面談やアンケートの記載は無い（旧制度では出産分の申請に乳児家庭全戸訪問時の面談が必要だった）。期限は出産予定日が基準で、入力に出産予定日が無いので deadline_days は null にした。出生日を出産予定日とみなすと出生から約 674 日（730 − 56）、予定日より遅く生まれた場合はさらに早まる。採るかは作者が決める。要確認: 札幌市で妊娠届出をして 1 回目を申請済みか（転入者は扱いが違う可能性）。ページ更新日 2026-09-18"
+
+  - id: kuni-procedures-ikuji-kyugyo-kyufu
+    municipality: 国
+    domain: procedures
+    name: 育児休業給付金の支給申請（事業主経由でハローワークへ。初回のあとは原則 2 か月ごと）
+    eligibility:
+      age_months: { from: 0, to: 24 }
+      work_status: [育休中]
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: birth_offset
+      start_days: 58
+      deadline_days: null
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: "休業開始時賃金日額 × 支給日数 × 67%（育児休業の開始から 181 日目以降は 50%）。休業開始時賃金日額の上限は 16,540 円（令和 9 年 7 月 31 日までの額）。非課税で、育休中は申出により健康保険・厚生年金保険料が免除"
+    contacts:
+      - ward: null
+        name: "育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15。北海道労働局の案内）"
+        url: https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html
+      - ward: null
+        name: "提出先は事業所の所在地を管轄するハローワーク（原則、事業主が提出。電子申請も可）"
+        url: https://www.mhlw.go.jp/content/11600000/001461102.pdf
+    source_url: https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000158500.html
+    checked_on: 2026-11-04
+    evidence: "初回の申請期限は「受給資格確認手続のみ行う場合は初回の支給申請を行う日まで、初回の支給申請も同時に行う場合は育児休業開始日から４か月を経過する日の属する月の末日まで」。支給率は「67％（ただし、育児休業の開始から181日目以降は50％）」"
+    notes: "要確認: 雇用保険の被保険者で、「育児休業を開始した日前２年間に賃金支払基礎日数が11日以上ある（ない場合は就業した時間数が80時間以上の）月が12か月以上あること。」。自営業は対象外。start_days 58 は母の育児休業開始日（厚労省リーフレット 2026-08-01 改訂版 p.19: 産後休業のあと引き続き育休を取る場合「育児休業開始日」は出生日から起算して 58 日目）で、父は休業開始日が別なので目安。初回の申請期限は育児休業開始日から 4 か月を経過する日の属する月の末日（例: 7/10 開始なら 11/30 まで）。2 回目以降はハローワークが指定する支給申請期間内に原則 2 か月ごと（本人が希望すれば 1 か月ごとも可）。2 か月ごとの繰り返しは after_previous（days_after: 60）で表す案もあり、作者が決める。受給資格確認票・（初回）支給申請書にはマイナンバーを記載。延長は kuni-procedures-ikuji-kyugyo-kyufu-encho。Q&A ページは「令和８年８月版」、リーフレット「育児休業等給付の内容と支給申請手続」は 2026-08-01 改訂版（ https://www.mhlw.go.jp/content/11600000/001461102.pdf ）"
+
+  - id: kuni-procedures-ikuji-kyugyo-kyufu-encho
+    municipality: 国
+    domain: procedures
+    name: 育児休業給付金の 1 歳 6 か月までの延長（1 歳の誕生日以前の入所希望日で保育所の申込みをしておく）
+    eligibility:
+      age_months: { from: 6, to: 12 }
+      work_status: [育休中]
+      nursery: false
+      needs_check: true
+    schedule:
+      kind: birth_offset
+      start_days: 180
+      deadline_days: 305
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: "延長が認められると 1 歳 6 か月に達する日前まで育児休業給付金の支給が続く。1 歳 6 か月時点でも同じ事由があれば 2 歳に達する日前まで"
+    contacts:
+      - ward: null
+        name: "育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15）"
+        url: https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html
+      - ward: null
+        name: "保育所の申込みは各区 健康・子ども課 子ども家庭福祉（担当）係（入所希望日の 2 か月前まで）"
+        url: https://kosodate.city.sapporo.jp/q_a/hoikusyo/4879.html
+    source_url: https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000158500.html
+    checked_on: 2026-11-04
+    evidence: "延長の要件は保育所等に利用を申し込んだものの「その子が１歳に達する日（※）後の期間について、当面その実施が行われない場合」など。利用開始希望日が「子の１歳の誕生日（又は１歳６か月の誕生日応答日）の翌日以降の場合は、要件を満たしません」"
+    notes: "延長の手続き自体は「延長する期間の直前の支給単位期間の支給申請時（ただし１歳又は１歳６か月に達する日以降の申請時に限る。）」に書類を出す（Q17）。「1歳に達する日」は「１歳の誕生日の前日をいいます」。実際に期日になるのは保育所の申込みで、入所希望日を 1 歳の誕生日以前にする必要があり（Q22）、札幌市は希望日の 2 か月前までに申込む（sapporo-procedures-hoikusho-nendotochu）。deadline_days 305 は「1 歳の誕生日の 2 か月前」を日数に直した目安で、start_days 180 も目安。月単位で計算するなら作者が決める。有期雇用の場合は 1 歳到達日の翌日において 1 歳 6 か月までの間に労働契約が満了することが明らかでないことも要件。市区町村が募集していない時期のため申込み可能な希望日で申し込んだ場合は延長が認められる可能性がある（Q22）"
+
+  - id: kuni-procedures-shusseigo-kyugyo-shien
+    municipality: 国
+    domain: procedures
+    name: 出生後休業支援給付金（出生後 8 週間以内（産後休業をした母は 16 週間以内）に両親とも 14 日以上の育休で 13% 上乗せ）
+    eligibility:
+      age_months: { from: 0, to: 4 }
+      work_status: [育休中, 復職予定, 働いている]
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: birth_offset
+      start_days: 0
+      deadline_days: 56
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: "休業開始時賃金日額 × 休業日数（最大 28 日）× 13%。出生時育児休業給付金（67%）と合わせて給付率 80%（手取りで 10 割相当）。休業 28 日の支給上限額 60,205 円（令和 9 年 7 月 31 日までの額）"
+    contacts:
+      - ward: null
+        name: "育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15）"
+        url: https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html
+      - ward: null
+        name: "申請は出生時育児休業給付金・育児休業給付金と同じ申請書で、事業主経由で事業所の所在地を管轄するハローワークへ"
+        url: https://www.mhlw.go.jp/content/11600000/001461102.pdf
+    source_url: https://www.mhlw.go.jp/content/11600000/001461102.pdf
+    checked_on: 2026-11-04
+    evidence: "「同一の子について、出生時育児休業給付金が支給される産後パパ育休（出生時育児休業）を通算して14日以上取得した被保険者であること。」。対象期間は「被保険者が産後休業をしている場合（被保険者が母親、かつ、子が養子でない場合）は、「子の出生日または出産予定日のうち早い日」から「子の出生日または出産予定日のうち遅い日から起算して16週間を経過する日の翌日」までの期間。」"
+    notes: "2025 年（令和 7 年）4 月 1 日創設。対象期間は、産後休業をしていない親（父など）は「子の出生日または出産予定日のうち早い日」から「遅い日から起算して 8 週間を経過する日の翌日」まで、産後休業をした母は同じ起点から 16 週間。deadline_days 56 は出生日が出産予定日と同じ場合の 8 週間で、予定日より早く生まれた場合は予定日が起点になるので実際はもう少し長い。母は 112 日を使う。もう 1 つの要件は、配偶者も同じ期間に通算 14 日以上の育児休業を取ったこと、または子の出生日の翌日において「配偶者の育児休業を要件としない場合」（1 配偶者がいない、2 配偶者が子と法律上の親子関係がない、3 配偶者から暴力を受け別居中、4 配偶者が無業者、5 配偶者が自営業者やフリーランスなど雇用される労働者でない、6 配偶者が産後休業中、7 その他の理由で配偶者が育児休業をすることができない）に当たること。出生時育児休業給付金・出生後休業支援給付金の申請は、子の出生日（予定日前に出生した場合は出産予定日）から 8 週間を経過する日の翌日から可能で、期限は申請開始日から 2 か月を経過する日の属する月の末日。要確認: 雇用保険の被保険者か、配偶者の就労状況。関連: kuni-procedures-sango-papa-ikukyu。リーフレット 2026-08-01 改訂版 p.1-2・13-14"
+
+  - id: kuni-procedures-ikuji-jitan-kyufu
+    municipality: 国
+    domain: procedures
+    name: 育児時短就業給付金（2 歳未満の子を育てて時短で働くとき。賃金の 10%。事業主経由でハローワークへ）
+    eligibility:
+      age_months: { from: 0, to: 24 }
+      work_status: [復職予定, 働いている]
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: age_start
+      start_months: 0
+      recommended_lead_days: null
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: "育児時短就業中の各月に支払われた賃金額 × 10%（賃金と支給額の合計が時短開始時の賃金額を超えないよう支給率を調整）。支給限度額 484,121 円、支給額が 2,562 円を超えない場合は不支給（いずれも 2027 年 7 月 31 日までの額。毎年 8 月 1 日に改定）"
+    contacts:
+      - ward: null
+        name: "育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15）"
+        url: https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html
+      - ward: null
+        name: "事業所を管轄するハローワーク（事業主が賃金の届出・受給資格確認・支給申請を行う。本人が直接行うことも可）"
+        url: https://www.mhlw.go.jp/content/11600000/001395102.pdf
+    source_url: https://www.mhlw.go.jp/content/11600000/001395102.pdf
+    checked_on: 2026-11-04
+    evidence: "「２歳未満の子を養育するために、１週間当たりの所定労働時間を短縮して就業する被保険者であること。」「支給申請は、原則として２つの支給対象月について２か月ごとに行うようにしてください。」"
+    notes: "2025 年（令和 7 年）4 月 1 日創設。要確認: 雇用保険の被保険者で、育児休業給付の対象となる育児休業から引き続き（終了日と開始日の間が 14 日以内）同一の子について時短就業を始めたこと、または時短開始日前 2 年間に賃金支払基礎日数 11 日以上の完全月が 12 か月以上あること。各月の要件: 初日から末日まで被保険者、週所定労働時間を短縮した期間がある、育児休業給付・介護休業給付を受けていない、高年齢雇用継続給付の対象でない。短縮後の週所定労働時間が 20 時間未満だと原則として被保険者資格を失い対象外。初回の支給申請の期限は最初の支給対象月の初日から起算して 4 か月以内。復職日は入力に無いので age_start にした。リーフレット「育児時短就業給付の内容と支給申請手続」2026-08-01 時点版 p.1-3・8"
+
+  - id: kuni-procedures-sango-papa-ikukyu
+    municipality: 国
+    domain: procedures
+    name: 産後パパ育休（出生時育児休業）の申出（出生後 8 週間以内に 4 週間まで。原則 2 週間前までに勤務先へ）
+    eligibility:
+      age_months: { from: 0, to: 2 }
+      work_status: [働いている]
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: birth_offset
+      start_days: 0
+      deadline_days: 56
+    prep_days: 14
+    cost:
+      amount: null
+      subsidy: "出生時育児休業給付金として休業開始時賃金日額の 67% 相当（休業 28 日の支給上限 310,290 円、令和 9 年 7 月 31 日までの額）。要件を満たせば出生後休業支援給付金 13% が上乗せされ合わせて 80%"
+    contacts:
+      - ward: null
+        name: "勤務先（事業主）に申出。給付金は事業主経由で事業所の所在地を管轄するハローワークへ"
+        url: https://www.mhlw.go.jp/seisakunitsuite/bunya/koyou_roudou/koyoukintou/ryouritsu/ikuji/paternity/
+      - ward: null
+        name: "育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15）"
+        url: https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html
+    source_url: https://www.mhlw.go.jp/seisakunitsuite/bunya/koyou_roudou/koyoukintou/ryouritsu/ikuji/paternity/
+    checked_on: 2026-11-04
+    evidence: "取得できる期間は「原則として子の出生後８週間以内の期間内で通算４週間（28日）まで」。申出は「休業開始予定日の２週間前まで（労使協定を締結している場合は最大１か月前まで）に事業主に申出。」"
+    notes: "子 1 人につき 2 回に分割できる。対象は産後休業をしていない労働者（主に父。自営は対象外）なので、どちらの親かは入力から判定できず要確認。prep_days 14 は申出期限の 2 週間。労使協定がある場合は就業可能日を休業開始予定日の前日までに書面等で申し出れば休業中の就業も可。出生時育児休業給付金の要件（厚労省リーフレット p.2）: 「子の出生日または出産予定日のうち早い日」から「遅い日から起算して 8 週間を経過する日の翌日」までの期間内に 4 週間（28 日）以内の期間を定めて取得、休業開始日前 2 年間に賃金支払基礎日数 11 日以上の完全月が 12 か月以上、休業中の就業日数が最大 10 日（10 日を超える場合は 80 時間）以下。給付金の申請は出生日（予定日前に出生した場合は出産予定日）から 8 週間を経過する日の翌日から可能で、期限は申請開始日から 2 か月を経過する日の属する月の末日。2 回に分けても申請は 1 回にまとめる。関連: kuni-procedures-shusseigo-kyugyo-shien。特設ページに更新日の記載なし"
+
+  - id: sapporo-procedures-kokuho-kanyu
+    municipality: 札幌市
+    domain: procedures
+    name: 子の国民健康保険の加入届（国保の世帯。出生から 14 日以内に区役所の保険年金課へ）
+    eligibility:
+      age_months: { from: 0, to: 3 }
+      work_status: [自営, 働いていない]
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: birth_offset
+      start_days: 0
+      deadline_days: 14
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "各区役所 保険年金課 保険係"
+        url: https://www.city.sapporo.jp/hoken-iryo/kokuho/todokede-kanyu.html
+      - ward: null
+        name: "札幌市保健福祉局保険医療部保険企画課 011-211-2952（ページの問い合わせ先）"
+        url: https://www.city.sapporo.jp/hoken-iryo/kokuho/todokede-kanyu.html
+    source_url: https://www.city.sapporo.jp/hoken-iryo/kokuho/todokede-kanyu.html
+    checked_on: 2026-11-04
+    evidence: "届出は「事実が発生した日（札幌市に転入した日や勤務先を退職した日の翌日など）から14日以内」。「届け出が遅れると、届け出の前日までの医療費は、原則として全額自己負担となります」"
+    notes: "要確認: 子が国保に入るか（親のどちらかの勤務先の健康保険の被扶養者になるか）は入力から判定できない。work_status は国保になりやすい [自営, 働いていない] に絞ったが、会社員でも国保の場合がある。会社の健康保険に入れる場合は kuni-procedures-kenpo-hifuyosha-tsuika。必要なもの: 届出人の本人確認書類、世帯主と子の個人番号がわかるもの、国保の資格確認書または資格情報のお知らせ、母子健康手帳。保険料は資格が適用されたときまで遡って支払う（最大 26 か月）。ページ更新日 2026-08-03"
+
+  - id: kuni-procedures-kenpo-hifuyosha-tsuika
+    municipality: 国
+    domain: procedures
+    name: 子を勤務先の健康保険の被扶養者にする届出（事実発生から 5 日以内に事業主経由で日本年金機構へ）
+    eligibility:
+      age_months: { from: 0, to: 3 }
+      work_status: [育休中, 復職予定, 働いている]
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: birth_offset
+      start_days: 0
+      deadline_days: 5
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "勤務先（事業主）経由で日本年金機構の事務センターまたは管轄の年金事務所へ（協会けんぽ加入の事業所の場合）"
+        url: https://www.nenkin.go.jp/service/kounen/tekiyo/hihokensha1/20141202.html
+    source_url: https://www.nenkin.go.jp/service/kounen/tekiyo/hihokensha1/20141202.html
+    checked_on: 2026-11-04
+    evidence: "提出時期は「事実発生から5日以内」。「被保険者は事業主を経由して「被扶養者（異動）届」を日本年金機構へ提出します。」"
+    notes: "要確認: 協会けんぽ以外（健康保険組合・共済組合）は各保険者の手続きで、期限や様式が違う可能性がある。どちらの親の扶養に入れるかも入力から判定できない。子の出生を契機とする届出では、被保険者と子の両方の個人番号を届書に記載すれば続柄確認書類を省略でき、事業主が続柄を確認した旨の記載も不要。国保の世帯は sapporo-procedures-kokuho-kanyu。ページ更新日 2026-09-30"
+
+  - id: sapporo-procedures-hoikusho-4gatsu-nyusho-r9
+    municipality: 札幌市
+    domain: procedures
+    name: 認可保育所等の令和 9 年 4 月入所の申込（1 次調整の受付締切 2026-11-30 17:15 必着）
+    eligibility:
+      age_months: { from: 0, to: 72 }
+      work_status: [育休中, 復職予定, 働いている, 自営]
+      nursery: false
+      needs_check: true
+    schedule:
+      kind: application_window
+      start: null
+      deadline: "2026-11-30T17:15"
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "お住まいの区の保健センター 健康・子ども課 子ども家庭福祉（担当）係（申込先）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/8935.html
+      - ward: null
+        name: "札幌市子ども未来局子育て支援部保育推進課 保育企画係 011-211-2346"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/8935.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/8935.html
+    checked_on: 2026-11-04
+    evidence: "「1次調整の受付締切（令和8年11月30日17時15分）より後にお申込みいただいた場合は、1次調整の対象とすることができず、2次調整の対象となります。」"
+    notes: "要確認: 受付開始日と 2 次調整の受付期間は画像「令和９年度年次選考スケジュール（一次）」「（二次）」の中にあり、テキストで確認できなかったので start は null。日程は変更になる場合があると注記あり。郵送申請は原則可だが締切必着で、不着・遅延の責任は負わない。提出書類: 給付認定等申請書（申込用紙）、保育の必要性を確認できる書類、利用調整等に必要な書類（一部の人のみ）、マイナンバー記入・貼付用紙。育休中の人は入所日の翌月前日までに育休を終え、翌月同日までに復職する必要がある（例: 4/1 入所なら「４月１日から４月30日までの間に育児休業を終了し、５月１日までに復職する必要があります。」）。保育の必要性は就労のほか求職活動・疾病などでも認められるので、work_status を絞ったのは目安（働いていない親でも対象になりうる）。ページ更新日 2026-09-14"
+
+  - id: sapporo-procedures-hoikusho-nendotochu
+    municipality: 札幌市
+    domain: procedures
+    name: 認可保育所等の年度途中の入所申込（入所を希望する日の 2 か月前まで。区の担当係で随時受付）
+    eligibility:
+      age_months: { from: 0, to: 72 }
+      work_status: [育休中, 復職予定, 働いている, 自営]
+      nursery: false
+      needs_check: true
+    schedule:
+      kind: age_start
+      start_months: 0
+      recommended_lead_days: 60
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "各区 健康・子ども課 子ども家庭福祉（担当）係（随時受付。各施設の受け入れ状況も電話等で確認）"
+        url: https://kosodate.city.sapporo.jp/q_a/hoikusyo/4879.html
+      - ward: null
+        name: "札幌市子ども未来局子育て支援部保育推進課 保育企画係 011-211-2346"
+        url: https://kosodate.city.sapporo.jp/q_a/hoikusyo/4879.html
+    source_url: https://kosodate.city.sapporo.jp/q_a/hoikusyo/4879.html
+    checked_on: 2026-11-04
+    evidence: "「入所を希望する日の２ヵ月前までにお申し込みください。」「入所申込は各区健康・子ども課子ども家庭福祉（担当）係で随時受け付けており、内容を審査の上、入所決定します。」"
+    notes: "recommended_lead_days 60 は「2 ヵ月前まで」を日数にしたもの。月単位で計算するなら作者が決める。「保育所の入所状況、申込状況などにより、希望する日に入所できない場合があります。」。4 月入所は sapporo-procedures-hoikusho-4gatsu-nyusho-r9。育児休業給付金の延長には 1 歳の誕生日以前の入所希望日での申込みが要る（kuni-procedures-ikuji-kyugyo-kyufu-encho）。受け入れ可能な最低月齢は施設ごとに違い、このページに記載なし（要確認）"
+
+  - id: sapporo-procedures-hoikuryo-tashi-keigen
+    municipality: 札幌市
+    domain: procedures
+    name: 保育料と第 2 子以降の無償（0〜2 歳児クラス。札幌市は所得制限なしで第 2 子以降が無償）
+    eligibility:
+      age_months: { from: 0, to: 36 }
+      work_status: null
+      nursery: true
+      needs_check: true
+    schedule:
+      kind: age_start
+      start_months: 0
+      recommended_lead_days: null
+    prep_days: null
+    cost:
+      amount: "0〜2 歳児クラスの第 1 子の保育料は保育時間（保育標準時間 11 時間／保育短時間 8 時間）と世帯の市民税所得割額の合計で決まる。市民税非課税世帯は無料。4〜8 月分は前年度、9〜翌年 3 月分は当年度の市民税で計算し、毎年 4 月と 9 月に切り替わる"
+      subsidy: "生計を一にする子のうち第 2 子以降は所得制限なしで保育料が無償（認可保育所・認定こども園（保育所部分）・地域型保育事業所。企業主導型保育施設・認可外保育施設は対象外）。3 歳児クラス以上は世帯の所得にかかわらず無償。副食費（おかず・おやつ代）は別で、免除制度あり"
+    contacts:
+      - ward: null
+        name: "お住まいの区の保健センター 健康・子ども課 子ども家庭福祉係"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/941/941.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/941/846.html
+    checked_on: 2026-11-04
+    evidence: "「札幌市では これらをすべて撤廃し、第2子以降であれば、一律で保育料を無償としており、無償化になる対象が国と比べて非常に広くなっています。」"
+    notes: "国の制度は「保護者の収入」「上のきょうだいの年齢」「施設を同時に使っているか」の制限つきで第 2 子半額・第 3 子以降無償。札幌市は第 1 子の保育料も国基準より低く設定。多子軽減（第 2 子以降の無償）を受けるのに兄姉の申告や申請書が要るかは 846・941 のどちらのページにも記載がなく要確認。所得割額の申告が無いと最高階層 D9 の負担額になる。アプリは子 2 人までで、きょうだいの数と所得は入力から判定できないので needs_check。期日は無い情報項目。両ページの更新日 2026-07-28"
+
+  - id: sapporo-procedures-youji-kyoiku-mushoka
+    municipality: 札幌市
+    domain: procedures
+    name: 幼児教育・保育の無償化（3〜5 歳児クラス。幼稚園・認可外保育施設などは施設等利用給付認定を事前に申請）
+    eligibility:
+      age_months: { from: 33, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: true
+    schedule:
+      kind: age_start
+      start_months: 36
+      recommended_lead_days: 30
+    prep_days: null
+    cost:
+      amount: null
+      subsidy: "小学校就学前の 3 年間（3〜5 歳児クラス）の利用料が無償。幼稚園などは月額 25,700 円（令和 8 年 10 月からは 28,000 円）を上限に無償（施設に給付）。0〜2 歳児クラスは住民税非課税世帯が対象。食材料費は対象外"
+    contacts:
+      - ward: null
+        name: "札幌市子ども・子育て支援事務センター 011-211-2626（施設等利用給付認定。センターからの電話は 011-600-0424 の場合あり）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/youzikyouikuhoikumushouka/8728.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/youzikyouikuhoikumushouka/7504.html
+    checked_on: 2026-11-04
+    evidence: "「認可保育所、認定こども園、幼稚園などを利用する小学校就学前の3年間（3〜5歳児クラス）のお子さま、および住民税非課税世帯の0〜2歳児クラスのお子さまを対象とした利用料の無償化のほか、」「月額25,700円(令和8年10月からは28,000円)を上限に無償（施設に給付）」"
+    notes: "手続きは施設の種類で違う。認可保育所・認定こども園（保育所部分）は教育・保育給付認定（2 号・3 号）、認定こども園（幼稚園部分）は 1 号で、無償化のための別の申請はページに記載なし。幼稚園の預かり保育・認可外保育施設（ベビーシッター含む）などは施設等利用給付認定が要り、新 1 号（満 3 歳以上。保育の必要性不要）、新 2 号（3 歳児クラス以上。保育の必要性が必要）、新 3 号（2 歳児クラス以下。保育の必要性が必要で住民税非課税世帯のみ）。「必ず事前に申請してください。」「申請書を札幌市で受付した日よりさかのぼって認定することはできません。」。提出先は私学助成幼稚園なら利用する園、認可外保育施設なら子ども・子育て支援事務センター。「幼稚園や認定こども園（幼稚園部分）は満3歳から対象」で、保育所の 3 歳児クラスは 4 月 1 日時点の年齢で決まる（年度の境）。start_months 36 は満 3 歳に合わせた目安で、年度で計算するかは作者が決める。recommended_lead_days 30 も目安。要確認: 利用する施設の種類と保育の必要性。ページ更新日 2026-07-28（7504・8728 とも）"
+
+  - id: sapporo-procedures-sango-care
+    municipality: 札幌市
+    domain: procedures
+    name: 札幌市産後ケア事業の利用申請（予約サービス「テオテ産後ケア」で事前に申請。宿泊・日帰りは生後 6 か月未満、訪問は 1 年未満）
+    eligibility:
+      age_months: { from: 0, to: 12 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 0
+      recommended_lead_days: 30
+    prep_days: null
+    cost:
+      amount: "宿泊型 1 泊 7,500 円、日帰り型 1 日 2,500 円、訪問型 1 回 2,500 円（市民税非課税世帯・生活保護世帯はそれぞれ 2,500 円・1,000 円・1,000 円）"
+      subsidy: "宿泊型と日帰り型を合わせて 7 日以内（1 泊 2 日は 2 日と数える）、訪問型のみは 6 回以内が助成の上限。市の承認前に利用した分は助成なし（全額自己負担）"
+    contacts:
+      - ward: null
+        name: "札幌市子ども未来局子育て支援部子育て支援課 母子保健係 011-211-2785"
+        url: https://kosodate.city.sapporo.jp/mokuteki/kenko/shussan/1002.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/kenko/shussan/1002.html
+    checked_on: 2026-11-04
+    evidence: "表「利用できる方」の値は「生後６か月未満」「生後１年未満」。「※赤ちゃんかお母さんのどちらかが札幌市民ではない場合、利用対象外です。」「※お母さんに心身の不調や疾患がある等、医療的介入が必要な場合は利用対象外です。」"
+    notes: "ページの表が崩れて取得され、どの型が 6 か月未満でどの型が 1 年未満かをテキストで確定できなかった。利用時間の並び（宿泊 11 時〜翌 15 時、日帰り 11 時〜15 時、訪問 9〜17 時の間の 2 時間）から、宿泊型・日帰り型が生後 6 か月未満、訪問型が生後 1 年未満と読める（要確認）。令和 8 年 3 月から予約サービスでの申込に変わり、「あずかるこちゃん産後ケア」は令和 8 年 4 月 1 日に「テオテ産後ケア」へ改称。アカウントを作り妊娠・出産の情報を入力して市にオンライン申請、承認はメールで届き審査に数日かかる。申請は妊娠 28 週から可能（出生後も可）。予約は利用希望日の 30 日前から（施設により異なる）、一度に 2 回分まで、妊娠中の予約は不可。recommended_lead_days 30 は予約開始日に合わせた目安。施設一覧は令和 7 年度版が掲載。ページ更新日 2026-04-01"
+
+  - id: sapporo-procedures-gomibukuro-nyuyoji
+    municipality: 札幌市
+    domain: procedures
+    name: 乳幼児のいる世帯への指定ごみ袋の交付（2 歳になるまでの分。出生届のあと引換券が自動で郵送される）
+    eligibility:
+      age_months: { from: 0, to: 24 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: birth_offset
+      start_days: 30
+      deadline_days: null
+    prep_days: null
+    cost:
+      amount: "無料（10 リットル用または 20 リットル用の指定ごみ袋のいずれか一方）"
+      subsidy: "枚数は届出時点の月齢で決まる。0 か月以上 3 か月未満: 10L 用 200 枚または 20L 用 100 枚、3〜6 か月未満: 180 枚または 90 枚、6〜9 か月未満: 160 枚または 80 枚、9 か月〜1 歳未満: 140 枚または 70 枚、1 歳 0〜3 か月未満: 100 枚または 50 枚、1 歳 3〜6 か月未満: 80 枚または 40 枚、1 歳 6〜9 か月未満: 60 枚または 30 枚、1 歳 9 か月〜2 歳未満: 40 枚または 20 枚"
+    contacts:
+      - ward: null
+        name: "札幌市環境局環境事業部循環型社会推進課 011-211-2912"
+        url: https://www.city.sapporo.jp/seiso/yuryoka/gemmen.html
+    source_url: https://www.city.sapporo.jp/seiso/yuryoka/gemmen.html
+    checked_on: 2026-11-04
+    evidence: "「お子様が2歳になるまでの分として、10リットル用指定ごみ袋または20リットル用指定ごみ袋のうち、ご希望するいずれか一方を交付いたします。」「住民登録以外の手続きは必要ありません。」"
+    notes: "申請は不要。引換券は「出生届・転入届を提出していただいた月の翌月～翌々月中旬までに」交付枚数と交付場所を記載して自動で郵送され、「指定の交付場所（引換券にお近くの郵便局をご案内しております）で、指定ごみ袋とお引き換えください。」。乳幼児が 2 人以上いれば子ごとに引換券。start_days 30 は引換券が届き始める翌月の目安。引換券の有効期限はページに記載なし（要確認）。子育てサイトの Q&A https://kosodate.city.sapporo.jp/q_a/seido/4075.html （更新 2017-04-12）にも同じ内容（そちらは「翌々月上旬」）。ページ更新日 2026-09-30"
