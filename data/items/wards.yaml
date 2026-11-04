@@ -1,0 +1,313 @@
+# 候補。人が確かめる前のもの。確認日 2026-11-04
+#
+# 札幌市 10 区の子育て関係の窓口。アプリは「住んでいる区」に合わせてリンクと電話を出す。
+# role の意味:
+#   birth_registration      出生届（区役所 戸籍住民課）
+#   child_allowance_medical 児童手当と子ども医療費助成（区役所 保健福祉課 福祉助成係。全区で同じ係が両方を扱う）
+#   nursery_application     認可保育所等の申込（保健センター 健康・子ども課 子ども家庭福祉（担当）係）
+#   health_center           保健センター（乳幼児の相談など）
+# 電話は公式ページに書いてある直通番号。代表番号しか載っていないところは代表番号を書き notes に記した。
+#
+# 全区共通で使った市のページ（区ごとの数値の裏取り）:
+#   https://www.city.sapporo.jp/org/address/ku.html                              区役所電話番号一覧（住所・代表電話）
+#   https://www.city.sapporo.jp/hoken-iryo/iryojosei/nyuyoji.html                 子ども医療費助成（各区 福祉助成係の直通）
+#   https://www.city.sapporo.jp/hoken-iryo/iryojosei/toiawasesaki.html            医療費助成の問い合わせ先（各区 福祉助成係）
+#   https://www.city.sapporo.jp/index/josei/index.html                            助成・手当（担当窓口＝区役所保健福祉課福祉助成係）
+#   https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html             児童手当（各区 福祉助成係の直通）
+#   https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/1382.html      各区の健康・子ども課子ども家庭福祉（担当）係
+#   https://kosodate.city.sapporo.jp/mokuteki/manabu/shussan/595.html            各区保健センター（所在地・電話）
+wards:
+  - name: 中央区
+    offices:
+      - role: birth_registration
+        name: "中央区役所 戸籍住民課 戸籍係"
+        url: https://www.city.sapporo.jp/chuo/oriori/oriori_2.html
+        phone: "011-205-3232"
+        address: "札幌市中央区南3条西11丁目 中央区複合庁舎3階22番窓口"
+      - role: child_allowance_medical
+        name: "中央区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/chuo/oriori/oriori_2.html
+        phone: "011-205-3302"
+        address: null
+      - role: nursery_application
+        name: "中央保健センター 健康・子ども課 子ども家庭福祉係"
+        url: https://www.city.sapporo.jp/chuo/oriori/oriori_2.html
+        phone: "011-205-3354"
+        address: "札幌市中央区南3条西11丁目 中央区複合庁舎4階43番窓口"
+      - role: health_center
+        name: "中央保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/chuo/annai/ku.html
+        phone: "011-231-2400"
+        address: "札幌市中央区南3条西11丁目 中央区複合庁舎4階"
+    source_urls:
+      - https://www.city.sapporo.jp/chuo/
+      - https://www.city.sapporo.jp/chuo/oriori/oriori_2.html
+      - https://www.city.sapporo.jp/chuo/annai/ku.html
+      - https://www.city.sapporo.jp/chuo/annai/denwabangousoshiki.html
+    checked_on: 2026-11-04
+    notes: "区役所と保健センターは同じ複合庁舎（2025-02-25 に南3条西11丁目へ移転）。保健センターの電話は複合庁舎ページに載る代表番号（中央区役所・中央保健センター共通）。乳幼児健診などを扱う地域保健一・二係の直通は 011-205-3352（電話番号簿）。"
+
+  - name: 北区
+    offices:
+      - role: birth_registration
+        name: "北区役所 戸籍住民課 戸籍係"
+        url: https://www.city.sapporo.jp/kitaku/shisetsu/kita-tel.html
+        phone: "011-757-2415"
+        address: "札幌市北区北24条西6丁目1-1"
+      - role: child_allowance_medical
+        name: "北区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/kitaku/shisetsu/kita-tel.html
+        phone: "011-757-2462"
+        address: null
+      - role: nursery_application
+        name: "北保健センター 健康・子ども課 子ども家庭福祉係"
+        url: https://www.city.sapporo.jp/kitaku/shisetsu/hoken.html
+        phone: "011-757-2563"
+        address: "札幌市北区北25条西6丁目1-1"
+      - role: health_center
+        name: "北保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/kitaku/shisetsu/hoken.html
+        phone: "011-757-1181"
+        address: "札幌市北区北25条西6丁目1-1"
+    source_urls:
+      - https://www.city.sapporo.jp/kitaku/shisetsu/kita-tel.html
+      - https://www.city.sapporo.jp/kitaku/shisetsu/hoken.html
+    checked_on: 2026-11-04
+    notes: "保健センターは区役所と別の建物（北25条西6丁目）。保健センターの電話は地域保健一・二係（乳幼児健診）の番号で、子育てサイトの保健センター一覧も同じ番号。"
+
+  - name: 東区
+    offices:
+      - role: birth_registration
+        name: "東区役所 戸籍住民課 戸籍係"
+        url: https://www.city.sapporo.jp/higashi/toiawase/koseki.html
+        phone: "011-741-2439"
+        address: "札幌市東区北11条東7丁目1-1 区役所1階1番窓口"
+      - role: child_allowance_medical
+        name: "東区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/higashi/annai/g_sosikibetsudennwabanngou.html
+        phone: "011-741-2461"
+        address: null
+      - role: nursery_application
+        name: "東保健センター 健康・子ども課 子ども家庭福祉係"
+        url: https://www.city.sapporo.jp/higashi/annai/hoken.html
+        phone: "011-711-3214"
+        address: "札幌市東区北10条東7丁目1-20 東保健センター2階"
+      - role: health_center
+        name: "東保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/higashi/annai/hoken.html
+        phone: "011-711-3211"
+        address: "札幌市東区北10条東7丁目1-20"
+    source_urls:
+      - https://www.city.sapporo.jp/higashi/toiawase/koseki.html
+      - https://www.city.sapporo.jp/higashi/annai/g_sosikibetsudennwabanngou.html
+      - https://www.city.sapporo.jp/higashi/annai/hoken.html
+    checked_on: 2026-11-04
+    notes: "保健センターは区役所と別の建物（北10条東7丁目）。児童手当・子ども医療費の区ページは電話番号簿（組織別）のみで、手続き案内のページは見つけていない。"
+
+  - name: 白石区
+    offices:
+      - role: birth_registration
+        name: "白石区役所 戸籍住民課 戸籍係"
+        url: https://www.city.sapporo.jp/shiroishi/shisetsu/kuyakusho/dialin.html
+        phone: "011-861-2425"
+        address: "札幌市白石区南郷通1丁目南8-1"
+      - role: child_allowance_medical
+        name: "白石区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/shiroishi/shisetsu/kuyakusho/dialin.html
+        phone: "011-861-2446"
+        address: null
+      - role: nursery_application
+        name: "白石保健センター 健康・子ども課 子ども家庭福祉係"
+        url: https://www.city.sapporo.jp/shiroishi/shisetsu/kuyakusho/dialin.html
+        phone: "011-861-0336"
+        address: "札幌市白石区南郷通1丁目南8-1 白石区複合庁舎4階"
+      - role: health_center
+        name: "白石保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/shiroishi/life/health/health/infant/index.html
+        phone: "011-862-1881"
+        address: "札幌市白石区南郷通1丁目南8-1"
+    source_urls:
+      - https://www.city.sapporo.jp/shiroishi/shisetsu/kuyakusho/dialin.html
+      - https://www.city.sapporo.jp/shiroishi/life/health/health/infant/index.html
+      - https://www.city.sapporo.jp/shisetsuannai/024.html
+    checked_on: 2026-11-04
+    notes: "区役所と保健センターは同じ複合庁舎。「白石区複合庁舎4階」は子育てサイトの子ども家庭福祉係一覧による。区のページは問い合わせ先を「健康・子ども課」と書いており、「白石保健センター」の名称は市の施設案内（/shisetsuannai/024.html）で確認。"
+
+  - name: 厚別区
+    offices:
+      - role: birth_registration
+        name: "厚別区役所 戸籍住民課 戸籍係"
+        url: https://www.city.sapporo.jp/atsubetsu/tetsuzuki/kurashi06.html
+        phone: "011-895-2449"
+        address: "札幌市厚別区厚別中央1条5丁目3-2 区役所1階1番窓口"
+      - role: child_allowance_medical
+        name: "厚別区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/atsubetsu/tetsuzuki/kurashi06.html
+        phone: "011-895-2474"
+        address: null
+      - role: nursery_application
+        name: "厚別保健センター 健康・子ども課 子ども家庭福祉係"
+        url: https://www.city.sapporo.jp/atsubetsu/tetsuzuki/kurashi06.html
+        phone: "011-895-2499"
+        address: "札幌市厚別区厚別中央1条5丁目3-2 区役所3階33番窓口"
+      - role: health_center
+        name: "厚別保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/atsubetsu/hokenfukushi/kenko/kenko.html
+        phone: "011-895-1881"
+        address: "札幌市厚別区厚別中央1条5丁目3-2 区役所3階"
+    source_urls:
+      - https://www.city.sapporo.jp/atsubetsu/tetsuzuki/kurashi06.html
+      - https://www.city.sapporo.jp/atsubetsu/shisetsu/kuyakusho01.html
+      - https://www.city.sapporo.jp/atsubetsu/hokenfukushi/kenko/kenko.html
+    checked_on: 2026-11-04
+    notes: "保健センターは区役所3階。係名は「子どもが生まれたとき」ページでは子ども家庭福祉係、区役所ページでは子ども家庭福祉担当と表記が揺れている。"
+
+  - name: 豊平区
+    offices:
+      - role: birth_registration
+        name: "豊平区役所 戸籍住民課 戸籍係"
+        url: https://www.city.sapporo.jp/toyohira/ward_office/05phone.html
+        phone: "011-822-2436"
+        address: "札幌市豊平区平岸6条10丁目1-1"
+      - role: child_allowance_medical
+        name: "豊平区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/toyohira/ward_office/05phone.html
+        phone: "011-822-2453"
+        address: null
+      - role: nursery_application
+        name: "豊平保健センター 健康・子ども課 子ども家庭福祉係"
+        url: https://www.city.sapporo.jp/toyohira/ward_office/05phone.html
+        phone: "011-822-2473"
+        address: "札幌市豊平区平岸6条10丁目1-1（区役所内）"
+      - role: health_center
+        name: "豊平保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/toyohira/health_center/index.html
+        phone: "011-822-2400"
+        address: "札幌市豊平区平岸6条10丁目1-1"
+    source_urls:
+      - https://www.city.sapporo.jp/toyohira/ward_office/05phone.html
+      - https://www.city.sapporo.jp/toyohira/health_center/index.html
+    checked_on: 2026-11-04
+    notes: "保健センターは区役所内。保健センターページに載る電話は区役所代表のみ。乳幼児健診などを扱う地域保健係の直通は 011-822-2472（担当課・直通電話番号ページ）。"
+
+  - name: 清田区
+    offices:
+      - role: birth_registration
+        name: "清田区役所 戸籍住民課 戸籍係"
+        url: https://www.city.sapporo.jp/kiyota/facilities/ward-office/telephonenumber_gyohmu.html
+        phone: "011-889-2027"
+        address: "札幌市清田区平岡1条1丁目2-1"
+      - role: child_allowance_medical
+        name: "清田区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/kiyota/facilities/ward-office/telephonenumber_gyohmu.html
+        phone: "011-889-2037"
+        address: null
+      - role: nursery_application
+        name: "清田保健センター 健康・子ども課 子ども家庭福祉担当"
+        url: https://www.city.sapporo.jp/kiyota/facilities/ward-office/telephonenumber_gyohmu.html
+        phone: "011-889-2051"
+        address: "札幌市清田区平岡1条1丁目2-1 清田区総合庁舎2階13番窓口"
+      - role: health_center
+        name: "清田保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/shisetsuannai/027.html
+        phone: "011-889-2400"
+        address: "札幌市清田区平岡1条1丁目2-1 清田区総合庁舎2階"
+    source_urls:
+      - https://www.city.sapporo.jp/kiyota/facilities/ward-office/telephonenumber_gyohmu.html
+      - https://www.city.sapporo.jp/kiyota/kenko-kodomo/guide.html
+      - https://www.city.sapporo.jp/kiyota/kenko-kodomo/index.html
+      - https://www.city.sapporo.jp/shisetsuannai/027.html
+    checked_on: 2026-11-04
+    notes: "係名は「子ども家庭福祉担当」（係ではない）。区のページには「清田保健センター」の名称が無く、保健センターの URL は市の施設案内（電話は代表番号）。区の窓口案内は /kiyota/kenko-kodomo/guide.html（2階、代表番号のみ）。乳幼児健診などを扱う地域保健係の直通は 011-889-2049。"
+
+  - name: 南区
+    offices:
+      - role: birth_registration
+        name: "南区役所 戸籍住民課 戸籍係"
+        url: https://www.city.sapporo.jp/minami/annai/denwa.html
+        phone: "011-582-4724"
+        address: "札幌市南区真駒内幸町2丁目2-1"
+      - role: child_allowance_medical
+        name: "南区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/minami/fukushi/kodomo.html
+        phone: "011-582-4741"
+        address: null
+      - role: nursery_application
+        name: "南保健センター 健康・子ども課 子ども家庭福祉担当係"
+        url: https://www.city.sapporo.jp/minami/kosodate/index.html
+        phone: "011-522-5780"
+        address: "札幌市南区真駒内幸町1丁目3-2 南保健センター3階"
+      - role: health_center
+        name: "南保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/minami/shisetsu/index.html
+        phone: "011-581-5211"
+        address: "札幌市南区真駒内幸町1丁目3-2"
+    source_urls:
+      - https://www.city.sapporo.jp/minami/annai/denwa.html
+      - https://www.city.sapporo.jp/minami/fukushi/kodomo.html
+      - https://www.city.sapporo.jp/minami/kosodate/index.html
+      - https://www.city.sapporo.jp/minami/shisetsu/index.html
+    checked_on: 2026-11-04
+    notes: "保健センターは区役所と別の建物（真駒内幸町1丁目）。係名は「子ども家庭福祉担当係」。区の直通電話番号一覧には健康・子ども課の代表（011-581-5211）しか無く、保育所申込の番号は子育てページの記載を採用。児童手当の窓口は区役所2階保健福祉課3番窓口。"
+
+  - name: 西区
+    offices:
+      - role: birth_registration
+        name: "西区役所 戸籍住民課（戸籍の届出 1階2番窓口）"
+        url: https://www.city.sapporo.jp/nishi/tetuzuki/kodomo.html
+        phone: "011-641-6928"
+        address: "札幌市西区琴似2条7丁目1-1"
+      - role: child_allowance_medical
+        name: "西区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/nishi/annai/hoken_fukushi.html
+        phone: "011-641-6943"
+        address: null
+      - role: nursery_application
+        name: "西保健センター 健康・子ども課 子ども家庭福祉係"
+        url: https://www.city.sapporo.jp/nishi/annai/hoken_chiiki.html
+        phone: "011-621-4242"
+        address: "札幌市西区琴似2条7丁目1-20 西保健センター3階4番窓口"
+      - role: health_center
+        name: "西保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/nishi/shisetsu/hoken.html
+        phone: "011-621-4241"
+        address: "札幌市西区琴似2条7丁目1-20"
+    source_urls:
+      - https://www.city.sapporo.jp/nishi/tetuzuki/kodomo.html
+      - https://www.city.sapporo.jp/nishi/annai/shimin_koseki.html
+      - https://www.city.sapporo.jp/nishi/shisetsu/nkuya_kai.html
+      - https://www.city.sapporo.jp/nishi/annai/hoken_fukushi.html
+      - https://www.city.sapporo.jp/nishi/annai/hoken_chiiki.html
+      - https://www.city.sapporo.jp/nishi/shisetsu/hoken.html
+    checked_on: 2026-11-04
+    notes: "保健センターは区役所と別の建物（琴似2条7丁目1-20）。区役所各課・係の電話番号一覧（/nishi/annai/dialin.html）は 404。戸籍住民課のページは係名を書いておらず、出生届は「1階2番 戸籍の届出」窓口。電話はページ上は市外局番なしの表記。"
+
+  - name: 手稲区
+    offices:
+      - role: birth_registration
+        name: "手稲区役所 戸籍住民課 戸籍係"
+        url: https://www.city.sapporo.jp/teine/todokede/syusshoutodoke.html
+        phone: "011-681-2448"
+        address: "札幌市手稲区前田1条11丁目1-10 1階9番窓口"
+      - role: child_allowance_medical
+        name: "手稲区役所 保健福祉課 福祉助成係"
+        url: https://www.city.sapporo.jp/teine/annai/dennwa.html
+        phone: "011-681-2487"
+        address: null
+      - role: nursery_application
+        name: "手稲保健センター 健康・子ども課 子ども家庭福祉担当"
+        url: https://www.city.sapporo.jp/teine/annai/dennwa.html
+        phone: "011-688-8597"
+        address: "札幌市手稲区前田1条11丁目1-10（区役所内）"
+      - role: health_center
+        name: "手稲保健センター（健康・子ども課）"
+        url: https://www.city.sapporo.jp/teine/hoken/hokencenter/index.html
+        phone: "011-681-1211"
+        address: "札幌市手稲区前田1条11丁目1-10"
+    source_urls:
+      - https://www.city.sapporo.jp/teine/todokede/syusshoutodoke.html
+      - https://www.city.sapporo.jp/teine/annai/dennwa.html
+      - https://www.city.sapporo.jp/teine/hoken/hokenfukushi/hokenfukushi.html
+      - https://www.city.sapporo.jp/teine/hoken/hokencenter/index.html
+    checked_on: 2026-11-04
+    notes: "保健センターは区役所内。係名は「子ども家庭福祉担当」。保健福祉課業務案内（1階3番窓口）には福祉助成係の直通が無く代表番号のみなので、直通電話番号一覧の番号を採用。"

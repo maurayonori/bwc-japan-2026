@@ -22,3 +22,5 @@
 | [0001](0001-records-layout.md)                   | 記録の置き場所を Issues・ADR・ワークログに分ける                       | 採用 | 2026-11-02 |
 | [0002](0002-topic-gaps-left-by-existing-apps.md) | 題材：既存の子育てアプリがカバーしていない「この時期にやること」を作る | 採用 | 2026-11-02 |
 | [0003](0003-first-version-scope-cuts.md)         | 初版から「項目への質問」と「発達の目安」を外す                         | 採用 | 2026-11-04 |
+| [0004](0004-evidence-from-public-surveys-and-registration-first.md) | 聞き取りを公的調査に置き換え、「困った日には間に合わない登録」を第一声にする | 採用 | 2026-11-04 |
+| [0005](0005-twelve-month-outlook-as-main-screen.md) | 主画面を TODO の一覧ではなく「これからの 12 か月の見通し」にする | 採用 | 2026-11-04 |

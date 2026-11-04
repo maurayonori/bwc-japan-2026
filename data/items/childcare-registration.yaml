@@ -1,0 +1,397 @@
+# 初版の制度データ。候補（candidates/childcare-registration.yaml）から作者が 2026-11-04 に選んだもの。
+# 直し: 国の制度の id を national- に揃えた。出生届の deadline_days は初日起算なので 13。子サポの顔合わせは before_milestone。
+items:
+  - id: sapporo-childcare-byouji-teote-account
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "病児・病後児保育（こどもデイサービス）の予約システム「テオテ」のアカウント作成"
+    eligibility:
+      age_months: { from: 5, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 5
+      recommended_lead_days: 30
+    prep_days: null
+    cost:
+      amount: "アカウント作成・登録の費用はページに記載が無い。利用時は 1 日あたり利用料 3,000 円＋給食費など 300 円"
+      subsidy: "生活保護受給世帯・市町村民税非課税世帯は利用料 0 円（給食費 300 円はかかる）。札幌市民は利用前にテオテから減免申請する（年 1 回）。非課税の判定は 4〜8 月利用は前年度、9〜3 月利用は当年度の市町村民税"
+    contacts:
+      - ward: null
+        name: "予約システム「テオテ」のアカウント作成ページ（運営: Goodbaton Inc.。2026 年 4 月に「あずかるこちゃん」から名称変更）"
+        url: https://sickkids-care.teote.jp/users/sign_in
+      - ward: null
+        name: "札幌市子ども未来局子育て支援部施設運営課運営調整担当係（電話 011-211-2986、FAX 011-231-6221）"
+        url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html
+    source_url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html
+    checked_on: 2026-11-04
+    evidence: "「事前に予約システム「テオテ」でアカウントを作成し、施設への登録をお願いします」「初回の予約時にアカウント作成してもご利用いただけますが、事前に作成いただくと初回もスムーズにご利用いただけます。」"
+    notes: "対象は「生後５か月から小学校６年生まで」（to は README に従い 72）。利用時の条件は、病気で保育園や幼稚園等を利用できない／保護者が仕事などの理由で家庭での保育ができない／かかりつけ医が利用を差し支えないと認めている、の 3 つ。登録そのものに働き方の条件は無いので needs_check は false にした（利用時の条件は説明文に出すか作者に確認）。「以前に紙でこどもデイサービスの利用登録をした方も、改めて「テオテ」での登録が必要です。」アカウント情報・URL は名称変更前から変わっていない。利用時間は月〜土（祝日、12/29〜1/3 を除く）8:00〜18:00、延長なし。予約は「前日の昼12時から予約受付を開始します。」で、かかりつけ医が記入した利用連絡書（発行から 7 日以内のものが有効。発行に費用がかかる場合あり）のデータをアップロードする。先着順ではなく、病気の種類や年齢等で決まる。複数施設への予約は不可。可否は前日夕方または当日 8:30 ごろまでにメールか LINE。キャンセル・変更は当日朝 7 時までにテオテで。令和 8 年 5 月から小樽市・江別市・恵庭市・石狩市・当別町・新篠津村・南幌町・長沼町の住民も利用可（令和 8 年度は試行）。recommended_lead_days 30 はこの候補で置いた目安。ページ下部の更新日は 2022-03-15 だが本文に「令和８年４月28日 更新」とある。関連: sapporo-childcare-byouji-teote-facility、sapporo-childcare-kosodate-info-setsumeikai"
+
+  - id: sapporo-childcare-byouji-teote-facility
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "病児・病後児保育の施設への子どもの登録（テオテ。子どもごと・複数施設に登録できる）"
+    eligibility:
+      age_months: { from: 5, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 5
+      recommended_lead_days: 30
+    prep_days: null
+    cost:
+      amount: "施設登録の費用はページに記載が無い。利用時は 1 日あたり利用料 3,000 円＋給食費など 300 円"
+      subsidy: "生活保護受給世帯・市町村民税非課税世帯は利用料 0 円（給食費 300 円はかかる）。札幌市民は利用前にテオテから減免申請（年 1 回）"
+    contacts:
+      - ward: null
+        name: "テオテ「施設を探す」（マップから施設を選び「施設への登録」をタップ）"
+        url: https://sickkids-care.teote.jp/map_facilities
+      - ward: null
+        name: "札幌市子ども未来局子育て支援部施設運営課運営調整担当係（電話 011-211-2986）。実施施設一覧と「受入のめやす」PDF はこのページ"
+        url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html
+      - ward: 東区
+        name: "天使こどもデイサービスセンター（病児対応型・定員 6・東区北 12 条東 3 丁目・天使病院に付設）／東雁来すこやかこどもデイサービスセンター（病児対応型・定員 6・東区東雁来 10 条 1 丁目）"
+        url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html
+      - ward: 厚別区
+        name: "楡の会こどもデイサービスセンター（病児対応型・定員 4・厚別区厚別町下野幌 49 番地・楡の会こどもクリニックに付設）"
+        url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html
+      - ward: 豊平区
+        name: "北海道こどもデイサービスセンター（病児対応型・定員 4・豊平区中の島 1 条 8 丁目・JCHO 北海道病院に付設）"
+        url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html
+      - ward: 手稲区
+        name: "手稲渓仁会こどもデイサービスセンター（病児対応型・定員 6・手稲区前田 1 条 12 丁目・手稲渓仁会病院に隣接）"
+        url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html
+      - ward: 南区
+        name: "真駒内駐屯地こどもデイサービスセンター（病後児対応型・定員 6・南区真駒内 17 番地・真駒内駐屯地託児所と同一建物）"
+        url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html
+    source_url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html
+    checked_on: 2026-11-04
+    evidence: "「※施設への登録はお子さんごとに必要です。」「※複数施設への登録が可能です。自宅周辺だけでなく、勤務先や祖父母宅の近く、通勤経路上の施設にも登録しておくと安心です。」"
+    notes: "前提: sapporo-childcare-byouji-teote-account（アカウント作成）。市内の実施施設は病児対応型 5（東区 2・厚別区・豊平区・手稲区）と病後児対応型 1（南区）の計 6 で、どの区の家庭がどの施設に登録できるかの制限は書かれていない（contacts の区は施設の所在区）。症状・疾病によって使える施設が異なる（「受入のめやす」PDF）。市外住民の施設登録が「承認不可」となった例の記載があり、施設登録に施設側の承認の段階があると読めるが、承認までの日数は書かれていない（prep_days は null）。新型コロナ陽性の子の受け入れは天使・北海道の 2 施設のみ（令和 8 年 4 月 1 日から）。recommended_lead_days 30 はこの候補で置いた目安。関連: sapporo-childcare-kosodate-info-setsumeikai（この説明会で病児保育の登録も扱うとされるが、テオテ移行後の運用は要確認）"
+
+  # ---------------------------------------------------------------------------
+  # こそだてインフォメーションの一括登録説明会（子サポ・緊サポ・病児保育の 3 事業）
+  # ---------------------------------------------------------------------------
+  - id: sapporo-childcare-kosodate-info-setsumeikai
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "こそだてインフォメーションの事前利用登録説明会（子サポ・緊サポ・病児保育の 3 事業を一度に会員登録。各区で平日毎日・予約不要）"
+    eligibility:
+      age_months: { from: 0, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 0
+      recommended_lead_days: 0
+    prep_days: null
+    cost:
+      amount: "参加費の記載は無い。子サポ・緊サポの会員登録は無料（出典 1138「どちらも会員登録は無料です。」）"
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "札幌市子ども未来局子育て支援推進担当課（説明会の案内ページ）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/7325.html
+      - ward: 中央区
+        name: "こそだてインフォメーション（中央区南 3 条西 11 丁目・中央区複合庁舎 4 階）"
+        url: https://kosodate.city.sapporo.jp/chuou/facility/267.html
+      - ward: 北区
+        name: "こそだてインフォメーション「ぽっぴぃ★らんど」（北区北 25 条西 6 丁目・北保健センター 1 階）"
+        url: https://kosodate.city.sapporo.jp/kita/facility/311.html
+      - ward: 東区
+        name: "こそだてインフォメーション「タッピールーム」（東区北 11 条東 7 丁目・東保健センター 1 階）"
+        url: https://kosodate.city.sapporo.jp/higashi/facility/6350.html
+      - ward: 白石区
+        name: "こそだてインフォメーション（白石区南郷通 1 丁目南・白石区複合庁舎 3 階）"
+        url: https://kosodate.city.sapporo.jp/shiroishi/facility/294.html
+      - ward: 厚別区
+        name: "こそだてインフォメーション（厚別区厚別中央 1 条 5 丁目・厚別保健センター 3 階）"
+        url: https://kosodate.city.sapporo.jp/atsubetsu/facility/319.html
+      - ward: 豊平区
+        name: "こそだてインフォメーション「りんごの森」（豊平区平岸 6 条 10 丁目・豊平区役所 3 階）"
+        url: https://kosodate.city.sapporo.jp/toyohira/facility/10582.html
+      - ward: 清田区
+        name: "こそだてインフォメーション「きよっちるーむ」（清田区平岡 1 条 1 丁目・清田区役所 2 階）"
+        url: https://kosodate.city.sapporo.jp/kiyota/facility/6348.html
+      - ward: 南区
+        name: "こそだてインフォメーション（南区真駒内幸町 1 丁目・南保健センター 1 階）"
+        url: https://kosodate.city.sapporo.jp/minami/facility/522.html
+      - ward: 西区
+        name: "こそだてインフォメーション「さんかくやまべェのへや」（西区琴似 2 条 7 丁目・西保健センター 1 階）"
+        url: https://kosodate.city.sapporo.jp/nishi/facility/6356.html
+      - ward: 手稲区
+        name: "こそだてインフォメーション「きてみてルーム」（手稲区前田 1 条 11 丁目・手稲区民センター 1 階）"
+        url: https://kosodate.city.sapporo.jp/teine/facility/513.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/7325.html
+    checked_on: 2026-11-04
+    evidence: "「それぞれの説明会に参加しなければならなかったものが、一度の説明会に参加するだけで３つのサービスの会員登録をすることができます。」「0歳から小学校6年生までのお子様がいる、すべての区のご家庭が対象です。」"
+    notes: "開催は平日 11 時〜と 14 時〜（「平日毎日開催」、説明は 50〜60 分程度）。予約不要で、開始時間までに直接行く。定員の制限なし。子どもと一緒に参加できる。持ち物は必須ではないが、緊急連絡先・かかりつけ医・保育所などを記入するため連絡先が分かるものや母子健康手帳があると書きやすいとある。居住区を問わずどの区のこそだてインフォメーションでもよい。「上記事業を実施する各事業所で行う事前登録手続きは、今後も継続して実施します。（ただし、各事業所では当該事業の申し込みのみとなります。）」。要確認: このページの更新日は 2025-02-25 で、病児保育の登録がテオテ（旧あずかるこちゃん）に一本化され「以前に紙で利用登録した方も改めてテオテでの登録が必要」とされた後の運用が書かれていない。説明会で病児保育の登録が完了するのか、テオテで別途登録が要るのかは市に確認が要る。各区のこそだてインフォメーションの電話番号はこのページと 6313.html に無く、区のページで確認が要る。妊娠中の参加可否の記載なし。月齢 0 から対象なので recommended_lead_days は 0。関連: sapporo-childcare-kosapo-register、sapporo-childcare-kinsapo-register、sapporo-childcare-byouji-teote-account"
+
+  # ---------------------------------------------------------------------------
+  # さっぽろ子育てサポートセンター（子サポ）。登録（説明会）と、利用前の顔合わせの 2 段階
+  # ---------------------------------------------------------------------------
+  - id: sapporo-childcare-kosapo-register
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "さっぽろ子育てサポートセンター（子サポ）の依頼会員の登録（登録説明会に参加して会員登録）"
+    eligibility:
+      age_months: { from: 0, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 0
+      recommended_lead_days: 0
+    prep_days: null
+    cost:
+      amount: "会員登録は無料。利用料は 30 分あたり、一人目 350 円（月〜金 7 時〜19 時）／400 円（土日祝・年末年始とそれ以外の時間帯）、二人目以降は一人につき 150 円／200 円。提供会員が用意した食事は 1 食 200 円。送迎の交通費、ミルク・おやつ・おむつ等の実費、キャンセル料は別"
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "さっぽろ子育てサポートセンター（札幌市社会福祉総合センター内・中央区大通西 19 丁目。電話 011-623-2415、FAX 011-623-4011。受付は月〜金と第 2・第 4 土曜の 8:45〜17:15）"
+        url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1138.html
+    source_url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1138.html
+    checked_on: 2026-11-04
+    evidence: "「依頼会員になるには、原則、事前登録説明会に参加をしていただく必要があります。」「札幌市内に在住または勤務先のある0歳から小学校6年生の子どもを育てている家庭の方で、就労家庭、自営業家庭、専業主婦家庭などすべての子育て家庭が対象です。」"
+    notes: "対象は 0 歳〜小学 6 年生（to は README に従い 72）。説明会は 2 通り。(1) センターが実施する説明会: 第 2・4 土曜日 9:30〜10:30、前日 16 時までに申込が要る（令和 8 年度の日程表 PDF: https://kosodate.city.sapporo.jp/material/files/group/16/R8_kosapo3.pdf ）。(2) 各区こそだてインフォメーションの説明会: 平日毎日・予約不要・子サポ／緊サポ／病児保育の 3 事業を一括登録（sapporo-childcare-kosodate-info-setsumeikai）。登録の流れは「Step.1 会員登録: 登録説明会に参加のうえ、会員登録の申し込みを行います。」→ Step.2 利用申し込みと事前打ち合わせ（sapporo-childcare-kosapo-kaoawase）。利用時間は 6:00〜22:00。「必ずしも自分の希望する援助を利用・提供できない場合もあります」。送迎は徒歩または公共交通機関。月齢 0 から対象なので recommended_lead_days は 0。登録に要する日数の記載なし。1138 はスマートフォン版で、PC 版は https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/837.html （同内容、更新日 2026-03-31）"
+
+  - id: sapporo-childcare-kosapo-kaoawase
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "子サポの利用申込と提供会員との事前打ち合わせ（顔合わせ。利用日の 1 か月前から依頼できる）"
+    eligibility:
+      age_months: { from: 0, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: before_milestone
+      milestone: nursery_start   # 入園予定月の初日。復職予定日が先ならそちら
+      days_before: 30
+    prep_days: null
+    cost:
+      amount: "事前打ち合わせの費用の記載は無い。利用料は sapporo-childcare-kosapo-register のとおり（30 分 350 円〜）"
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "さっぽろ子育てサポートセンター（電話 011-623-2415。月〜金と第 2・第 4 土曜の 8:45〜17:15）"
+        url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1138.html
+    source_url: https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1138.html
+    checked_on: 2026-11-04
+    evidence: "「利用日より、1か月前からの依頼調整が可能です。」「依頼会員と提供会員が実際に会って、利用日までに事前打ち合わせを行います。」"
+    notes: "前提: sapporo-childcare-kosapo-register（会員登録済み）。流れ: 援助してほしい日時と内容が決まったらセンターに連絡 → センターが条件に合う提供会員を探して紹介（「出来る限り、要望に沿った提供会員をご紹介します」）→ 実際に会って事前打ち合わせ（様式 5 事前打ち合わせ票 PDF: https://kosodate.city.sapporo.jp/material/files/group/16/kosapo_youshiki5.pdf ）→ 「事前打ち合わせで双方が合意した場合、援助活動を行います。」「援助前に会員同士の顔合わせ（マッチング）を行い、原則顔合わせした会員による援助となります。」つまり顔合わせが済むまでは頼めない。期日の決まり方について作者に確認: この候補では登録と同じ age_start 0 にしたが、実際の期日は「使いたい日の 1 か月前から」なので、復職予定日などを起点にする形の方が合う可能性がある"
+
+  # ---------------------------------------------------------------------------
+  # 札幌市こども緊急サポートネットワーク（緊サポ）
+  # ---------------------------------------------------------------------------
+  - id: sapporo-childcare-kinsapo-register
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "札幌市こども緊急サポートネットワーク（緊サポ）の依頼会員の事前登録（事務局の電話面談、またはこそだてインフォメーションの説明会）"
+    eligibility:
+      age_months: { from: 0, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 0
+      recommended_lead_days: 0
+    prep_days: null
+    cost:
+      amount: "会員登録は無料。利用料は 30 分あたり、病気以外の預かり 500 円（月〜日 7:30〜18:00）／600 円（月〜日 18:00〜23:00）、病児・病後児の預かり 500 円（月〜土 7:30〜18:00）。宿泊（保育園・学童終了時から登園・登校まで）は 3 歳以上 10,000 円・3 歳未満 12,000 円で、病児の宿泊は無い。キャンセル料、送迎の交通費、ミルク・おやつ・おむつ等の実費は別"
+      subsidy: "病児・病後児預かり利用料補助制度: 1 日の利用のうち最初の 3 時間は通常料金、3 時間を超えた分は 30 分あたり 350 円を減免。かかりつけ医が作成した様式 2「診療情報提供書」を預かり開始時に提供会員へ提出し、受診日から 7 日以内（受診日を含む）の利用が対象。遡っての減免は不可（出典 https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/839.html 、更新日 2025-04-01）"
+    contacts:
+      - ward: null
+        name: "札幌市こども緊急サポートネットワーク事務局（運営: 特定非営利活動法人北海道子育て支援ワーカーズ。西区二十四軒 1 条 4 丁目 二十四軒ターミナルビル 2 階。電話 011-621-6626、FAX 011-632-5181）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/syogakumae/1131.html
+      - ward: null
+        name: "病児・病後児預かり利用料補助制度の問い合わせ: 札幌市子ども未来局子育て支援推進担当課子育て支援企画係（電話 011-211-2997）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/839.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/syogakumae/1131.html
+    checked_on: 2026-11-04
+    evidence: "「依頼会員になるには、札幌市こども緊急サポートネットワークが実施する事前登録面談またはこそだてインフォメーションで実施する事前登録説明会に参加いただく必要があります。」「そのため、必ずしも自分の希望する援助を利用・提供できない場合もありますが、本事業の趣旨を十分にご理解いただいたうえで、入会くださいますようお願いします。」"
+    notes: "対象は「札幌市内に在住または、勤務先のある0歳～小学校6年生の子どもを育てている家庭の方で、就労家庭、自営業家庭、専業主婦家庭などすべての子育て家庭」（to は README に従い 72）。登録方法は 2 通り。(1) 事前登録面談: 入会申込書（PDF: https://kosodate.city.sapporo.jp/material/files/group/16/kinnsaponyukai_.pdf ）を郵送または FAX で事務局に送る → 事務局から面談の案内 → 日時を調整して電話面談。(2) 各区こそだてインフォメーションの説明会で 3 事業を一括登録（sapporo-childcare-kosodate-info-setsumeikai）。使うとき: 「依頼の都度、札幌市こども緊急サポートネットワークが受付を行い、援助可能な提供会員を探します。宿泊を除き、前日または当日の受付です。」宿泊預かりは前日 12 時まで。病気の子の預かりは病院受診が前提で、状態によっては援助できない場合がある。8 時間以上の利用では途中で提供会員が交代。送迎は徒歩または公共交通機関。面談の日程調整が要るが日数の記載は無い（prep_days は null）。月齢 0 から対象なので recommended_lead_days は 0。PC 版は https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/850.html （同内容、更新日 2025-10-22）"
+
+  # ---------------------------------------------------------------------------
+  # 子どもショートステイ（事前登録の制度は無く、使うときに区へ申請。トワイライトステイは札幌市のサイトに無い）
+  # ---------------------------------------------------------------------------
+  - id: sapporo-childcare-shortstay
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "子どもショートステイ（保護者の病気・出産・出張などのとき、児童養護施設等で原則 7 日以内の預かり。申込は区の健康・子ども課）"
+    eligibility:
+      age_months: { from: 0, to: 72 }
+      work_status: null
+      nursery: null
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 0
+      recommended_lead_days: 0
+    prep_days: null
+    cost:
+      amount: "1 日あたり、その他の世帯は 2 歳未満 5,350 円・2 歳以上 2,750 円。市民税非課税世帯は 2 歳未満 1,100 円・2 歳以上 1,000 円。生活保護世帯は 0 円"
+      subsidy: "ひとり親家庭で市民税非課税の場合は生活保護世帯と同じ料金（0 円）。ひとり親家庭で市民税課税の場合は市民税非課税世帯と同じ料金（生活保護世帯を除く）"
+    contacts:
+      - ward: 中央区
+        name: "中央区健康・子ども課子ども家庭福祉係（電話 011-205-3354）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: 北区
+        name: "北区健康・子ども課子ども家庭福祉係（電話 011-757-2563）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: 東区
+        name: "東区健康・子ども課子ども家庭福祉係（電話 011-711-3214）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: 白石区
+        name: "白石区健康・子ども課子ども家庭福祉係（電話 011-861-0336）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: 厚別区
+        name: "厚別区健康・子ども課子ども家庭福祉係（電話 011-895-2499）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: 豊平区
+        name: "豊平区健康・子ども課子ども家庭福祉係（電話 011-822-2473）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: 清田区
+        name: "清田区健康・子ども課子ども家庭福祉係（電話 011-889-2051）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: 南区
+        name: "南区健康・子ども課子ども家庭福祉係（電話 011-522-5780）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: 西区
+        name: "西区健康・子ども課子ども家庭福祉係（電話 011-621-4242）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: 手稲区
+        name: "手稲区健康・子ども課子ども家庭福祉係（電話 011-681-1211。1382.html では 011-688-8597 とあり要確認）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+      - ward: null
+        name: "札幌市児童相談所（中央・北・東・南・西・手稲区。電話 011-622-8630）／札幌市東部児童相談所（白石・厚別・豊平・清田区。電話 011-863-6290）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html
+    checked_on: 2026-11-04
+    evidence: "「保護者が、病気・出産・看護・事故・出張・冠婚葬祭などで一時的に子どもを養育できない場合、児童養護施設等で短期間（原則7日以内）お預かりします。」「お申込みにあたり、ご希望の利用期間等をお知らせいただき、所定の申請書及び所得証明書など世帯の課税状況を証明するものをご提出ください。」"
+    notes: "対象は「札幌市内に居住する、18歳未満の子ども」（to は README に従い 72）。事前登録や事前面談の制度はページに無く、使うときに区の健康・子ども課子ども家庭福祉係または児童相談所へ申請書と世帯の課税状況を証明するもの（所得証明書など）を出す。当日に始めても書類の準備が要る点が「前もって知っておくこと」。実施施設: 札幌育児園（南区）、札幌南藻園（中央区）、柏葉荘（北区）、興正学園（北区）、羊ケ丘養護園（豊平区）、札幌乳児院（白石区）、里親（里親ショートステイの資料 PDF: https://kosodate.city.sapporo.jp/material/files/group/16/short_stay.pdf ）。トワイライトステイ（夜間・平日夕方の預かり）は、札幌市子育てサイトの「一時的な預かり」一覧と検索で該当の事業が見つからなかった。夜間の預かりは緊サポの 18:00〜23:00 と宿泊預かりが該当（sapporo-childcare-kinsapo-register）。更新日 2026-03-02"
+
+  # ---------------------------------------------------------------------------
+  # 保育所・認定こども園・幼稚園の一時預かり（非在園児向け。事前登録の要否は施設ごと）
+  # ---------------------------------------------------------------------------
+  - id: sapporo-childcare-ichiji-azukari
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "保育所・認定こども園・幼稚園の一時預かり（在籍していない就学前の子向け。事前登録の要否や対象年齢は施設ごと）"
+    eligibility:
+      age_months: { from: 0, to: 72 }
+      work_status: null
+      nursery: false
+      needs_check: true
+    schedule:
+      kind: age_start
+      start_months: 0
+      recommended_lead_days: 0
+    prep_days: null
+    cost:
+      amount: "市が示す上限額（1 日）: 就労・通院・冠婚葬祭など 3 歳未満 2,000 円・3 歳以上 1,200 円、リフレッシュ等 3 歳未満 2,700 円・3 歳以上 1,600 円。この上限の範囲で施設が料金を定める。給食を希望する場合は昼食代が別。別途実費徴収の場合あり"
+      subsidy: null
+    contacts:
+      - ward: null
+        name: "札幌市子ども未来局子育て支援部施設運営課運営一係（電話 011-211-2986、FAX 011-231-6221）。利用の申込は各施設へ直接"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/927.html
+      - ward: null
+        name: "一時預かり（非在園児向け）事業実施施設の一覧（PDF、2026-07-21 版）"
+        url: https://kosodate.city.sapporo.jp/material/files/group/1/ippann_20260721.pdf
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/927.html
+    checked_on: 2026-11-04
+    evidence: "「保育所、認定こども園、特定地域型保育事業及び幼稚園に在籍していない就学前児童（施設により対象年齢が異なります。）」「事前登録の必要性など利用にあたっての運用等の詳細は、施設によって異なりますので、各施設へ直接お問い合わせください。」"
+    notes: "needs_check の中身: 対象年齢（開始月齢）、事前登録や面談の有無、受け入れ人数が施設ごとに異なり、市のページからは決められない。start_months 0 は仮置き。利用できる理由: 保護者の就労・就学、通院・入院・一時的な体調不良・親族の介護や看護・社会活動・冠婚葬祭、育児の負担の解消（リフレッシュ）など。保育の必要理由を証明する書類の提出を求められる。「保護者が施設に直接問い合わせを行い、一時預かりを利用します。」利用日は原則月〜土で、日曜・祝日・12/29〜1/3 は閉園、施設独自の休園日もある。nursery は false にした（在籍していない子向け。市外の施設に在籍する子、幼稚園・認定こども園の 1 号認定児、認可外保育施設を普段使う子も対象になる例が挙がっている）。2 歳児は幼稚園の 2 歳児受入れ促進事業（sapporo-childcare-yochien-nisaiji-ukeire）も案内されている。更新日 2025-03-24"
+
+  # ---------------------------------------------------------------------------
+  # 休日保育（保育園に通っている家庭だけ。各施設で年度ごとに利用登録）
+  # ---------------------------------------------------------------------------
+  - id: sapporo-childcare-kyujitsu-hoiku-register
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "休日保育（日曜・祝日）の利用登録（2 号・3 号認定で認可保育所等を利用している子。各実施施設で年度ごとに登録）"
+    eligibility:
+      age_months: { from: 5, to: 72 }
+      work_status: [働いている, 自営, 復職予定]
+      nursery: true
+      needs_check: true
+    schedule:
+      kind: age_start
+      start_months: 5
+      recommended_lead_days: 30
+    prep_days: null
+    cost:
+      amount: "利用料は保護者の就労状況と平日の保育園の利用状況で区分が異なる。祝日は保育標準時間なら無料、保育短時間は 1 時間 100 円。日曜は平日に休んだ日の代替か平日も利用しているかで区分され、保育標準時間は無料または時間外 1 時間 100 円。給食・おやつ代 1 日 300 円がかかる場合がある（食事を持参する場合はかからない）。詳細は「休日保育のご案内」PDF https://kosodate.city.sapporo.jp/material/files/group/1/annnai3.pdf"
+      subsidy: "生活保護法による被保護世帯または市民税非課税世帯は「生活保護受給証明書」「市・道民税証明書」を持参すると利用料が半額"
+    contacts:
+      - ward: null
+        name: "札幌市子ども未来局子育て支援部施設運営課運営係（電話 011-211-2986、FAX 011-231-6221）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+      - ward: null
+        name: "札幌市コールセンター（公立 3 施設の利用申込先。電話 011-222-4894。申込開始日 8:00〜締切日 21:00）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+      - ward: 北区
+        name: "北区保育・子育て支援センター ちあふる・きた（公立。電話 011-757-5380）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+      - ward: 豊平区
+        name: "豊平区保育・子育て支援センター ちあふる・とよひら（公立。電話 011-851-3945）／ちびっこ保育ルーム平岸ひまわり園（生後 5 か月〜2 歳児。電話 011-824-5288）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+      - ward: 西区
+        name: "西区保育・子育て支援センター ちあふる・にし（公立。電話 011-621-1503）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+      - ward: 厚別区
+        name: "青葉興正こども園（満 1 歳〜就学前。受入 9:00〜17:00。電話 011-891-5202）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+      - ward: 東区
+        name: "元町にこにこ保育園（電話 011-782-2551）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+      - ward: 中央区
+        name: "認定こども園北一条すずらん保育園（電話 011-213-1448）／おーるまいてぃ中央保育室（生後 5 か月〜2 歳児。電話 011-200-0072）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+      - ward: 白石区
+        name: "にこまるえん白石（満 1 歳〜就学前。電話 011-850-9686）／にこまるえん東白石（満 1 歳〜2 歳児。電話 011-799-1565）／にこまるえん南郷（満 1 歳〜2 歳児。電話 011-867-9770）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html
+    checked_on: 2026-11-04
+    evidence: "「休日保育を利用される場合は、事前に利用登録をする必要があります。 各実施施設で直接登録の手続きをしてください。」「2号認定または3号認定を受けて認可保育所・認定こども園・地域型保育事業を利用している子どもが対象となります。」"
+    notes: "「保護者の就労等により日曜・祝日に常態的に保育を必要とする子ども」が対象。1 号認定で認定こども園・幼稚園に在籍する子は対象外。対象年齢は「生後5か月から就学前まで」だが施設により異なる（contacts に記載）。needs_check の中身: 日曜・祝日に常態的に就労しているかは入力から判定できない。work_status は就労が条件なので 働いている・自営・復職予定 に絞ったが、「就労等」の「等」の範囲は未確認。「※休日保育を利用される場合は年度ごとに利用登録が必要となります。」登録と問い合わせの受付は 9:00〜17:00（土日祝除く）。令和 8 年度に 4 月から利用する場合の登録は「令和８年２月20日（金曜日）まで」（過ぎた日付。令和 9 年度の期限は未掲載なので、公開されたら kind を annual_period にする候補）。登録後は月ごとに利用申込し、「月ごとの利用申込者の中から、保育所入所の基準に準じた優先順に応じて利用できる方を決定し、毎月15日を目途にご連絡いたします。」公立（ちあふる・きた／とよひら／にし）はコールセンター、私立は各施設へ（申込開始日 9:00〜締切日 17:00、土日祝除く。令和 8 年度の日程 PDF: https://kosodate.city.sapporo.jp/material/files/group/1/R8nittei2.pdf ）。実施日は日曜・祝日（12/29〜1/3 除く）8:00〜19:00。contacts の区は施設の所在区で、利用者の居住区の制限は書かれていない。必要書類: 休日保育利用登録・変更申請書、休日就労証明書、健康調査票（PDF はページ内）。recommended_lead_days 30 はこの候補で置いた目安。更新日 2026-03-11"
+
+  # ---------------------------------------------------------------------------
+  # 幼稚園・認定こども園の預かり保育と、2 歳児受入れ促進事業
+  # ---------------------------------------------------------------------------
+  - id: sapporo-childcare-daredemo-tsuen
+    municipality: 札幌市
+    domain: childcare_registration
+    name: "札幌市こども誰でも通園制度の給付認定申請と事前面談（生後 6 か月〜満 3 歳未満で保育所等に在籍していない子。月 10 時間まで。認定の審査に 1 か月ほど）"
+    eligibility:
+      age_months: { from: 6, to: 35 }
+      work_status: null
+      nursery: false
+      needs_check: false
+    schedule:
+      kind: age_start
+      start_months: 6
+      recommended_lead_days: 45
+    prep_days: 30
+    cost:
+      amount: "お子さん 1 人につき 1 時間 300 円（30 分 150 円）。実施施設に直接支払う"
+      subsidy: "生活保護法による被保護世帯は 0 円。市町村民税非課税世帯または市町村民税所得割合算額が 77,101 円未満の世帯は 100 円（30 分 50 円）。受給者証・所得証明書等を施設に提出または提示"
+    contacts:
+      - ward: null
+        name: "札幌市こども誰でも通園制度コールセンター（電話 011-350-7368。9:00〜16:00、土日祝・年末年始を除く）"
+        url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/13027.html
+      - ward: null
+        name: "令和 8 年度実施施設一覧（PDF）"
+        url: https://kosodate.city.sapporo.jp/material/files/group/1/shisetsuitiran0825.pdf
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/azukeru/13027.html
+    checked_on: 2026-11-04
+    evidence: "「利用日時点で下記１及び２のすべてを満たすお子さん（保護者の就労要件は問いません。）」「給付認定申請から決定までは１か月ほど審査のお時間をいただきます。決定後に認定証、利用予約システムのアカウントを発行いたします。」"
+    notes: "対象の 2 条件は「1.生後６か月から満３歳未満（３歳の誕生日の前々日まで）」「2.保育所等の施設に在籍していない」（保育所・認定こども園・幼稚園・地域型保育事業所・企業主導型保育施設）。「保護者の就労状況に関係なく、お子さんが定期的に保育所等へ通園でき、保育士等に育児相談も行える子育て支援制度です。」利用は子ども 1 人につき月 10 時間まで（1 時間を最低利用時間、以降 30 分単位、未利用分の繰り越し不可）。流れ: (1) 給付認定申請（ページ内の電子申請フォーム。子ども 1 人ずつ）→ 札幌市の審査おおむね 1 か月 → (2) 「【こども誰でも通園制度総合支援システム】アカウント発行のお知らせ」メール → (3) 総合支援システムで利用希望施設へ事前面談の予約（「原則面談希望日の７日前まで予約申請が可能」。希望者多数のときは希望日に面談できないことがある）→ (4) 事前面談およそ 30〜60 分 → (5) 面談した施設で利用予約。prep_days 30 は認定の審査の分だけで、面談予約〜面談には 7 日以上かかるため recommended_lead_days 45 はこの候補で置いた目安。施設を変えるときは変更先で改めて面談。集団保育が著しく困難と判断された場合は利用できないことがある。受け入れられる日時・人数・年齢は施設ごとに異なる。更新日 2026-10-07（「令和８年１０月７日更新」）"

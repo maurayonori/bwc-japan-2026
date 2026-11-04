@@ -1,0 +1,495 @@
+# 候補。人が確かめる前のもの。確認日 2026-11-04。生活のイベントの数字だけ。病気や合併症の確率は書かない。
+#
+# 形は data/README.md の「起きうること」に従う。
+# 決まり（この候補ファイルでの運用）
+# - 数字は出典に書いてある値だけ。換算・推定はしない。
+# - 出典は公的機関（こども家庭庁・厚生労働省・東京都・札幌市・JIHS 国立健康危機管理研究機構）と
+#   査読論文（J-STAGE 収載の東京女子医科大学雑誌）だけ。査読前のプレプリントは notes での言及にとどめ、項目にはしない。
+# - URL はすべて 2026-11-04 に実際に開いて確かめたもの。PDF は pdftotext で本文を読んだ。
+# - applies_to.months は、出典が月を書いていればその月。出典が週番号で書いている場合は、
+#   感染症発生動向調査の報告週（月曜始まり、ISO 週と一致。JIHS の号のタイトルの日付で突合済み）で暦に対応づけた。
+#   出典が「夏季」「冬季」など季節語しか書いていない場合は、作業者が 冬季=12〜2 月、夏季=6〜8 月、
+#   春から初夏=5〜6 月 と置いた。その項目は notes に「季節語からの対応づけ」と書き、確信度を低くした。
+# - measure.stat は README の average / mode / range / share のほかに、定額の給付には fixed を使った（語彙の追加は要相談）。
+# - 「確信度」は notes の先頭に書いた（高・中・低）。高=出典に同じ数字が明記、中=出典の図表から読んだ値か対象の違いに注意、
+#   低=季節語の対応づけなど作業者の判断が入る。
+# - 年齢「0 歳児クラス」などは年度初日（4 月 1 日）の年齢で、年度中に 1 歳上がる。age_months はクラス年齢の範囲で書いた。
+
+events:
+  # ------------------------------------------------------------
+  # illness_absence: 通園できない日数（保育園に通う子の病欠）
+  # 出典: 野原理子・冨澤康子・齋藤加代子「保育園児の病欠頻度に関する研究」東京女子医科大学雑誌 87(5): 146-150, 2017（J-STAGE）
+  #   東京都内 3 保育園、2011 年 4 月〜2016 年 3 月の 5 年間、のべ 1,834 名。札幌の保育園の値ではない。
+  # ------------------------------------------------------------
+  - id: nursery-sick-absence-age-0
+    kind: illness_absence
+    name: 0 歳児クラスは年およそ 19 日、病気で保育園を休む
+    applies_to:
+      age_months: { from: 0, to: 11 }
+      nursery: true
+      months: null
+    measure:
+      value: 19.3
+      unit: 日/年
+      stat: average
+      basis: "東京都内 3 保育園の 5 年間（2011〜2016 年度）、のべ 1,834 名の出席簿・保健記録。園児 1 人当たりのクラス別年間病欠日数"
+    source_url: https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja
+    checked_on: 2026-11-04
+    evidence: "園児 1 人当たりのクラス別の年間病欠日数では，0 歳児の病欠日数が最も多く平均で 19.3 日であり，年齢が上がるにつれ平均日数が減少し 5 歳児クラスでは 5.4 日となっていた．"
+    notes: "確信度: 高。本文に明記。PDF: https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_pdf/-char/ja 。age_months はクラス年齢（年度初日）で、年度中に 1 歳上がる。札幌ではなく東京の値。同論文が引く新谷ら（外来小児科 16: 84-86, 2013。11 保育園 約 1,300 名）では 0 歳児 30.2 日・5 歳児 7.8 日（原著は未入手、2017 年論文の考察での引用で確認）"
+
+  - id: nursery-sick-absence-age-1
+    kind: illness_absence
+    name: 1 歳児クラスは年およそ 13 日、病気で保育園を休む
+    applies_to:
+      age_months: { from: 12, to: 23 }
+      nursery: true
+      months: null
+    measure:
+      value: 12.8
+      unit: 日/年
+      stat: average
+      basis: "同上。Fig. 1（クラス別の年間病欠日数）の 1-year-old class の値"
+    source_url: https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja
+    checked_on: 2026-11-04
+    evidence: "Fig. 1 Average annual numbers of days of absence due to illness per person by class: 0-year-old class 19.3 / 1-year-old class 12.8 / 2-year-old class 8.9 / 3-year-old class 7.0 / 4-year-old class 6.5 / 5-year-old class 5.4 (days)"
+    notes: "確信度: 中。本文には 0 歳と 5 歳の値しか無く、1〜4 歳は Fig. 1 の棒グラフに付いた数値ラベルを読んだ（PDF 148 ページ）。東京都 病児保育部会 議事録の「1 歳児だとおよそ 12 日間」は、この論文か、同じ著者の前回調査（野原・加藤 2011、東京女子医科大学雑誌 81: 408-415。1 歳児クラス 12 日）を指すと見られる（nursery-sick-absence-age-1-prior-study を参照）。参考: 査読前プレプリント（野原ほか、Jxiv 1534、保育園サーベイランス）では 1 歳児の年間病欠日数は M 市 11.1 日・S 区 7.1 日（年 243 登園日想定）。査読前なので項目にはしていない"
+
+  - id: nursery-sick-absence-age-2
+    kind: illness_absence
+    name: 2 歳児クラスは年およそ 9 日、病気で保育園を休む
+    applies_to:
+      age_months: { from: 24, to: 35 }
+      nursery: true
+      months: null
+    measure:
+      value: 8.9
+      unit: 日/年
+      stat: average
+      basis: "同上。Fig. 1 の 2-year-old class の値"
+    source_url: https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja
+    checked_on: 2026-11-04
+    evidence: "Fig. 1 Average annual numbers of days of absence due to illness per person by class: 2-year-old class 8.9 (days)。本文: 年齢が上がるにつれ平均日数が減少し 5 歳児クラスでは 5.4 日となっていた．"
+    notes: "確信度: 中。図の数値ラベルから読んだ値。東京の 3 園の値"
+
+  - id: nursery-sick-absence-age-3
+    kind: illness_absence
+    name: 3 歳児クラスは年およそ 7 日、病気で保育園を休む
+    applies_to:
+      age_months: { from: 36, to: 47 }
+      nursery: true
+      months: null
+    measure:
+      value: 7.0
+      unit: 日/年
+      stat: average
+      basis: "同上。Fig. 1 の 3-year-old class の値"
+    source_url: https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja
+    checked_on: 2026-11-04
+    evidence: "Fig. 1 Average annual numbers of days of absence due to illness per person by class: 3-year-old class 7.0 (days)。本文: 3 歳以降では全体に日数も少なく月別の変動も小さかった．"
+    notes: "確信度: 中。図の数値ラベルから読んだ値。東京の 3 園の値"
+
+  - id: nursery-sick-absence-age-4
+    kind: illness_absence
+    name: 4 歳児クラスは年およそ 6〜7 日、病気で保育園を休む
+    applies_to:
+      age_months: { from: 48, to: 59 }
+      nursery: true
+      months: null
+    measure:
+      value: 6.5
+      unit: 日/年
+      stat: average
+      basis: "同上。Fig. 1 の 4-year-old class の値"
+    source_url: https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja
+    checked_on: 2026-11-04
+    evidence: "Fig. 1 Average annual numbers of days of absence due to illness per person by class: 4-year-old class 6.5 (days)"
+    notes: "確信度: 中。図の数値ラベルから読んだ値。東京の 3 園の値"
+
+  - id: nursery-sick-absence-age-5
+    kind: illness_absence
+    name: 5 歳児クラスは年およそ 5 日、病気で保育園を休む
+    applies_to:
+      age_months: { from: 60, to: 72 }
+      nursery: true
+      months: null
+    measure:
+      value: 5.4
+      unit: 日/年
+      stat: average
+      basis: "同上。本文に明記された 5 歳児クラスの値"
+    source_url: https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja
+    checked_on: 2026-11-04
+    evidence: "0 歳児の病欠日数が最も多く平均で 19.3 日であった．年齢が上がるにつれ平均日数が減少し 5 歳児クラスでは 5.4 日となっていた．"
+    notes: "確信度: 高。本文に明記。東京の 3 園の値"
+
+  - id: nursery-sick-absence-april-after-entry
+    kind: illness_absence
+    name: 年度替わりの 4 月は病欠がやや多い（入園直後の環境の変化）
+    applies_to:
+      age_months: null
+      nursery: true
+      months: [4]
+    measure:
+      value: 1.0
+      unit: 日/月
+      stat: average
+      basis: "同上。Fig. 2（園児 1 人当たりの月別病欠日数）の April の値。年間の月別の幅は 0.7〜1.1 日"
+    source_url: https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja
+    checked_on: 2026-11-04
+    evidence: "年度替わりの 4 月ではやや欠席人数が多く，これは環境の変化による影響が考えられた．／前回調査と同様に本調査結果からも，入園 1 年目で病欠日数が多いことが明確となった"
+    notes: "確信度: 中。「入園後の最初の数か月に病欠が多い」ことを直接測った日本の研究は見つからなかった。この論文は年度替わりの 4 月の欠席がやや多いこと（Fig. 2 で 4 月 1.0 日）と、入園 1 年目（0 歳児クラス）の病欠が多いことを述べているだけで、入園後 N か月の推移は示していない。入園予定月のレバーに使うなら「入園した月の前後」の目安としてだけ出す"
+
+  - id: nursery-sick-absence-peak-july
+    kind: illness_absence
+    name: 病欠は 7 月が最も多く、6 月が最も少ない（0 歳は 7 月と 12 月、1 歳は 7 月）
+    applies_to:
+      age_months: null
+      nursery: true
+      months: [7]
+    measure:
+      value: 1.1
+      unit: 日/月
+      stat: average
+      basis: "同上。Fig. 2 の月別病欠日数。7 月 1.1 日が最多、6 月 0.7 日が最少"
+    source_url: https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja
+    checked_on: 2026-11-04
+    evidence: "7 月が最も多く 1.1 日，6 月が最も少なく 0.7 日であった．／0 歳児では 7 月と 12 月の欠席が多く，1 歳児は 7 月が多かった．3 歳以降では全体に日数も少なく月別の変動も小さかった．"
+    notes: "確信度: 高（本文に明記）。流行期のレーンと重ねるときの裏づけ。論文は 7 月をアデノ・コクサッキー、12 月を RS・ノロ・ロタ、2 月をインフルエンザの流行時期と対応づけて「予想」と書いている（病名は推察なので画面には出さない）"
+
+  - id: nursery-sick-absence-age-1-prior-study
+    kind: illness_absence
+    name: 1 歳児は年およそ 12 日、保育園に通えない（東京都 病児保育部会での先行研究への言及）
+    applies_to:
+      age_months: { from: 12, to: 23 }
+      nursery: true
+      months: null
+    measure:
+      value: 12
+      unit: 日/年
+      stat: average
+      basis: "通園児童の休園日数を調査した先行研究への言及（東京都子供・子育て会議 病児保育部会 第 2 回 議事録、園田委員の発言）"
+    source_url: https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf
+    checked_on: 2026-11-04
+    evidence: "通園児童の休園日数を調査する先行研究では、１歳児だとおよそ１２日間と示されており、兄弟姉妹がいる家庭では、保育園に通園できない日数はより増えると想像できます。"
+    notes: "確信度: 中。議事録は先行研究名を挙げていない。該当すると見られる研究は 2 つ: (1) 野原・加藤 2011（東京女子医科大学雑誌 81: 408-415。1 保育園 約 180 名、0 歳児クラス 24 日・1 歳児クラス 12 日。原著は J-STAGE で見つからず、野原 2017 の緒言での引用で確認）、(2) 野原ほか 2017（3 保育園、1 歳児クラス 12.8 日。nursery-sick-absence-age-1）。兄弟がいると日数が増えることは「想像できます」という発言で、数字は無い。兄弟の影響を数字で示した日本の研究は今回見つからなかった"
+
+  # ------------------------------------------------------------
+  # parent_leave_days: 親が休む日数と、預け先に困った経験
+  # 出典: 第 2 回 東京都子供・子育て会議 病児保育部会 議事録（令和 8 年 9 月 8 日）。保護者ニーズ調査（約 11 万人に送付、6,181 人が回答）
+  # ------------------------------------------------------------
+  - id: parent-leave-days-mother-mode
+    kind: parent_leave_days
+    name: 子の病気で母が仕事を休む日数は、年 6〜10 日の人が最も多い
+    applies_to:
+      age_months: null
+      nursery: true
+      months: null
+    measure:
+      value: "6〜10"
+      unit: 日/年
+      stat: mode
+      basis: "東京都の保護者ニーズ調査（2026 年 7 月実施、6,181 人回答）。この 1 年間に子どもの病気で父親や母親が休んだ日数"
+    source_url: https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf
+    checked_on: 2026-11-04
+    evidence: "母親が休む日数のボリュームゾーンは６～１０日。父親のボリュームゾーンは、２日と５日となっています。また、母親が休む日数６～１０日、１１～２０日も父親と比較して高い割合となっており、母親により負担が寄っていることが本調査でも明らかになったと思いました。"
+    notes: "確信度: 中。議事録の委員発言で、各階級の割合（%）は資料 2 にあり議事録には無い。東京都の調査で、札幌の値ではない。回答者の約 6 割が保育所などを利用中（議事録 2 ページ目の説明）。nursery: true は回答の母集団に合わせた目安で、未就園の家庭にも出すなら null にする"
+
+  - id: parent-leave-days-father-mode
+    kind: parent_leave_days
+    name: 子の病気で父が仕事を休む日数は、年 2 日と 5 日の人が最も多い
+    applies_to:
+      age_months: null
+      nursery: true
+      months: null
+    measure:
+      value: "2 と 5"
+      unit: 日/年
+      stat: mode
+      basis: "同上。父親が休んだ日数の最頻値が 2 つ（2 日と 5 日）"
+    source_url: https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf
+    checked_on: 2026-11-04
+    evidence: "母親が休む日数のボリュームゾーンは６～１０日。父親のボリュームゾーンは、２日と５日となっています。"
+    notes: "確信度: 中。同上。同じ委員は看護休暇が子 1 人につき 5 日であることに触れている（「看護休暇は、私の知る限り、お子さん１人につき５日間ですので、この方々は、超えた分を場合によっては有給休暇で対応されているのだと思います。」）"
+
+  - id: parent-unable-to-use-nursery-share
+    kind: parent_leave_days
+    name: この 1 年に、子の病気でいつもの保育所などを使えなかった家庭は 85.1%
+    applies_to:
+      age_months: null
+      nursery: true
+      months: null
+    measure:
+      value: 85.1
+      unit: "%"
+      stat: share
+      basis: "同上。保育所などを利用している回答者のうち、この 1 年間に子どもの病気で普段の保育所などを利用できなかったことが「あった」割合"
+    source_url: https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf
+    checked_on: 2026-11-04
+    evidence: "この１年間に、子供が病気のため、普段通っている保育所などを利用できなかったことが「あった」という方は、８５．１％となっております。そのときの対応を尋ねますと、下の表のとおりですが「父親や母親が休んだ」が最も多く"
+    notes: "確信度: 高（議事録の事務局説明に明記）。東京都の値。「困った経験」というより「使えなかった経験」の割合"
+
+  - id: parent-used-sick-child-care-share
+    kind: parent_leave_days
+    name: 子の病気で保育所などを使えなかったとき、病児保育を利用した家庭は 18.5%
+    applies_to:
+      age_months: null
+      nursery: true
+      months: null
+    measure:
+      value: 18.5
+      unit: "%"
+      stat: share
+      basis: "同上。保育所などを利用できなかったときに病児保育を利用した割合"
+    source_url: https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf
+    checked_on: 2026-11-04
+    evidence: "「子供が病気で保育所等を利用できなかったことがある」が８５．１％。そのときに「病児保育を利用した」のは１８．５％となっております。"
+    notes: "確信度: 高。東京都の値。同じ資料で「利用した日数よりも、もっと利用したかった」が 54.7%"
+
+  - id: parent-not-preregistered-sick-child-care-share
+    kind: parent_leave_days
+    name: 病児保育に事前登録していない家庭は 66.5%
+    applies_to:
+      age_months: null
+      nursery: null
+      months: null
+    measure:
+      value: 66.5
+      unit: "%"
+      stat: share
+      basis: "同上。病児保育の事前登録の状況"
+    source_url: https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf
+    checked_on: 2026-11-04
+    evidence: "事前登録の状況を聞きますと、下の表のとおり、事前登録をしていない方が６６．５％となっております。／資料の一部修正がございまして、左側の箱の一番上「事前登録をしていない」は、正しくは「６６．５％」でございます。"
+    notes: "確信度: 高。東京都の値で、札幌市のテオテの登録率ではない。ADR 0004 の「登録を先に済ませる」の裏づけに使える。kind は 5 種類に合うものが無く parent_leave_days に置いた（要相談）"
+
+  # ------------------------------------------------------------
+  # epidemic_season: 流行期（全国の感染症発生動向調査。JIHS 国立健康危機管理研究機構）
+  # ------------------------------------------------------------
+  - id: epidemic-influenza
+    kind: epidemic_season
+    name: インフルエンザの流行期（11 月〜2 月。直近はピークが 11 月下旬と 2 月上旬の 2 回）
+    applies_to:
+      age_months: null
+      nursery: null
+      months: [11, 12, 1, 2]
+    measure:
+      value: "2025 年第 47 週（51.12）と 2026 年第 6 週（43.34）"
+      unit: ピーク週（定点当たり報告数）
+      stat: mode
+      basis: "IDWR 2026 年第 35 号 注目すべき感染症 インフルエンザ。2022/23〜2025/26 シーズンの全国のピーク週"
+    source_url: https://id-info.jihs.go.jp/surveillance/idwr/featured/2026/35/index.html
+    checked_on: 2026-11-04
+    evidence: "2025/26 シーズンは 2025 年第 39 週に全国の定点当たり報告数が 1.00 を超え、二峰性の流行を呈し、2025 年第 47 週（51.12）と 2026 年第 6 週（43.34）にピーク。過去のピーク: 2022/23 は 2023 年第 6 週（12.91）、2023/24 は 2023 年第 49 週（33.72）、2024/25 は 2024 年第 52 週（64.39）"
+    notes: "確信度: 高。週の暦対応: 2025 年第 39 週=9/22〜28、第 47 週=11/17〜23、2026 年第 6 週=2/2〜8、2024 年第 52 週=12/23〜29、2023 年第 49 週=12/4〜10、2023 年第 6 週=2/6〜12。疾患ページ（https://id-info.jihs.go.jp/infectious-diseases/influenza/index.html ）は「日本では冬季に流行のピークが認められる。」。2025/26 は 9 月下旬に流行入りし、2026 年第 34 週にも 1.00 を超えたので、年によっては 9〜10 月から始まる。年齢分布は入院例のみ（10 歳未満が 9,175 例/24,929 例）で、外来の年齢分布は記事に無い"
+
+  - id: epidemic-rsv
+    kind: epidemic_season
+    name: RS ウイルス感染症の流行期（近年は夏。ピークは 4 年続けて 7 月）
+    applies_to:
+      age_months: null
+      nursery: null
+      months: [6, 7, 8]
+    measure:
+      value: "2021 年第 28 週（5.99）、2022 年第 30 週（2.35）、2023 年第 27 週（3.38）、2024 年第 28 週（1.84）"
+      unit: ピーク週（定点当たり報告数）
+      stat: mode
+      basis: "IDWR 2025 年第 9 号 注目すべき感染症 RS ウイルス感染症。2021〜2024 年の全国のピーク週"
+    source_url: https://id-info.jihs.go.jp/surveillance/idwr/featured/2025/09/index.html
+    checked_on: 2026-11-04
+    evidence: "2021年は第28週（5.99）、2022年は第30週（2.35）、2023年は第27週（3.38）、2024年は第28週（1.84）にピークがみられた／年齢（群）別では3歳以下が全体の88.2%、5歳以下が全体の95.5%を占め、1歳が30.1%（男性：53.2%）と最も多く、次に0歳が29.7%（男性：55.9%）"
+    notes: "確信度: 中。週の暦対応: 2021 年第 28 週=7/12〜18、2022 年第 30 週=7/25〜31、2023 年第 27 週=7/3〜9、2024 年第 28 週=7/8〜14。months の 6 と 8 はピーク前後の月として置いた（出典は立ち上がりの週を書いていない）。疾患ページ（https://id-info.jihs.go.jp/infectious-diseases/respiratory-syncytial-virus-infection/index.html 、更新 2025-06-26）は「日本では近年、夏季に流行のピークが認められる。」。2025 年は第 1〜9 週（1〜2 月）に報告が増え続けて過去 5 年の同時期で最多、2025 年第 52 週にも 3 週連続増加（IDWR 2025 年第 52 号）と、年明けに増える年もある。報告の多い年齢は 1 歳（30.1%）と 0 歳（29.7%）"
+
+  - id: epidemic-hand-foot-mouth-disease
+    kind: epidemic_season
+    name: 手足口病の流行期（5 月中旬から増え、7 月下旬ごろピーク。2 歳以下の報告が多い）
+    applies_to:
+      age_months: null
+      nursery: null
+      months: [6, 7, 8]
+    measure:
+      value: "第 30 週ごろ（定点当たり報告数 10.0 程度）"
+      unit: ピーク週（定点当たり報告数）
+      stat: mode
+      basis: "IDWR 2026 年第 26 号 注目すべき感染症 手足口病・ヘルパンギーナ。過去 10 年の全国の流行年の動向"
+    source_url: https://id-info.jihs.go.jp/surveillance/idwr/featured/2026/26/index.html
+    checked_on: 2026-11-04
+    evidence: "第20週から定点当たり報告数0.65（1,477例）と増加しはじめ／第30週ごろに定点当たり報告数10.00程度のピークに達した"
+    notes: "確信度: 中。週の暦対応: 第 20 週=5 月中旬（2026 年は 5/11〜17）、第 30 週=7 月下旬（2025 年は 7/21〜27）。2024 年は第 28 週（7/8〜14）と第 41 週（10/7〜13）の二峰性、2025 年は第 31 週（7/28〜8/3）の 0.63 が最大で低調。疾患ページ（https://id-info.jihs.go.jp/infectious-diseases/hand-foot-mouth-disease/index.html 、更新 2025-07-24）は「日本国内では、乳幼児を中心に夏季に流行し、特に2歳以下の報告が多い。」。2025 年第 30 号（https://id-info.jihs.go.jp/surveillance/idwr/featured/2025/30/index.html ）にも同じ「第 20 週ごろに増加、第 30 週ごろにピーク」の記述。流行の規模は年で大きく違う（10.0 程度の年と 0.6 の年）"
+
+  - id: epidemic-herpangina
+    kind: epidemic_season
+    name: ヘルパンギーナの流行期（5 月中旬から増え、7 月下旬ごろピーク。1 歳台の報告が最も多い）
+    applies_to:
+      age_months: null
+      nursery: null
+      months: [6, 7, 8]
+    measure:
+      value: "第 30 週ごろ（定点当たり報告数 3.0〜4.0 程度）"
+      unit: ピーク週（定点当たり報告数）
+      stat: mode
+      basis: "IDWR 2026 年第 26 号 注目すべき感染症 手足口病・ヘルパンギーナ。過去 10 年の全国の動向"
+    source_url: https://id-info.jihs.go.jp/surveillance/idwr/featured/2026/26/index.html
+    checked_on: 2026-11-04
+    evidence: "第20週ごろより増加が確認され、第30週ごろに定点当たり報告数3.0～4.0程度のピークに達した後、比較的速やかに減少し／過去10年において最も高いピーク値は2023年第27週の定点当たり報告数7.32（22,980例）"
+    notes: "確信度: 中。週の暦対応: 第 20 週=5 月中旬、第 30 週=7 月下旬、2023 年第 27 週=7/3〜9。2025 年は第 23 週（6/2〜8）から増え、第 29 週（7/14〜20）に 1.87（2025 年第 30 号）。疾患ページ（https://id-info.jihs.go.jp/infectious-diseases/herpangina/index.html 、更新 2025-08-28）は「日本では、毎年夏季にピークとなり、西から東へ流行が推移する。」「患者の90%以上が5歳以下で、1歳代が最も多い。」。西から東へ推移するので、札幌のピークは全国より遅れる可能性がある（北海道の値は未確認）"
+
+  - id: epidemic-pharyngoconjunctival-fever
+    kind: epidemic_season
+    name: 咽頭結膜熱の流行期（6〜8 月。5 歳以下の報告が多い）
+    applies_to:
+      age_months: null
+      nursery: null
+      months: [6, 7, 8]
+    measure:
+      value: "6 から 8 月"
+      unit: 流行する月
+      stat: mode
+      basis: "JIHS 感染症情報提供サイトの疾患ページ「咽頭結膜熱」（更新 2025-06-26）の疫学の記述"
+    source_url: https://id-info.jihs.go.jp/infectious-diseases/adenovirus/index.html
+    checked_on: 2026-11-04
+    evidence: "アデノウイルス自体は年間を通じて報告されているが、咽頭結膜熱としては特に夏期（6から8月）に流行がみられ、5歳以下の小児で多く報告されている。"
+    notes: "確信度: 中。出典が月を明記しているので months はそのまま。直近シーズンの週別のピークを示す JIHS の記事（注目すべき感染症）は 2025〜2026 年には無く、直近の動向は未確認。IDWR 2025 年第 52 号では「咽頭結膜熱の定点当たり報告数は第49週以降増加が続いている」（12 月）とあり、冬に増える年もある"
+
+  - id: epidemic-infectious-gastroenteritis
+    kind: epidemic_season
+    name: 感染性胃腸炎の流行期（冬にウイルス性の報告が増える）
+    applies_to:
+      age_months: null
+      nursery: null
+      months: [12, 1, 2]
+    measure:
+      value: "冬季（ウイルス性）、夏季（細菌性）"
+      unit: 報告が増える季節
+      stat: mode
+      basis: "JIHS 感染症情報提供サイトの疾患ページ「感染性胃腸炎」（更新 2026-03-23）の疫学の記述"
+    source_url: https://id-info.jihs.go.jp/infectious-diseases/infectious-diarrhea/index.html
+    checked_on: 2026-11-04
+    evidence: "日本国内では、夏季には細菌、冬季にはウイルスによる胃腸炎の報告が増加する傾向にある。"
+    notes: "確信度: 低。months は季節語「冬季」からの対応づけ（12〜2 月）で、作業者の判断。全国の週別のピークを示す JIHS の記事は 2025〜2026 年に無い。IDWR 2025 年第 52 号では「感染性胃腸炎の定点当たり報告数は第49週以降増加が続いている」（12 月上旬から）、第 52 週 5.59。11 月から増える年が多い可能性があるが出典が取れていないので入れていない。年齢分布の記載は無し。札幌市衛生研究所の小児科定点の年齢別 CSV（https://www.city.sapporo.jp/eiken/infect/archive.html ）で札幌の週別・年齢別を確かめられる"
+
+  - id: epidemic-group-a-streptococcal-pharyngitis
+    kind: epidemic_season
+    name: A 群溶血性レンサ球菌咽頭炎の流行期（冬と、春から初夏の 2 回）
+    applies_to:
+      age_months: null
+      nursery: null
+      months: [12, 1, 2, 5, 6]
+    measure:
+      value: "冬季と、春から初夏"
+      unit: 流行のピークの季節
+      stat: mode
+      basis: "JIHS 感染症情報提供サイトの疾患ページ「A 群溶血性レンサ球菌感染症」（更新 2025-04-28）の疫学の記述"
+    source_url: https://id-info.jihs.go.jp/infectious-diseases/group-a-streptococcal-infection/index.html
+    checked_on: 2026-11-04
+    evidence: "咽頭炎は学童に多く、冬季と、春から初夏の、2つの流行のピークがある。／家庭や学校での集団感染が多い。"
+    notes: "確信度: 低。months は季節語からの対応づけ（冬季=12〜2 月、春から初夏=5〜6 月）で、作業者の判断。出典は「学童に多い」としており、就学前の子では主な対象でない可能性がある。全国の週別のピークを示す JIHS の記事は 2025〜2026 年に無い。IDWR 2025 年第 52 号では「A群溶血性レンサ球菌咽頭炎の定点当たり報告数は第49週以降増加が続いており」、第 52 週 2.80"
+
+  # ------------------------------------------------------------
+  # money_in: 給付が入る月（児童手当）
+  # ------------------------------------------------------------
+  - id: child-allowance-under-3
+    kind: money_in
+    name: 児童手当（3 歳未満）は月 15,000 円。偶数月に 2 か月分が入る
+    applies_to:
+      age_months: { from: 0, to: 35 }
+      nursery: null
+      months: [2, 4, 6, 8, 10, 12]
+    measure:
+      value: 15000
+      unit: 円/月
+      stat: fixed
+      basis: "こども家庭庁「児童手当制度のご案内」。3 歳未満（第 1 子・第 2 子）の月額と支給月"
+    source_url: https://www.cfa.go.jp/policies/kokoseido/jidouteate/annai
+    checked_on: 2026-11-04
+    evidence: "3歳未満 15,000円（第3子以降は30,000円）／児童手当は、毎年2月、4月、6月、8月、10月、12月（偶数月）に、それぞれの前月分まで（2か月分）を支給します。"
+    notes: "確信度: 高。1 回の入金は 2 か月分（30,000 円）。手当は申請の翌月分から（札幌市のページ）。札幌市の支給日は child-allowance-sapporo-payment-day を参照。3 歳の誕生月の翌月分から 10,000 円に変わる前提で計算する場合、変わる月の扱いは札幌市のページで要確認"
+
+  - id: child-allowance-3-to-preschool
+    kind: money_in
+    name: 児童手当（3 歳以上）は月 10,000 円。偶数月に 2 か月分が入る
+    applies_to:
+      age_months: { from: 36, to: 72 }
+      nursery: null
+      months: [2, 4, 6, 8, 10, 12]
+    measure:
+      value: 10000
+      unit: 円/月
+      stat: fixed
+      basis: "こども家庭庁「児童手当制度のご案内」。3 歳〜高校生年代（第 1 子・第 2 子）の月額"
+    source_url: https://www.cfa.go.jp/policies/kokoseido/jidouteate/annai
+    checked_on: 2026-11-04
+    evidence: "3歳～高校生年代 10,000円（第3子以降は30,000円）／児童手当は、毎年2月、4月、6月、8月、10月、12月（偶数月）に、それぞれの前月分まで（2か月分）を支給します。"
+    notes: "確信度: 高。to: 72 はこのアプリの就学前の上限で、制度の上限は 18 歳到達後の最初の 3 月 31 日まで（age_limit_note 相当）"
+
+  - id: child-allowance-third-child
+    kind: money_in
+    name: 第 3 子以降の児童手当は月 30,000 円（年齢にかかわらず）
+    applies_to:
+      age_months: { from: 0, to: 72 }
+      nursery: null
+      months: [2, 4, 6, 8, 10, 12]
+    measure:
+      value: 30000
+      unit: 円/月
+      stat: fixed
+      basis: "こども家庭庁「児童手当制度のご案内」と札幌市「児童手当」。第 3 子以降の月額と数え方"
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html
+    checked_on: 2026-11-04
+    evidence: "第3子以降 月30,000円／年長者から第1子、第2子・・・と数えます。（22 歳に達する日以降の最初の年度末を迎えるまでの子を数える）"
+    notes: "確信度: 高（額）。対象になるかは入力（子の生年月日と第 2 子の予定日）だけでは判定できない。第 3 子の数え方は 22 歳年度末までの兄姉を含むため、needs_check に相当する。第 2 子の予定日を入れても第 3 子にはならないので、初版のレバーでは出番が無い可能性が高い。こども家庭庁ページ（https://www.cfa.go.jp/policies/kokoseido/jidouteate/annai ）にも「第3子以降は30,000円」"
+
+  - id: child-allowance-sapporo-payment-day
+    kind: money_in
+    name: 札幌市の児童手当の支給日は偶数月の 13 日（土日祝なら前日）
+    applies_to:
+      age_months: { from: 0, to: 72 }
+      nursery: null
+      months: [2, 4, 6, 8, 10, 12]
+    measure:
+      value: 13
+      unit: 日（各偶数月）
+      stat: fixed
+      basis: "札幌市子育てサイト「児童手当」（更新 2026-03-26）の支給日と令和 8 年度の支給予定日"
+    source_url: https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html
+    checked_on: 2026-11-04
+    evidence: "原則として、偶数月の13日（当日が土日祝日の場合はその前日）に／令和8年度の支給予定日: 6月12日（4月～5月分）、8月13日（6月～7月分）、10月13日（8月～9月分）、12月11日（10月～11月分）、2月12日（12月～1月分）、4月13日（2月～3月分）"
+    notes: "確信度: 高。.ics に入れるなら令和 8 年度の予定日をそのまま使い、令和 9 年度分はページの更新を待つ。申請の翌月分から支給なので、出生後の初回入金は申請月で変わる"
+
+  # ------------------------------------------------------------
+  # clinic_visits: 受診の多さ（厚生労働省 令和 5 年 患者調査の概況、外来受療率）
+  #   受療率（人口 10 万対）＝調査日（令和 5 年 10 月の指定 1 日）の推計患者数／推計人口×100,000。年間の受診回数ではない。換算しない。
+  # ------------------------------------------------------------
+  - id: outpatient-rate-age-0
+    kind: clinic_visits
+    name: 0 歳の外来受療率は人口 10 万対 6,467（全年齢 5,850 より高い）
+    applies_to:
+      age_months: { from: 0, to: 11 }
+      nursery: null
+      months: null
+    measure:
+      value: 6467
+      unit: 人口 10 万対（調査日 1 日の推計外来患者数）
+      stat: share
+      basis: "厚生労働省 令和 5 年（2023）患者調査の概況 表 4 性・年齢階級別にみた受療率（人口 10 万対）、外来・総数"
+    source_url: https://www.mhlw.go.jp/toukei/saikin/hw/kanja/23/dl/kanjya.pdf
+    checked_on: 2026-11-04
+    evidence: "表４ 性・年齢階級別にみた受療率（人口 10 万対） 令和５年10月: ０歳 外来 総数 6 467（男 6 642、女 6 284）。総数 外来 5 850。／受療率（人口 10 万対）＝推計患者数／推計人口×100,000"
+    notes: "確信度: 高（数字）。ただし年間の受診回数ではなく、調査日 1 日に外来を受けた人の割合（10 万人あたり 6,467 人 ≒ 6.5%）。年間回数には換算しない。病院は 2023-10-17〜19 のうち指定 1 日、診療所は 10-17・18・20 のうち指定 1 日。全国値。札幌市の値は患者調査の都道府県別（北海道）で取れるが未確認。概況本文には「外来では『０～14 歳』で、令和５年が昭和 59 年以降最も高くなっている」"
+
+  - id: outpatient-rate-age-1-to-4
+    kind: clinic_visits
+    name: 1〜4 歳の外来受療率は人口 10 万対 6,291
+    applies_to:
+      age_months: { from: 12, to: 59 }
+      nursery: null
+      months: null
+    measure:
+      value: 6291
+      unit: 人口 10 万対（調査日 1 日の推計外来患者数）
+      stat: share
+      basis: "同上。1〜4 歳、外来・総数"
+    source_url: https://www.mhlw.go.jp/toukei/saikin/hw/kanja/23/dl/kanjya.pdf
+    checked_on: 2026-11-04
+    evidence: "表４ 性・年齢階級別にみた受療率（人口 10 万対） 令和５年10月: １～４ 外来 総数 6 291（男 6 548、女 6 021）。５～９ 5 196。"
+    notes: "確信度: 高（数字）。同上の注意（1 日の割合で、年間回数ではない）。5〜9 歳は 5,196 で、就学前後で下がる"
