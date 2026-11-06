@@ -109,7 +109,11 @@ function Table({
                   {cell}
                 </th>
               ) : (
-                <td key={index} data-label={headers[index]}>
+                // 値が 1 列だけの表では、列の名前を行ごとに繰り返さない。
+                <td
+                  key={index}
+                  data-label={headers.length > 2 ? headers[index] : undefined}
+                >
                   {cell}
                 </td>
               ),

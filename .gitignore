@@ -27,6 +27,8 @@ __pycache__/
 # ローカル専用
 *.log
 .claude/settings.local.json
+/.claude/launch.json
+/.claude/worktrees/
 
 # グローバル除外の lib/ より、このアプリのソースを優先
 !/lib/
