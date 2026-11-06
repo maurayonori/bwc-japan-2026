@@ -1,6 +1,6 @@
 # 0006. 開いたときは「今月と来月」だけを出し、設定の最後に期日をカレンダーへ書き出す
 
-- 状態: 採用
+- 状態: 置き換え（0011）
 - 日付: 2026-11-05
 - 関連: [ADR 0005](0005-twelve-month-outlook-as-main-screen.md)（初期表示の範囲と削る順をこの ADR で変える）、[ADR 0004](0004-evidence-from-public-surveys-and-registration-first.md)、[spec.md](../spec.md)、#16、#17、#20、#22
 

@@ -1,0 +1,20 @@
+{
+  "name": "hospital-conversation-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "入院前のお金の見通しを、会話から試算する検証用の試作（ADR 0009）",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test",
+    "tool": "node src/cli.mjs tool",
+    "prompt": "node src/cli.mjs prompt"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0"
+  }
+}
