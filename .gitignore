@@ -20,6 +20,10 @@ __pycache__/
 .idea/
 .vscode/
 
+# Claude Code の設定とフックは公開する（グローバル除外の .claude/ より優先）
+!/.claude/
+!/.claude/**
+
 # ローカル専用
 *.log
 .claude/settings.local.json

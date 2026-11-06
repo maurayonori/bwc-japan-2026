@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "check:public": "node scripts/check-public.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.97",
