@@ -234,8 +234,8 @@ h1 {
   border-bottom: 1px solid var(--line);
 }
 .section-number {
-  font-size: 9px;
-  letter-spacing: 0.2em;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   color: var(--muted);
   display: block;
   margin-bottom: 3px;
