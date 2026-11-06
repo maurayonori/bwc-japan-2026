@@ -152,3 +152,7 @@ npm run check:public   # 公開前の検査（鍵の形、.env、.vercel など�
 ## OSS
 
 [Next.js](https://github.com/vercel/next.js)、[React](https://github.com/facebook/react)、[Zod](https://github.com/colinhacks/zod)、[tsx](https://github.com/privatenumber/tsx)、[@types](https://github.com/DefinitelyTyped/DefinitelyTyped) は MIT、[AI SDK と Anthropic プロバイダー](https://github.com/vercel/ai)、[TypeScript](https://github.com/microsoft/TypeScript) は Apache-2.0 です。バージョンと依存関係は `package-lock.json`、ライセンスの本文は各パッケージにあります。画像・フォントなどの外部素材は使っていません。プロジェクト自体のライセンスは未決定です（#6）。
+
+## ライセンス
+
+[MIT](LICENSE)。フォント、曲、依存パッケージの条件は上の OSS の節と [使った素材](docs/submission/demo-script.md#使った素材) を見てください。
