@@ -2,17 +2,26 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
+  CHAT_CLIENT_TIMEOUT_MS,
   emptyWorkspace,
   exportMemo,
   kinds,
   mergeCards,
+  readStoredWorkspace,
   replySchema,
   STORAGE_KEY,
-  workspaceSchema,
+  toRequest,
+  UNREADABLE_STORAGE_KEY,
   type Card,
   type Workspace,
 } from "@/lib/workspace";
 import { exampleWorkspace } from "@/lib/example";
+import {
+  FactText,
+  MoneyDetails,
+  WaitingNote,
+  WarningList,
+} from "./money-card";
 
 function Mark({ small = false }: { small?: boolean }) {
   return (
@@ -101,15 +110,24 @@ function MemoCard({
             ? "自分で編集"
             : card.kind === "memory"
               ? "話した言葉のまま"
-              : "下書き"}
+              : card.kind === "money"
+                ? "表はプログラムの計算"
+                : "下書き"}
         </span>
       </div>
       <h3>{card.title}</h3>
-      <p className="card-body">{card.body}</p>
+      <p className="card-body">
+        {card.kind === "memory" ? card.body : <FactText text={card.body} />}
+      </p>
+      {card.kind === "money" && card.money && (
+        <MoneyDetails money={card.money} text={card.body} />
+      )}
       {card.uncertainty && (
         <div className="uncertainty">
           <span>まだ確かめていないこと</span>
-          <p>{card.uncertainty}</p>
+          <p>
+            <FactText text={card.uncertainty} />
+          </p>
         </div>
       )}
       <div className="next-step">
@@ -230,10 +248,36 @@ function MemoCard({
 }
 
 const starters = [
-  "しばらく家を空けるので、普段自分がしていることを家族に渡しておきたい。",
-  "保険の書類はあるけれど、何を確認しておけばよいか分からない。",
-  "家族との今日の出来事を、忘れないように残しておきたい。",
+  {
+    label: "入院のお金の見通し",
+    text: "来月入院することになりました。いくら手元に用意しておけばいいのか分かりません。",
+  },
+  {
+    label: "暮らしの引き継ぎ",
+    text: "しばらく家を空けるので、普段自分がしていることを家族に渡しておきたい。",
+  },
+  {
+    label: "保険や手続きの確認",
+    text: "保険の書類はあるけれど、何を確認しておけばよいか分からない。",
+  },
+  {
+    label: "日々の言葉を残す",
+    text: "家族との今日の出来事を、忘れないように残しておきたい。",
+  },
 ];
+
+function errorMessageOf(data: unknown, status: number): string {
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "error" in data &&
+    typeof data.error === "string"
+  )
+    return data.error;
+  return status === 429
+    ? "短い時間に送信が続いたため、いまは受け付けられません。入力とメモは残っています。少し時間をおいて試してください。"
+    : "接続できませんでした。入力とメモは残っています。少し待って、もう一度試してください。";
+}
 
 export function FamilyWorkspace({ connected }: { connected: boolean }) {
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
@@ -258,13 +302,15 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = workspaceSchema.parse(JSON.parse(stored));
-        if (parsed.mode === "live") {
-          setWorkspace(parsed);
-          setRemember(true);
-        }
+      const stored = readStoredWorkspace(localStorage);
+      if (stored.workspace?.mode === "live") {
+        setWorkspace(stored.workspace);
+        setRemember(true);
+      }
+      if (stored.unreadable) {
+        setNotice(
+          "保存したデータを読み込めませんでした。元のデータは消していません。",
+        );
       }
     } catch {
       setNotice(
@@ -329,20 +375,26 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages, cards: workspace.cards }),
+        body: JSON.stringify(toRequest(messages, workspace.cards)),
         signal: AbortSignal.any([
           controller.signal,
-          AbortSignal.timeout(60_000),
+          AbortSignal.timeout(CHAT_CLIENT_TIMEOUT_MS),
         ]),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "接続できませんでした。");
+      // 上限やゲートウェイの応答は JSON とは限らない。読めなくても入力は残す。
+      const data: unknown = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(errorMessageOf(data, res.status));
       const reply = replySchema.parse(data);
       setWorkspace((prev) => ({
         ...prev,
         messages: [
           ...messages,
-          { id: crypto.randomUUID(), role: "assistant", text: reply.reply },
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            text: reply.reply,
+            warnings: reply.warnings,
+          },
         ],
         cards: mergeCards(prev.cards, reply.cards),
       }));
@@ -396,6 +448,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
     if (!value) {
       try {
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(UNREADABLE_STORAGE_KEY);
       } catch {
         setNotice(
           "保存データを消せませんでした。ブラウザのサイトデータ設定から消去してください。",
@@ -428,7 +481,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
         </a>
         <div className="header-actions">
           <span className={`connection ${connected ? "ready" : ""}`}>
-            {connected ? "Claude 接続設定あり" : "接続の準備中"}
+            {connected ? "公開の試用版" : "会話は準備中"}
           </span>
           <button className="text-button" onClick={() => setModal("privacy")}>
             保存とプライバシー
@@ -444,7 +497,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
               <br className="mobile-break" />
               今できることから。
             </h1>
-            <p>気がかりを話すところから、渡せるメモと次の一歩を一緒に。</p>
+            <p>入院や長い不在の前に。話すだけで、いつ・いくら要るかの見通しと、家族に渡すメモができます。</p>
           </div>
           <button
             className="example-button"
@@ -504,24 +557,16 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                   </p>
                   <div className="starters">
                     <span>たとえば、こんなところから</span>
-                    {starters.map((s, i) => (
+                    {starters.map((s) => (
                       <button
-                        key={s}
+                        key={s.label}
                         disabled={busy}
                         onClick={() => {
-                          setDraft(s);
+                          setDraft(s.text);
                           input.current?.focus();
                         }}
                       >
-                        <span>
-                          {
-                            [
-                              "暮らしの引き継ぎ",
-                              "保険や手続きの確認",
-                              "日々の言葉を残す",
-                            ][i]
-                          }
-                        </span>
+                        <span>{s.label}</span>
                         <span aria-hidden="true">＋</span>
                       </button>
                     ))}
@@ -539,14 +584,21 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                           ? "整理の見本"
                           : "さきよみ"}
                     </span>
-                    <p>{m.text}</p>
+                    <p>
+                      {m.role === "assistant" ? (
+                        <FactText text={m.text} />
+                      ) : (
+                        m.text
+                      )}
+                    </p>
+                    <WarningList warnings={m.warnings} />
                   </div>
                 ))
               )}
               {busy && (
                 <div className="thinking" role="status">
                   <span className="pulse" />
-                  話してくれた内容から、使えるメモを整えています。
+                  <WaitingNote />
                 </div>
               )}
             </div>
@@ -604,7 +656,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                 </div>
               </form>
               <p className="privacy-hint">
-                送信すると、会話とメモをClaudeに渡して整理します。
+                公開の試用版です。実名や病名は書かず、架空の内容で試してください。送信すると、会話とメモをClaudeに渡して整理します。
                 <button onClick={() => setModal("privacy")}>詳しく</button>
               </p>
             </div>
@@ -638,7 +690,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                   家族の役に立つかたちに。
                 </h3>
                 <p>
-                  朝の支度の引き継ぎ。窓口への質問文。
+                  退院の日に要るお金。朝の支度の引き継ぎ。窓口への質問文。
                   <br />
                   大切にしておきたい、今日のひと言。
                   <br />
@@ -767,6 +819,10 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
               </a>
               をご確認ください。
             </p>
+            <h3>公開の試用版です</h3>
+            <p>
+              ログインなしで試せるように公開しています。Claudeとの会話は、1台あたり1日20回までなどの上限があります。架空の体験例は回数の制限なく試せます。実名、病名、連絡先は書かないでください。
+            </p>
             <h3>保存する場所を自分で選べます</h3>
             <p>
               初期状態では、この画面を閉じると会話とメモは消えます。「このブラウザに保存」を選ぶと、この端末のブラウザに残ります。共有端末では保存を選ばないでください。アプリのサーバーは会話を保存しません。
@@ -840,6 +896,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
               onClick={() => {
                 try {
                   localStorage.removeItem(STORAGE_KEY);
+                  localStorage.removeItem(UNREADABLE_STORAGE_KEY);
                 } catch {
                   setNotice("ブラウザの保存データを消せませんでした。");
                   setModal(null);

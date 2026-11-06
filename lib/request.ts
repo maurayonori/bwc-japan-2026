@@ -1,4 +1,4 @@
-// 認証はVercelの全デプロイ保護で行い、ここでは別サイトからの送信を拒否する。
+// 本番はログインなしで公開する（ADR 0012）。ここでは別サイトからの送信を拒否する。
 export function isAllowedRequest(
   request: Request,
   allowedOrigins: string[] = [],
@@ -20,9 +20,12 @@ export function isAllowedRequest(
   }
 }
 
+// プロンプトに入る量の上限でもある。道具の往復ごとに送り直すので、公開版の費用に直接効く。
+export const MAX_REQUEST_BYTES = 60_000;
+
 export async function readBoundedJson(
   request: Request,
-  limit = 120_000,
+  limit = MAX_REQUEST_BYTES,
 ): Promise<unknown> {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new Error("content-type");

@@ -1,4 +1,105 @@
-import { type Workspace } from "./workspace";
+import { calcDate } from "./money/business-days";
+import { showDate, yenRange } from "./money/format";
+import { kougakuGendo } from "./money/kougaku";
+import { simulateCashflow } from "./money/ledger";
+import { mealCost } from "./money/meals";
+import { type Proposal, type Workspace } from "./workspace";
+
+const TODAY = "2026-11-06";
+const ADMISSION = "2026-11-16";
+const DISCHARGE = "2026-11-30";
+const COPAY_LOW = 240_000;
+const COPAY_HIGH = 300_000;
+
+// 数字は手で書かず、本番と同じ計算関数で作る。文章の数字も、その結果を埋める。
+function exampleMoneyCard(messageId: string, quote: string): Proposal {
+  const kougakuInput = {
+    treatment_month: "2026-11",
+    income_category: "ウ",
+    amount_basis: "copay",
+    amount_low: COPAY_LOW,
+    amount_high: COPAY_HIGH,
+    copay_percent: 30,
+  };
+  const kougaku = kougakuGendo(kougakuInput);
+  const dateInput = { start_date: ADMISSION, steps: [], until_date: DISCHARGE };
+  const stay = calcDate(dateInput);
+  const days = stay.until?.days_inclusive ?? 1;
+  const mealInput = { days_low: days, days_high: days };
+  const meals = mealCost(mealInput);
+  const { low, high } = kougaku.cases[0];
+  const mealEvent = {
+    date: DISCHARGE,
+    label: "入院中の食事代",
+    direction: "out",
+    amount_low: meals.low.cost_max,
+    amount_high: meals.high.cost_max,
+    certainty: "estimate",
+  };
+  const capName = "窓口で上限が適用される場合";
+  const fullName = "いったん 3 割を払う場合";
+  const cashflowInput = {
+    start_date: TODAY,
+    cash_on_hand: null,
+    scenarios: [
+      {
+        name: capName,
+        events: [
+          {
+            date: DISCHARGE,
+            label: "入院費（保険診療分）",
+            direction: "out",
+            amount_low: low.pay_with_cap,
+            amount_high: high.pay_with_cap,
+            certainty: "estimate",
+          },
+          mealEvent,
+        ],
+      },
+      {
+        name: fullName,
+        events: [
+          {
+            date: DISCHARGE,
+            label: "入院費（保険診療分）",
+            direction: "out",
+            amount_low: low.copay_without_cap,
+            amount_high: high.copay_without_cap,
+            certainty: "estimate",
+          },
+          mealEvent,
+        ],
+      },
+    ],
+  };
+  const cashflow = simulateCashflow(cashflowInput);
+  const [withCap, withoutCap] = cashflow.scenarios;
+  return {
+    id: "hospital-money",
+    kind: "money",
+    title: "退院の日までに、手元に要る額",
+    body: [
+      `窓口で上限が適用されれば、${showDate(DISCHARGE)}に手元に要る額は ${yenRange(withCap.low_case.need, withCap.high_case.need)} です。上限が適用されず、いったん 3 割を払うなら ${yenRange(withoutCap.low_case.need, withoutCap.high_case.need)} です。`,
+      "差を生んでいるのは、窓口で上限が適用されるかどうかと、病院の概算の幅です。給付金は、まだ数えていません。[F02]",
+    ].join("\n"),
+    nextStep: "病院の会計で、窓口で上限を適用できるかを聞く。",
+    uncertainty:
+      "入院費は病院の概算です。保険の給付金が出るか、いつ入るかは、契約先への確認が必要です。",
+    evidence: [{ messageId, quote }],
+    money: {
+      calculations: [
+        { name: "kougaku_gendo", input: kougakuInput, output: kougaku },
+        { name: "meal_cost", input: mealInput, output: meals },
+        { name: "calc_date", input: dateInput, output: stay },
+        {
+          name: "simulate_cashflow",
+          input: cashflowInput,
+          output: cashflow,
+        },
+      ],
+    },
+  };
+}
 
 // 架空の体験例。AIがその場で生成した回答としては表示しない。
 export function exampleWorkspace(): Workspace {
@@ -8,17 +109,21 @@ export function exampleWorkspace(): Workspace {
     "朝は7時に起きて、着替えは寝室の白い棚。水筒をかばんの横に置き、8時10分に家を出ます。保険の書類は青いファイルにあるけど、今回の検査入院が対象かまだ確認していない。";
   const third =
     "残しておきたいこともある。今日、一緒にホットケーキを焼いた。ひっくり返せて、ふたりで拍手した。これをそのままメモに残したい。";
+  const moneyQuote =
+    "11/16から11/30まで入院の予定で、協会けんぽ、標準報酬月額は34万円。病院からは3割負担で24万〜30万円と聞いた。";
+  const fourth = `${moneyQuote}給付金はまだ数えないで、手元にいくら要るかを見たい。`;
   return {
-    version: 1,
+    version: 2,
     mode: "example",
     messages: [
       { id: "example-1", role: "user", text: first },
       { id: "example-2", role: "user", text: second },
       { id: "example-3", role: "user", text: third },
+      { id: "example-4", role: "user", text: fourth },
       {
         id: "example-reply",
         role: "assistant",
-        text: "朝の引き継ぎメモと、保険会社へ聞く文章を用意しました。今日の出来事は、話した言葉のまま残しています。まず朝のメモを読み返せば、家族に渡す準備ができます。",
+        text: "朝の引き継ぎメモと、保険会社へ聞く文章を用意しました。今日の出来事は、話した言葉のまま残しています。手元に要る額は、話してくれた概算で計算して表にしました。まず朝のメモを読み返せば、家族に渡す準備ができます。",
       },
     ],
     cards: [
@@ -77,6 +182,12 @@ export function exampleWorkspace(): Workspace {
               "今日、一緒にホットケーキを焼いた。ひっくり返せて、ふたりで拍手した。",
           },
         ],
+        edited: false,
+        done: false,
+        included: false,
+      },
+      {
+        ...exampleMoneyCard("example-4", moneyQuote),
         edited: false,
         done: false,
         included: false,

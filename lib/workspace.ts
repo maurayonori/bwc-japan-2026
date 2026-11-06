@@ -1,20 +1,32 @@
 import { z } from "zod";
+import { citationsToText, moneyToText } from "./money/format";
+import {
+  MAX_WARNINGS,
+  moneyRequestSchema,
+  moneySchema,
+  warningSchema,
+} from "./money/schema";
 
 export const kinds = {
   daily: { label: "暮らしの引き継ぎ", mark: "01" },
   contact: { label: "確かめる・頼む", mark: "02" },
   memory: { label: "残しておく言葉", mark: "03" },
+  money: { label: "お金の見通し", mark: "04" },
 } as const;
+
+// サーバーは 52 秒で打ち切って返す（lib/chat.ts）。応答が届くぶんの余裕を見て、画面はそのあとで諦める。
+export const CHAT_CLIENT_TIMEOUT_MS = 58_000;
 
 const id = z.string().min(1).max(80);
 export const messageSchema = z.object({
   id,
   role: z.enum(["user", "assistant"]),
   text: z.string().min(1).max(4000),
+  warnings: z.array(warningSchema).max(MAX_WARNINGS).optional(),
 });
 export const proposalSchema = z.object({
   id,
-  kind: z.enum(["daily", "contact", "memory"]),
+  kind: z.enum(["daily", "contact", "memory", "money"]),
   title: z.string().min(1).max(80),
   body: z.string().min(1).max(2000),
   nextStep: z.string().min(1).max(200),
@@ -23,24 +35,39 @@ export const proposalSchema = z.object({
     .array(z.object({ messageId: id, quote: z.string().min(1).max(2000) }))
     .min(1)
     .max(4),
+  money: moneySchema.optional(),
 });
 export const cardSchema = proposalSchema.extend({
   edited: z.boolean(),
   done: z.boolean(),
   included: z.boolean(),
 });
+// Claude に出してもらう形。表の項目を持たせない（表はサーバーが道具の結果から作る）。
+export const modelReplySchema = z.object({
+  reply: z.string().min(1).max(1800),
+  cards: z.array(proposalSchema.omit({ money: true })).max(4),
+});
+// 合成カードを足すことがあるので、モデルの上限より 1 枚多く受ける。
 export const replySchema = z.object({
   reply: z.string().min(1).max(1800),
-  cards: z.array(proposalSchema).max(4),
+  cards: z.array(proposalSchema).max(5),
+  warnings: z.array(warningSchema).max(MAX_WARNINGS).optional(),
 });
 export const workspaceSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   mode: z.enum(["live", "example"]),
   messages: z.array(messageSchema).max(40),
   cards: z.array(cardSchema).max(24),
 });
-export const requestSchema = workspaceSchema
-  .pick({ messages: true, cards: true })
+// 計算の結果は送らない。入力だけ受け取り、サーバーで計算し直す（改ざんされた数字を信じないため）。
+const requestCardSchema = cardSchema
+  .omit({ money: true })
+  .extend({ money: moneyRequestSchema.optional() });
+export const requestSchema = z
+  .object({
+    messages: workspaceSchema.shape.messages,
+    cards: z.array(requestCardSchema).max(24),
+  })
   .refine(
     (v) => v.messages.length > 0 && v.messages.at(-1)?.role === "user",
     "最後の発言が必要です",
@@ -63,9 +90,59 @@ export type Card = z.infer<typeof cardSchema>;
 export type Proposal = z.infer<typeof proposalSchema>;
 export type Reply = z.infer<typeof replySchema>;
 export type Workspace = z.infer<typeof workspaceSchema>;
+export type ChatRequest = z.infer<typeof requestSchema>;
 
 export function emptyWorkspace(): Workspace {
-  return { version: 1, mode: "live", messages: [], cards: [] };
+  return { version: 2, mode: "live", messages: [], cards: [] };
+}
+
+// 送るのは発言の本文と、計算の入力まで。表の結果と注意は、この端末にだけ置く。
+export function toRequest(
+  messages: readonly Message[],
+  cards: readonly Card[],
+): ChatRequest {
+  return {
+    messages: messages.map(({ id, role, text }) => ({ id, role, text })),
+    cards: cards.map((card) => ({
+      ...card,
+      money: card.money && {
+        calculations: card.money.calculations.map(({ name, input }) => ({
+          name,
+          input,
+        })),
+      },
+    })),
+  };
+}
+
+const storedWorkspaceSchema = workspaceSchema.extend({
+  version: z.union([z.literal(1), z.literal(2)]),
+});
+
+// version 1（お金のカードが無かった頃）の保存データも、そのまま読む。読めないときは投げる。
+export function parseStoredWorkspace(raw: string): Workspace {
+  return { ...storedWorkspaceSchema.parse(JSON.parse(raw)), version: 2 };
+}
+
+type WorkspaceStorage = Pick<Storage, "getItem" | "setItem">;
+
+// 読めない保存データを消さない。保存し直しても上書きされないよう、別のキーへ写しておく。
+export function readStoredWorkspace(storage: WorkspaceStorage): {
+  workspace: Workspace | null;
+  unreadable: boolean;
+} {
+  const raw = storage.getItem(STORAGE_KEY);
+  if (!raw) return { workspace: null, unreadable: false };
+  try {
+    return { workspace: parseStoredWorkspace(raw), unreadable: false };
+  } catch {
+    try {
+      storage.setItem(UNREADABLE_STORAGE_KEY, raw);
+    } catch {
+      // 写せなくても、元のキーには残っている。
+    }
+    return { workspace: null, unreadable: true };
+  }
 }
 
 // 発言にない引用や、AIが書いた言葉を「本人の言葉」として残さない。
@@ -116,6 +193,11 @@ export function exportMemo(cards: Card[]): string {
       [
         `【${kinds[card.kind].label}】${card.title}`,
         card.body,
+        card.kind === "money" && card.money
+          ? moneyToText(card.money, `${card.body}\n${card.uncertainty}`)
+          : card.kind === "memory"
+            ? ""
+            : citationsToText(`${card.body}\n${card.uncertainty}`),
         card.uncertainty ? `まだ確かめていないこと：${card.uncertainty}` : "",
         `次にすること：${card.nextStep}`,
         `準備の状態：${card.done ? "本人が完了を確認" : "これから"}`,
@@ -127,3 +209,4 @@ export function exportMemo(cards: Card[]): string {
 }
 
 export const STORAGE_KEY = "sakiyomi-family-v1";
+export const UNREADABLE_STORAGE_KEY = "sakiyomi-family-unreadable";
