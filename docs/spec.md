@@ -1,5 +1,7 @@
 # 仕様書（第 4 版 2026-11-04）
 
+> 以前の子育て案の記録です。現在の製品は[さきよみ（family-preparation.md）](family-preparation.md)で、題材の判断は [ADR 0011](adr/0011-confirm-sakiyomi-and-include-money.md) にあります。
+
 11/3〜4 に Claude Code の質問ツールで作者に聞き取りをして初版を作り、外部レビュー（Codex）の指摘を確かめて第 2 版にし、11/4 に公的調査と競合（LINE ヤフー Agent i）を確かめて第 3 版にし、同日に作者の指摘で主画面を「12 か月の見通し」にして第 4 版にした。題材は [ADR 0002](adr/0002-topic-gaps-left-by-existing-apps.md)、範囲を削った判断は [ADR 0003](adr/0003-first-version-scope-cuts.md)、ニーズの根拠と第一声は [ADR 0004](adr/0004-evidence-from-public-surveys-and-registration-first.md)、見通しの画面は [ADR 0005](adr/0005-twelve-month-outlook-as-main-screen.md)、進め方は [plan.md](plan.md)。末尾に「決まったこと」「まだ決まっていないこと」の一覧がある。
 
 ## 1. 誰の、何を解くか

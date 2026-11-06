@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>使う4つの場面 — 課題の比較案</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:24px;background:var(--background,#fafaf8);color:var(--foreground,#242824);font:15px/1.75 system-ui,-apple-system,"Noto Sans JP",sans-serif}
+main{max-width:960px;margin:auto}
+h1{font-size:27px;line-height:1.45;margin:8px 0 10px;letter-spacing:-.03em}h2{font-size:18px;margin:0 0 8px}h3{font-size:15px;margin:0 0 8px}
+p{margin:8px 0}.muted,small{color:var(--muted-foreground,#626b65)}.eyebrow{font-size:12px;letter-spacing:.06em;color:var(--muted-foreground,#626b65)}
+.intro{margin-bottom:22px;max-width:760px}.badge{display:inline-block;border:1px solid var(--border,#d9ded8);border-radius:5px;padding:1px 7px;font-size:11px;font-weight:500;margin:0 8px 6px 0}
+details{margin:12px 0;border:1px solid var(--border,#d9ded8);border-radius:12px;background:var(--card,#fff);overflow:hidden}
+summary{cursor:pointer;padding:17px 20px;font-weight:650;font-size:17px}summary:hover{background:var(--accent,#edf3e9);color:var(--accent-foreground,#243222)}
+summary:focus-visible,a:focus-visible{outline:3px solid var(--ring,#607850);outline-offset:-3px}
+summary small{display:block;font-size:13px;font-weight:400;margin-left:20px}
+.content{padding:0 20px 20px;border-top:1px solid var(--border,#d9ded8)}.scene{margin:16px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+.box{padding:16px;border-radius:8px;background:var(--muted,#f2f4f0)}
+.number{font-size:29px;font-weight:750;line-height:1.45;font-variant-numeric:tabular-nums}.number span{font-size:14px;font-weight:500}
+.bar{height:7px;background:var(--border,#dde2d9);border-radius:10px;margin:12px 0}.bar i{height:100%;display:block;background:var(--chart-1,#62834f);border-radius:10px}
+.result{border-left:3px solid var(--chart-1,#62834f);padding:8px 13px;margin:16px 0;background:var(--muted,#f2f4f0)}
+ol{padding-left:23px;margin:8px 0}li{margin:4px 0}.limit{font-size:13px;color:var(--muted-foreground,#626b65);margin-top:15px}
+.sources{font-size:12px;margin-top:12px}a{color:var(--foreground,#242824);text-underline-offset:3px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}th,td{text-align:left;padding:9px 7px;border-bottom:1px solid var(--border,#d9ded8);vertical-align:top}th{font-weight:650}
+.table-wrap{overflow:auto}.evidence{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0 16px}.evidence article{border-top:2px solid var(--border,#d9ded8);padding-top:12px}.evidence p{font-size:13px}
+footer{padding-top:10px;font-size:13px;color:var(--muted-foreground,#626b65)}
+@media(max-width:600px){body{padding:14px}h1{font-size:23px}.grid,.evidence{grid-template-columns:1fr}.number{font-size:26px}summary{padding:14px;font-size:16px}.content{padding:0 14px 16px}summary small{margin-left:0}}
+</style>
+<main>
+<div class="eyebrow">課題を選ぶための比較案 · 2026.11.05</div>
+<h1>使ったあと、何が変わるのか。</h1>
+<p class="intro muted">4つの場面を開いて、入力 → 次の行動 → 得られる結果を比べます。人物と家計は架空。題材の変更と、支払意思はまだ確認していません。</p>
+
+<details name="scenario" open>
+<summary><span class="badge">B1 · 入院前</span>退院日に、いくら用意する？<small>窓口で上限を適用するかで、その日に必要なお金が変わる。</small></summary>
+<div class="content">
+<p class="scene">11/16に退院予定。見積もりの保険診療費は10割で100万円。この支払いに使える手元資金は30万円。病院の会計で上限が適用されるかは未確認です。</p>
+<div class="grid">
+<div class="box"><h3>上限を適用せず、後日還付</h3><div class="number">350,000<span> 円必要</span></div><div class="bar"><i style="width:100%"></i></div><p>手元30万円では <strong>5万円不足</strong></p><small>3割負担30万円＋対象外費用5万円</small></div>
+<div class="box"><h3>窓口で上限を適用できる</h3><div class="number">142,940<span> 円必要</span></div><div class="bar"><i style="width:40.84%"></i></div><p>支払い後に <strong>157,060円残る</strong></p><small>上限92,940円＋対象外費用5万円</small></div>
+</div>
+<h3>このアプリで進めること</h3>
+<ol><li>診療月・所得区分・見積もり・上限適用の状況を入力する。</li><li>病院に聞く文を出す：「今回の会計で限度額が適用されますか」。</li><li>回答を記録すると、退院日の準備額が更新される。</li></ol>
+<div class="result"><strong>変えられるのは、207,060円の立替。</strong><br>最終的な治療費の節約ではありません。すでに上限が適用される人には、この差は生まれません。</div>
+<p class="limit">計算条件：70歳未満・協会けんぽ区分ウ・2026年11月の1病院の入院・3割負担。多数回該当、年間上限到達、合算なし。上限＝85,800＋（1,000,000−286,000）×1%。対象外5万円と手元30万円は架空の入力。生活費は別に取り置いた例です。</p>
+<p class="sources">出典：<a href="https://www.kyoukaikenpo.or.jp/benefit/high_cost_medical_expenses/002/index.html" target="_blank" rel="noopener noreferrer">協会けんぽの限度額</a> · <a href="https://www.kyoukaikenpo.or.jp/benefit/high_cost_medical_expenses/001/index.html" target="_blank" rel="noopener noreferrer">窓口での利用方法</a> · <a href="https://www.kyoukaikenpo.or.jp/faq/benefit/004/index.html" target="_blank" rel="noopener noreferrer">事後還付は診療月から3か月以上</a></p>
+</div>
+</details>
+
+<details name="scenario">
+<summary><span class="badge">B2 · 給付金の請求</span>保険金を待つ間、支払いに足りる？<small>「診断書が必要」から、依頼日と入金までの順番へ。</small></summary>
+<div class="content">
+<p class="scene">退院は11/16。手元12万円、12/10に15万円の支払い。給付金20万円を請求する予定ですが未入金です。B1とは別の架空の家計です。</p>
+<h3>このアプリで進めること</h3>
+<ol><li>保険会社に診断書の要否と所定様式を確認する。</li><li>必要なら、病院に依頼できる日と作成の目安を確認する。</li><li>依頼 → 受取り → 保険会社に到着 → 入金、をつなぎ、遅れた場合の不足を表示する。</li></ol>
+<div class="table-wrap"><table><thead><tr><th>架空の比較</th><th>退院日に依頼</th><th>2週間後に依頼</th></tr></thead><tbody>
+<tr><th>診断書を依頼</th><td>11/16</td><td>11/30</td></tr>
+<tr><th>完成（約2週間を仮定）</th><td>11/30</td><td>12/14</td></tr>
+<tr><th>保険会社に到着（仮定）</th><td>12/1</td><td>12/15</td></tr>
+<tr><th>5営業日目に送金（仮定）</th><td>12/8</td><td>12/22</td></tr>
+<tr><th>翌銀行営業日に着金（仮定）</th><td>12/9</td><td>12/23</td></tr>
+<tr><th>12/10の支払い直後</th><td><strong>17万円残る</strong></td><td><strong>3万円不足</strong></td></tr>
+</tbody></table></div>
+<div class="result"><strong>未確定の給付金を除くと、3万円不足。</strong><br>依頼忘れを減らし、入金が遅い場合の不足を支払日前に見つけます。</div>
+<p class="limit">退院日に依頼可能、郵送1日、不備・追加調査なしと仮定。病院と保険会社の公表例を組み合わせた試算で、実際の入金予定ではありません。アプリが審査や病院の作成を速めるわけではありません。</p>
+<p class="sources">出典：<a href="https://www.pref.tottori.lg.jp/280887.htm" target="_blank" rel="noopener noreferrer">鳥取県立中央病院：作成は約2週間</a> · <a href="https://faq.metlife.co.jp/answer/675187615a7cb3a9ba2b8571/" target="_blank" rel="noopener noreferrer">メットライフ生命：支払い・着金の目安</a></p>
+</div>
+</details>
+
+<details name="scenario">
+<summary><span class="badge">A1 · 復職前</span>病気の日の預け先、登録は済んだ？<small>アカウントはある。でも、子どもの施設登録が未確認。</small></summary>
+<div class="content">
+<p class="scene">1歳の子の親が12/1に復職予定。11/16を準備の確認日に決めた例です。これは行政の締切ではありません。</p>
+<div class="box"><h2>次は、施設への子どもの登録。</h2><p>テオテのアカウント作成とは別です。利用したい施設の登録状況を確認します。</p></div>
+<ol><li>復職日と、どの準備まで済んだかを入力する。</li><li>公式の施設検索から、親が登録手続きを進める。</li><li>登録後に記録。発熱時は、医師の利用連絡書・予約・可否確認の手順を見られる。</li></ol>
+<div class="result"><strong>準備の抜けを見つけ、登録まで進む。</strong><br>通常の利用料は1日3,000円＋給食費など300円。欠勤を何日減らせるか、何円得するかは未確認です。</div>
+<p class="limit">初回予約時のアカウント作成も可能。「当日では必ず間に合わない」とは言えません。受入可否・空き・送迎は別の問題です。テオテ自体が登録と予約を担うため、追加アプリが必要かを確かめる必要があります。減免・文書費等は別。</p>
+<p class="sources">出典：<a href="https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html" target="_blank" rel="noopener noreferrer">札幌市の病児・病後児保育</a></p>
+</div>
+</details>
+
+<details name="scenario">
+<summary><span class="badge">A2 · 出生後</span>出したつもりで、手当を受けそびれない？<small>出生届は提出した。児童手当の認定請求は、まだ。</small></summary>
+<div class="content">
+<p class="scene">10/28に第1子が生まれた札幌市民の親。公務員ではなく、通常の受給条件を満たす例です。</p>
+<div class="grid"><div class="box"><h3>11/12までに認定請求</h3><div class="number">11<span>月分から対象</span></div><p>15日特例の期限内</p></div><div class="box"><h3>11/13に認定請求</h3><div class="number">12<span>月分から対象</span></div><p>原則、11月分15,000円を受けられない</p></div></div>
+<ol><li>生年月日と提出状況から、11/12の期限を表示する。</li><li>公式の申請案内と必要書類へ進む。</li><li>提出日を記録。認定と初回の振込は、確認待ちとして残す。</li></ol>
+<div class="result"><strong>この例で守れるのは、11月分の15,000円。</strong><br>すでに申請できている家庭には、この場面での追加価値はありません。</div>
+<p class="limit">10/28の翌日から15日目が11/12。例外事情なし。初回の振込日は通常の支給日と異なる場合があり、確約しません。この1回の価値から、継続課金の価値は判断できません。</p>
+<p class="sources">出典：<a href="https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html" target="_blank" rel="noopener noreferrer">札幌市の児童手当</a></p>
+</div>
+</details>
+
+<div class="evidence">
+<article><h2>子育ての根拠</h2><p>函館の制度を知る未利用者974人の<strong>39.3%</strong>が、未利用理由に事前登録をしていなかったことを挙げました。札幌の割合やアプリの効果を示す数字ではありません。</p><p><a href="https://www.city.hakodate.hokkaido.jp/docs/2025082200054/file_contents/byouji_tyousakekka.pdf" target="_blank" rel="noopener noreferrer">函館市調査（2025年、全体1,454人）</a></p></article>
+<article><h2>入院案の根拠</h2><p>がん患者の<strong>24.2%</strong>が、医療の金銭的負担による生活への影響を回答。手続きの遅れで困った割合や、アプリで解決できる割合ではありません。</p><p><a href="https://www.ncc.go.jp/jp/information/pr_release/2025/0703_1/release_canpi_R5.pdf" target="_blank" rel="noopener noreferrer">国立がん研究センター（解析11,169人、重みづけ集計）</a></p></article>
+</div>
+<footer>この試作は比較用です。確認日：2026-11-05。実際の登録・申請・給付判定は行いません。「説明が分かる」に加えて、「この続きを任せたい」場面があるかを確かめます。</footer>
+</main>
+</html>

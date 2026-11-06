@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>入院前のお金の見通し（検証用の試作）</title>
+  <link rel="stylesheet" href="/app.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>入院前のお金の見通し</h1>
+      <p class="tag">検証用の試作（提出アプリ「さきよみ」には入っていません）</p>
+    </div>
+    <div class="top-actions">
+      <p id="status" class="status" role="status">接続を確かめています…</p>
+      <button id="reset" type="button" class="quiet">新しい会話</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="about" aria-labelledby="about-title">
+      <h2 id="about-title">この試作について</h2>
+      <p>入院が決まったあと、「いつ・いくら手元に要るか」と「先に確かめること」を、話しながら見通すための試作です。状況をそのまま書くと、Claude が条件を読み取り、金額と日付はプログラムが計算します。</p>
+      <ul>
+        <li>書いた文章は、返答を作るために Anthropic の API へ送られます。デモや評価では、架空の内容で試してください。</li>
+        <li>このサーバーはこの端末の中だけで動き、会話をファイルに残しません。「新しい会話」を押すか、サーバーを止めると、会話は消えます。</li>
+        <li>医療の助言はしません。給付金が出るか・いくら出るかも判断しません。出すのは、見通しと、確かめる相手・聞き方までです。</li>
+        <li>計算は、70 歳未満・協会けんぽの表（2026 年 8 月〜2027 年 7 月の診療分）にもとづく概算です。</li>
+      </ul>
+    </section>
+
+    <section id="log" class="log" role="log" aria-label="会話"></section>
+
+    <form id="composer" class="composer">
+      <label for="message">いまの状況を、分かっている範囲でそのまま書いてください</label>
+      <textarea id="message" rows="5" maxlength="4000" required placeholder="決まっていること、言われたこと、気になっていることを、順番を気にせずに。分からないことは「分からない」のままで大丈夫です。"></textarea>
+      <div class="composer-actions">
+        <button id="example" type="button" class="quiet">架空の例文を入れる</button>
+        <span class="hint">⌘ / Ctrl + Enter でも送れます</span>
+        <button id="send" type="submit">送る</button>
+      </div>
+    </form>
+
+    <details class="facts">
+      <summary>この試作が持っている事実と出典<span id="facts-count"></span></summary>
+      <p class="muted">Claude が制度や手続きに触れるときは、ここにある事実だけを使い、返答に [F03] のような番号を付けます。会社や病院の例は、その会社・病院の例です。</p>
+      <ol id="facts-list" class="facts-list"></ol>
+    </details>
+  </main>
+</body>
+</html>

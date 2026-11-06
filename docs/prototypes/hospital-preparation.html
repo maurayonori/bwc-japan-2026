@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>内部確認用：入院前のお金の計算</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:22px;background:var(--background,#fafbf8);color:var(--foreground,#202820);font:15px/1.7 system-ui,-apple-system,sans-serif}main{max-width:1000px;margin:auto}h1{font-size:27px;line-height:1.4;margin:7px 0 12px}h2{font-size:18px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}p{margin:8px 0}.muted,small{color:var(--muted-foreground,#626c62)}.eyebrow{font-size:12px;letter-spacing:.05em}.layout,.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}.layout{grid-template-columns:minmax(260px,1fr) minmax(0,1.6fr);align-items:start;margin-top:22px}section,form{border:1px solid var(--border,#d9dfd5);border-radius:12px;background:var(--card,#fff);padding:18px}label{display:block;font-size:13px;font-weight:600;margin-bottom:13px}input,select,button{font:inherit;color:var(--foreground,#202820);background:var(--background,#fafbf8);border:1px solid var(--border,#cbd2c6);border-radius:6px;padding:8px;width:100%;margin-top:4px}button{cursor:pointer}button:hover{background:var(--accent,#e9f1e3);color:var(--accent-foreground,#20321a)}:focus-visible{outline:3px solid var(--ring,#6e865d);outline-offset:2px}.small{font-size:12px}.range{display:grid;grid-template-columns:1fr 1fr;gap:10px}.range label{font-weight:400}.card{padding:14px;border-radius:8px;background:var(--muted,#f0f3ed)}.value{font-size:23px;font-weight:750;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.card p{font-size:12px}.emphasis{border-left:3px solid var(--chart-1,#61874e);padding:8px 12px;background:var(--muted,#f0f3ed);margin:14px 0}.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;font-size:12px;margin-top:10px}th,td{text-align:left;border-bottom:1px solid var(--border,#d9dfd5);padding:8px 5px}th{font-weight:600}td{font-variant-numeric:tabular-nums}.negative{font-weight:750;text-decoration:underline;text-decoration-style:dotted}.actions{display:grid;grid-template-columns:1fr;gap:6px}.actions button{text-align:left}.question{padding:12px;background:var(--muted,#f0f3ed);white-space:pre-line;border-radius:6px;margin-top:12px}.sources{font-size:12px;margin-top:20px}a{color:inherit;text-underline-offset:3px}details{margin:16px 0}summary{cursor:pointer;font-size:13px;font-weight:600}footer{font-size:12px;margin-top:18px}#error{padding:10px;border:2px solid var(--foreground,#202820);margin-bottom:12px}fieldset{border:0;margin:0;padding:0}legend{font-size:13px;font-weight:600}.stack>*+*{margin-top:16px}[hidden]{display:none!important}
+@media(max-width:720px){body{padding:14px}.layout{grid-template-columns:1fr}h1{font-size:23px}.value{font-size:21px}}@media(max-width:420px){.pair{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<div class="eyebrow muted">内部の計算確認用 · 架空の入院1件 · 2026.11.05</div>
+<h1>入院費用の計算を確認する。</h1>
+<p class="muted">このフォームは利用者向けUIとして不採用になりました。計算の確認用に残しています。製品の入口は、LLMとの自然な会話に改めています。入力は保存・送信されません。</p>
+<details><summary>この例の条件と、計算に入れていないもの</summary>
+<p class="small">2026/11/16に入院費を支払う例。70歳未満・協会けんぽ区分ウ・11月の1病院の入院・保険診療10割100万円・3割負担。多数回該当・年間上限到達・合算なし。窓口の保険診療分は未適用30万円／上限適用92,940円です。個室・食事等は下の対象外費用にまとめます。</p>
+<p class="small">2026/11/05〜2027/02/10の、ここに入れた入出金だけを計算します。給与など未入力の収入、後日還付、別の医療費は含みません。給付金額と入金日は仮定です。追加支払いの回数は病気・再入院・受診の予測ではありません。</p>
+</details>
+<div class="layout">
+<form id="controls" novalidate>
+<h2>1. 仮の条件を動かす</h2>
+<label>この期間に使える手元資金（円）<input id="cash" type="number" min="0" max="10000000" step="1" value="300000" required></label>
+<fieldset><legend>入院の対象外費用の幅（円）</legend><div class="range">
+<label>低めの見積もり<input id="low" type="number" min="0" max="10000000" step="1" value="30000" required></label>
+<label>高めの見積もり<input id="high" type="number" min="0" max="10000000" step="1" value="70000" required></label>
+</div></fieldset>
+<label>生活費等の支払い（11/30、円）<input id="fixed" type="number" min="0" max="10000000" step="1" value="150000" required></label>
+<label>民間給付金の仮の金額（円）<input id="benefit" type="number" min="0" max="10000000" step="1" value="200000" required></label>
+<label>給付金が入る仮の日<select id="benefitDate"><option value="2026-12-09">12/9に入る</option><option value="2026-12-23">12/23まで遅れる</option><option value="none">期間内に入金されない</option></select></label>
+<div class="range">
+<label>追加支払いの回数<select id="count"><option value="0">0回</option><option value="1" selected>1回</option><option value="2">2回</option><option value="3">3回</option></select></label>
+<label>1回の支払い（円）<input id="perPayment" type="number" min="0" max="10000000" step="1" value="10000" required></label>
+</div>
+<p class="small muted">追加支払いは12/10から毎月10日に1回。仮の予定として比較します。</p>
+<button type="reset">架空の初期値に戻す</button>
+</form>
+<div class="stack">
+<div id="error" role="alert" hidden></div>
+<div id="results">
+<section>
+<h2>2. 期間中、いくら足りなくなる？</h2>
+<div class="pair" aria-live="polite">
+<div class="card"><h3>窓口で上限を適用しない</h3><div class="value" id="without"></div><p id="withoutDate"></p></div>
+<div class="card"><h3>窓口で上限を適用できる</h3><div class="value" id="with"></div><p id="withDate"></p></div>
+</div>
+<p class="small muted">表示は「足りなくなる最大額」の幅。費用の低い例と高い例を計算しています。医療費の節約額ではありません。</p>
+<div class="emphasis"><strong>給付金が期間内に入らない場合</strong><p id="noBenefit"></p></div>
+<p class="small" id="extraTotal"></p>
+<details><summary>日付ごとの残高を見る</summary>
+<p class="small muted">マイナスは、その時点の不足。費用が高い場合〜低い場合の順です。</p>
+<div class="table-wrap"><table><thead><tr><th>日付・出来事</th><th>上限未適用</th><th>上限適用</th></tr></thead><tbody id="ledger"></tbody></table></div>
+</details>
+</section>
+<section style="margin-top:16px">
+<h2>3. 先に確かめたいことを選ぶ</h2>
+<p class="small muted">選ぶと質問文を表示します。問い合わせや申請は行いません。</p>
+<div class="actions">
+<button type="button" data-question="hospital">病院に、見積もりと上限適用を確認</button>
+<button type="button" data-question="insurer">保険会社に、必要書類と請求時期を確認</button>
+<button type="button" data-question="payments">退院後の支払い予定を確認</button>
+<button type="button" data-question="none">今は準備を増やす必要を感じない</button>
+</div>
+<div id="question" class="question" aria-live="polite">条件を変えて、確認したい項目を選んでください。</div>
+</section>
+</div>
+</div>
+</div>
+<p class="sources">制度の出典：<a href="https://www.kyoukaikenpo.or.jp/benefit/high_cost_medical_expenses/002/index.html" target="_blank" rel="noopener noreferrer">協会けんぽ・令和8年8月〜令和9年7月の表</a>（2026-11-05確認）。上限の計算は85,800＋（1,000,000−286,000）×1%。その他の金額は架空の入力です。</p>
+<footer class="muted">このページの操作結果を、会話による体験や利用者の行動変化の検証結果として扱いません。LLM接続は未実装です。</footer>
+</main>
+<script id="model">
+function ledger(cash, entries) {
+  let balance = cash, minimum = cash, firstShortfall = null;
+  const rows = [{date:'2026-11-05', label:'手元資金', balance}];
+  for (const entry of [...entries].sort((a,b) => a.date.localeCompare(b.date) || a.amount-b.amount)) {
+    balance += entry.amount;
+    minimum = Math.min(minimum, balance);
+    if (balance < 0 && firstShortfall === null) firstShortfall = entry.date;
+    rows.push({...entry, balance});
+  }
+  return {rows, shortfall:Math.max(0,-minimum), firstShortfall};
+}
+function calculate(input) {
+  for (const key of ['cash','low','high','fixed','benefit','perPayment']) {
+    if (!Number.isSafeInteger(input[key]) || input[key] < 0 || input[key] > 10000000)
+      throw new Error('金額は0〜10,000,000円の整数で入力してください。空欄は計算できません。');
+  }
+  if (input.low > input.high) throw new Error('高めの見積もりを、低めの見積もり以上にしてください。');
+  if (!Number.isInteger(input.count) || input.count < 0 || input.count > 3)
+    throw new Error('追加支払いの回数は0〜3回です。');
+  if (!['2026-12-09','2026-12-23','none'].includes(input.benefitDate))
+    throw new Error('給付金の仮の日を選んでください。');
+  function scenario(capped, extra, receive) {
+    const entries = [
+      {date:'2026-11-16', label:'入院費', amount:-(capped ? 92940 : 300000)-extra},
+      {date:'2026-11-30', label:'生活費等', amount:-input.fixed}
+    ];
+    ['2026-12-10','2027-01-10','2027-02-10'].slice(0,input.count).forEach(date =>
+      entries.push({date,label:'追加支払い',amount:-input.perPayment}));
+    if (receive && input.benefitDate !== 'none')
+      entries.push({date:input.benefitDate,label:'民間給付（仮）',amount:input.benefit});
+    return ledger(input.cash,entries);
+  }
+  const range = (capped,receive) => ({low:scenario(capped,input.low,receive),high:scenario(capped,input.high,receive)});
+  return {without:range(false,true),with:range(true,true),noBenefit:range(true,false),extraTotal:input.count*input.perPayment};
+}
+</script>
+<script>
+const form = document.getElementById('controls');
+const money = value => new Intl.NumberFormat('ja-JP').format(value)+'円';
+const rangeText = (low,high) => low === high ? money(low) : money(low)+'〜'+money(high);
+const shortfallText = result => rangeText(result.low.shortfall,result.high.shortfall);
+function showRange(element,result) {
+  element.replaceChildren();
+  const values = result.low.shortfall === result.high.shortfall ? [result.low.shortfall] : [result.low.shortfall,result.high.shortfall];
+  values.forEach((value,i) => {
+    if (i) element.append('〜');
+    const span = document.createElement('span');
+    span.style.whiteSpace = 'nowrap'; span.style.display = 'inline-block'; span.textContent = money(value);
+    element.append(span);
+  });
+}
+const dateText = result => result.high.firstShortfall
+  ? '費用が高い場合、最初の不足：'+result.high.firstShortfall.replaceAll('-','/')
+  : 'この入力範囲では不足なし';
+function render() {
+  const error = document.getElementById('error'), results = document.getElementById('results');
+  try {
+    const input = {};
+    for (const key of ['cash','low','high','fixed','benefit','count','perPayment']) {
+      const raw = document.getElementById(key).value;
+      input[key] = raw.trim() === '' ? NaN : Number(raw);
+    }
+    input.benefitDate = document.getElementById('benefitDate').value;
+    const result = calculate(input);
+    error.hidden = true; results.hidden = false;
+    for (const key of ['without','with']) {
+      showRange(document.getElementById(key),result[key]);
+      document.getElementById(key+'Date').textContent = dateText(result[key]);
+    }
+    document.getElementById('noBenefit').textContent = '窓口で上限を適用しても、不足する最大額は'+shortfallText(result.noBenefit)+'。';
+    document.getElementById('extraTotal').textContent = '退院後の追加支払い：'+input.count+'回 × '+money(input.perPayment)+' = '+money(result.extraTotal)+'。入金後の支払いが増えても、入金前の不足額は変わらない場合があります。';
+    document.getElementById('ledger').replaceChildren();
+    result.with.low.rows.forEach((row,i) => {
+      const tr = document.createElement('tr');
+      const dateCell = document.createElement('th');
+      dateCell.scope = 'row'; dateCell.textContent = row.date.slice(5).replace('-','/')+' '+row.label;
+      tr.append(dateCell);
+      for (const key of ['without','with']) {
+        const td = document.createElement('td'), lower = result[key].high.rows[i].balance, upper = result[key].low.rows[i].balance;
+        td.textContent = rangeText(lower,upper);
+        if (lower < 0) td.className = 'negative';
+        tr.append(td);
+      }
+      document.getElementById('ledger').append(tr);
+    });
+  } catch (e) {
+    results.hidden = true; error.hidden = false; error.textContent = e.message;
+  }
+}
+const questions = {
+  hospital:'病院の会計窓口へ\n今回の支払いで限度額が適用されるか確認したいです。適用に必要な準備、保険診療分と対象外費用の見積もり幅、支払日を教えてください。',
+  insurer:'保険会社の請求窓口へ\nこの契約の給付を請求するために必要な書類と、請求できる時点を確認したいです。診断書は必要ですか。必要なら所定様式と、書類を受領してから支払うまでの目安を教えてください。',
+  payments:'自分の予定表と支払い先を確認\n退院後、この期間に支払いがあるのは何回で、いつ、いくらでしょうか。確定している予定と、まだ仮置きの予定を分けて確認します。',
+  none:'準備を増やす必要を感じない、という結果も検証に含めます。\n既に確認できている、他の方法で足りる、入力が現実と合わないなどの理由が分かれば、次の検討に使えます。この選択は保存・送信されません。'
+};
+document.querySelectorAll('[data-question]').forEach(button => button.addEventListener('click',() => {
+  document.getElementById('question').textContent = questions[button.dataset.question];
+}));
+form.addEventListener('input',render);
+form.addEventListener('change',render);
+form.addEventListener('submit',event => event.preventDefault());
+form.addEventListener('reset',() => {
+  document.getElementById('question').textContent = '条件を変えて、確認したい項目を選んでください。';
+  requestAnimationFrame(render);
+});
+render();
+</script>
+</body>
+</html>

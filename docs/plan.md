@@ -1,5 +1,7 @@
 # 進め方（11/3〜11/8）
 
+> 以前の子育て案の記録です。現在の製品は[さきよみ（family-preparation.md）](family-preparation.md)で、題材の判断は [ADR 0011](adr/0011-confirm-sakiyomi-and-include-money.md) にあります。
+
 11/3 のセッション「仕様作成と Managed Agents」で示された手順を、このプロジェクトに当てはめたものです。出どころは Discord #hackathon-stage のセッション（録画は #資料-resources）。
 
 ## 手順
