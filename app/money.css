@@ -1,0 +1,162 @@
+.memo-card.money {
+  border-top-color: #8fa8a0;
+}
+.money {
+  container-type: inline-size;
+  container-name: money;
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.money-block {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.money-block h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.money-block p {
+  margin: 4px 0;
+}
+.money-scenario {
+  margin-top: 12px;
+}
+.money-scenario h5 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.money-lead {
+  font-weight: 500;
+}
+.money-muted {
+  color: var(--muted);
+  font-size: 11px;
+}
+.money-block-line {
+  display: block;
+}
+.money-fold-label {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 10px;
+}
+.money-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0;
+  font-size: 11px;
+}
+.money-table th,
+.money-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 5px 6px;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+}
+.money-table thead th {
+  color: var(--muted);
+  font-size: 10px;
+}
+.money-table tbody td {
+  font-variant-numeric: tabular-nums;
+}
+.money-lines,
+.money-steps {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+.money-lines li,
+.money-steps li {
+  margin: 2px 0;
+}
+.money details {
+  margin-top: 6px;
+}
+.money summary {
+  cursor: pointer;
+  color: var(--green);
+  font-size: 11px;
+}
+.money-sources a {
+  color: var(--green);
+}
+.fact-cite {
+  font-size: 0.82em;
+  color: var(--green);
+  white-space: nowrap;
+}
+a.fact-cite {
+  text-decoration: underline;
+}
+.money-warnings {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: #f6f4eb;
+  color: #776d57;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.money-warnings > span {
+  color: var(--amber);
+  font-size: 10px;
+}
+.money-warnings ul {
+  margin: 2px 0 0;
+  padding-left: 16px;
+}
+.waiting-seconds {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.waiting-hint {
+  display: block;
+  color: var(--muted);
+}
+/* 狭いときは列を積み上げる。横にはみ出させない。 */
+@container money (max-width: 520px) {
+  .money-table,
+  .money-table tbody,
+  .money-table tr,
+  .money-table th,
+  .money-table td {
+    display: block;
+    width: 100%;
+  }
+  .money-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .money-table tr {
+    border-bottom: 1px solid var(--line);
+    padding: 6px 0;
+  }
+  .money-table th,
+  .money-table td {
+    border: 0;
+    padding: 1px 0;
+  }
+  .money-table tbody th {
+    font-weight: 600;
+  }
+  .money-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: right;
+  }
+  .money-table tbody td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    text-align: left;
+    flex: 1;
+  }
+}

@@ -187,4 +187,13 @@ test("Content-Lengthに頼らず実際の本文サイズ・JSON形式を検査�
     /body-too-large/,
   );
   await assert.rejects(readBoundedJson(req("not JSON")));
+  // 既定の上限は公開版の費用を抑える値。日本語なら 2 万字に届かない。
+  await assert.rejects(
+    readBoundedJson(req('"' + "あ".repeat(20_000) + '"')),
+    /body-too-large/,
+  );
+  assert.equal(
+    await readBoundedJson(req('"' + "あ".repeat(19_000) + '"')),
+    "あ".repeat(19_000),
+  );
 });
