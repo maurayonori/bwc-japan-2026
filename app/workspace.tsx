@@ -528,7 +528,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
           >
             <div className="section-heading">
               <div>
-                <span className="section-number">TALK</span>
+                <span className="section-number">話す</span>
                 <h2 id="conversation-title">いま、気になっていること</h2>
               </div>
               <span className="quiet-dot" aria-hidden="true" />
@@ -664,7 +664,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
           <section className="preparation" aria-labelledby="memo-title">
             <div className="section-heading memo-heading">
               <div>
-                <span className="section-number">PREPARE</span>
+                <span className="section-number">準備する</span>
                 <h2 id="memo-title">
                   家族のしおり
                   <span className="count">{workspace.cards.length}</span>
