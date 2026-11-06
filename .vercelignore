@@ -1,0 +1,12 @@
+.env*
+.git
+.next
+node_modules
+docs
+data
+tests
+*.tsbuildinfo
+*.log
+.claude
+.codex
+test-results

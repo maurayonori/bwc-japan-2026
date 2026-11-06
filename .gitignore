@@ -5,6 +5,10 @@
 
 # 依存とビルド成果物
 node_modules/
+.next/
+.vercel/
+*.tsbuildinfo
+test-results/
 dist/
 build/
 .venv/
@@ -19,3 +23,7 @@ __pycache__/
 # ローカル専用
 *.log
 .claude/settings.local.json
+
+# グローバル除外の lib/ より、このアプリのソースを優先
+!/lib/
+!/lib/**
