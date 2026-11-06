@@ -14,7 +14,7 @@
   - 札幌市の出生数は年約 1 万人。2 年連続で 1 万人を割った（[北海道新聞](https://www.hokkaido-np.co.jp/article/1280065/)）
   - 札幌市 就学前児童のいる世帯を対象としたニーズ等調査（2018-12〜2019-01、6,116 件・回収率 40.8%。11/4 夕方に追記）: 教育・保育事業の利用者が、子どもの病気やケガで預けられなかったときの対応は「母親が休んだ」77.1%、「親族・知人にみてもらった」33.7%、「父親が休んだ」27.1%（2013 年度は 19.0%）、「病後児デイサービスを利用した」2.9%（N=2,494）。日頃みてもらえる人は「緊急時に祖父母などの親族」59.9%、「いない」19.5%（[概要](https://www.city.sapporo.jp/kodomo/jisedai/kodomoplan2020/documents/04chousakekkagaiyoushuugakuame_2.pdf)）。2021-12〜2022-01 の子育てに関する調査（6,760 件）では「緊急時に親族」52.9%、「いない」20.2%。この調査には病気のときの対応の設問が無い（[報告書](https://www.city.sapporo.jp/kodomo/jisedai/kodomoplan2020/documents/houkoku-kodomokosodate.pdf)）
 - 競合が出ていた。LINE ヤフー「Agent i 子育てエージェント」（[2026-10-14 提供開始](https://www.lycorp.co.jp/ja/news/release/020891/)、LINE 内）。愛称・生年月日・居住エリアから、月齢順の「子育てロードマップ」と、自治体の手続き・助成金の TODO を AI が作る。母子手帳や通知の撮影読み取り、知恵袋つきのチャットがある。一方で「生成 AI の出力の正確性・完全性は保証しない」と明記し、出典・確認日・期限の計算・通知は無い。預け先の事前登録と、親の働き方の軸も無い
-- 題材を「病気・休業時の手続き」（[docs/research](../research/cancer-experience-facts-20261103.md)）に切り替える案も検討した
+- 題材を「病気・休業時の手続き」（[docs/research](../research/author-hospital-preparation-20261103.md)）に切り替える案も検討した
 - 札幌市の 4 月入所の 1 次調整の締切は 2026-11-30 17:15 必着（[札幌市](https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/8935.html)、11/4 確認）。デモ日 11/8 に「締切が近い」になり、spec §9 の流れが成り立つ
 
 ## 決めたこと
