@@ -233,7 +233,94 @@ for (let k = 0; k < 150; k++) {
   if (rand(2)) extra.work = iso(b + 150 + rand(700));
   const pl = c.planAll(data, { birth: iso(b), ...extra }, today);
   checkLayout(c.layoutRoadmap(pl), `${iso(b)} ${JSON.stringify(extra)} 今日 ${iso(today)}`);
+  // 2 人の家族（下の子は 1〜5 年あと）
+  const y = b + 365 + rand(365 * 4);
+  const st = { elderBirth: iso(b), elderNursery: extra.nursery || '', youngerDue: iso(Math.min(y, d('2036-12-31'))), youngerNursery: '', ward: '', work: extra.work || '' };
+  const fm = c.planFamily(data, st, today, {});
+  for (const v of ['all', 'a', 'b']) checkLayout(c.layoutFamily(fm, v), `家族 ${JSON.stringify(st)} ${v}`);
 }
+
+// ---- 子ども 2 人と設定 ----
+// メイン画面（見出しと年表・詳細）の HTML に入力欄が無い。入力欄は設定画面（#settings-view）だけ
+const mainHtml = html.slice(html.indexOf('<body>'), html.indexOf('<section id="settings-view"'));
+assert.ok(mainHtml.includes('<div id="main-view">'));
+assert.ok(!/<input|<select|<textarea/.test(mainHtml), 'メイン画面に入力欄がある');
+const settingsHtml = html.slice(html.indexOf('<section id="settings-view"'), html.indexOf('</section>', html.indexOf('<section id="settings-view"')));
+for (const id of ['s-elderBirth', 's-elderNursery', 's-youngerDue', 's-youngerNursery', 's-ward', 's-work', 'b-reset']) assert.ok(settingsHtml.includes(`id="${id}"`), id);
+
+// 初期値（すべて架空）: 上の子は 2026-11-07 の時点で 1 歳
+const today = d('2026-11-07');
+assert.deepEqual({ ...c.DEFAULT_SETTINGS }, { elderBirth: '2025-11-07', elderNursery: '2027-04', youngerDue: '2027-03-15', youngerNursery: '', ward: '北区', work: '2028-04-03' });
+const fam = c.planFamily(data, c.DEFAULT_SETTINGS, today, {});
+assert.equal(fam.children.length, 2);
+assert.equal(c.conditionText(fam), '上の子 1 歳 0 か月・下の子 2027 年 3 月 15 日予定（日は仮）・北区・復職予定 2028/4/3（月）・架空の例');
+assert.equal(c.ageYM(d('2025-11-07'), d('2026-11-06')), '0 歳 11 か月');
+// 下の子の日付を手計算で照合する（出産予定日 2027-03-15 から）
+const younger = fam.children[1].plan;
+const yItem = (id) => item(younger, id);
+assert.equal(iso(yItem('sapporo-procedures-jido-teate').effDue), '2027-03-30'); // 3/15 + 15 日 = 3/30（火）。開庁日なのでずらさない
+assert.equal(yItem('sapporo-procedures-jido-teate').closed, null);
+assert.equal(iso(yItem('sapporo-procedures-shussho-todoke').due), '2027-03-28'); // 3/15 + 13 日 = 3/28（日）
+assert.equal(iso(yItem('sapporo-procedures-shussho-todoke').closed.before), '2027-03-26'); // 前の開庁日は 3/26（金）
+assert.equal(iso(c.addMonths(d('2027-03-15'), 5)), '2027-08-15'); // 生後 5 か月
+assert.equal(iso(yItem('sapporo-childcare-byouji-teote-account').due), '2027-07-16'); // 8/15 の 30 日前 = 7/16
+assert.equal(iso(younger.ctx.school), '2033-04-01');
+assert.equal(iso(fam.children[0].plan.ctx.school), '2032-04-01');
+// 下の子が生まれる前に締切が来る申込は、下の子には出さない（データの対象月齢 0 か月〜に当たらない）
+assert.equal(yItem('sapporo-procedures-hoikusho-4gatsu-nyusho-r9').status.key, 'na');
+assert.equal(item(fam.children[0].plan, 'sapporo-procedures-hoikusho-4gatsu-nyusho-r9').status.key, 'open');
+// 第 2 子以降に関わる制度は、データの「要確認」のまま
+assert.equal(yItem('sapporo-procedures-hoikuryo-tashi-keigen').item.nc, true);
+// 下の子は入園予定月が空なので、before_milestone は期日なし
+assert.equal(yItem('sapporo-childcare-kosapo-kaoawase').noDate, '入園予定月を入れると期日が出ます');
+
+// 「済んだ」は子どもごとに分ける
+const famDone = c.planFamily(data, c.DEFAULT_SETTINGS, today, { 'a:sapporo-procedures-shussho-todoke': true });
+assert.equal(item(famDone.children[0].plan, 'sapporo-procedures-shussho-todoke').status.key, 'done');
+assert.notEqual(item(famDone.children[1].plan, 'sapporo-procedures-shussho-todoke').status.key, 'done');
+assert.equal(c.doneKey('b', 'x'), 'b:x');
+
+// 設定を変えると日付が変わる。保存した形から読み直しても同じ。初期値に戻せる
+const changed = c.normalizeSettings({ ...c.DEFAULT_SETTINGS, elderBirth: '2025-12-01' });
+const famChanged = c.planFamily(data, changed, today, {});
+assert.equal(iso(item(famChanged.children[0].plan, 'sapporo-procedures-shussho-todoke').due), '2025-12-14');
+assert.notEqual(iso(item(famChanged.children[0].plan, 'sapporo-procedures-shussho-todoke').due), iso(item(fam.children[0].plan, 'sapporo-procedures-shussho-todoke').due));
+assert.deepEqual({ ...c.normalizeSettings(JSON.parse(JSON.stringify({ settings: changed })).settings) }, { ...changed });
+assert.equal(c.isDefaultSettings(changed), false);
+assert.equal(c.isDefaultSettings(c.normalizeSettings(c.DEFAULT_SETTINGS)), true);
+assert.match(c.conditionText(famChanged), /あなたの設定$/);
+// 片方を空にすれば 1 人分。両方空なら設定を促す
+assert.deepEqual(Array.from(c.planFamily(data, { ...c.DEFAULT_SETTINGS, youngerDue: '' }, today, {}).children, (k) => k.key), ['a']);
+assert.deepEqual(Array.from(c.planFamily(data, { ...c.DEFAULT_SETTINGS, elderBirth: '' }, today, {}).children, (k) => k.key), ['b']);
+assert.equal(c.planFamily(data, { ...c.DEFAULT_SETTINGS, elderBirth: '', youngerDue: '' }, today, {}).children.length, 0);
+assert.ok(c.settingsErrors({ ...c.DEFAULT_SETTINGS, elderBirth: '', youngerDue: '' })[0].includes('入れてください'));
+assert.equal(c.settingsErrors(c.DEFAULT_SETTINGS, ['北区']).length, 0);
+assert.equal(c.settingsErrors({ ...c.DEFAULT_SETTINGS, elderNursery: '2027/4' }).length, 1);
+
+// 2 人の年表: 項目の ID は子ごとに分かれて重ならない。範囲は 2 人の全期間
+const FL = c.layoutFamily(fam, 'all');
+const famEls = FL.lanes.flatMap((l) => Array.from(l.els));
+const itemEls = famEls.filter((g) => g.lane !== 'events' && g.lane !== 'milestone');
+assert.ok(itemEls.every((g) => /^[ab]-/.test(g.id) && g.id === (g.who === '上' ? 'a-' : 'b-') + g.item));
+assert.ok(itemEls.some((g) => g.id === 'a-sapporo-procedures-shussho-todoke') && itemEls.some((g) => g.id === 'b-sapporo-procedures-shussho-todoke'));
+const detailIds = [];
+for (const k of fam.children) {
+  for (const p of k.plan.items) detailIds.push(`${k.key}-${p.id}`);
+  for (const m of k.plan.milestones) if (m.kind !== 'work') detailIds.push(`${k.key}-ms-${m.key}`);
+}
+detailIds.push('ms-work', ...data.events.map((e) => e.id), 'ward');
+assert.equal(new Set(detailIds).size, detailIds.length, '詳細の ID が重なる');
+assert.ok(famEls.every((g) => detailIds.includes(g.id)), '年表の要素がどの詳細にも当たらない');
+assert.equal(famEls.filter((g) => g.id === 'ms-work').length, 1); // 復職予定日は家庭で 1 つ
+assert.ok(FL.r0 <= d('2025-11-07') && FL.r1 >= d('2033-04-01'));
+assert.equal(Array.from(FL.kids, (k) => k.mark).join(''), '上下');
+// 表示の絞り込み: 下の子だけ
+const FLb = c.layoutFamily(fam, 'b');
+assert.ok(FLb.lanes.flatMap((l) => Array.from(l.els)).filter((g) => g.lane !== 'events' && g.id !== 'ms-work').every((g) => g.id.startsWith('b-')));
+// 2 人で同じ日の支給予定日は 1 つにまとめる
+const pays = FL.lanes.find((l) => l.key === 'events').els.filter((g) => g.kind === 'dot').map((g) => g.a);
+assert.equal(new Set(pays).size, pays.length);
+for (const lane of FL.lanes) assert.equal(c.overlaps(lane).length, 0, `2 人 ${lane.key}`);
 
 (async () => {
   const build = await import(pathToFileURL(path.join(__dirname, '..', '..', 'scripts', 'build-sapporo-roadmap.mjs')).href);
@@ -263,8 +350,78 @@ for (let k = 0; k < 150; k++) {
     assert.equal(pl.items.length, yaml.items.length);
     for (const e of data.events) assert.ok(pl.events.placed[e.id] || pl.events.undated.some((u) => u.id === e.id && u.reason), e.id);
   }
-  console.log('OK: 月末の誕生日・祝日と土日と年末年始・支給予定日・閉庁日の締切・期限切れ・予防接種の扱い・入園予定月なし・目安と準備の日・就学・年表の棒と点・段ずらしと文字の重なり・YAML と埋め込みの一致');
+  console.log('OK: 月末の誕生日・祝日と土日と年末年始・支給予定日・閉庁日の締切・期限切れ・予防接種の扱い・入園予定月なし・目安と準備の日・就学・年表の棒と点・段ずらしと文字の重なり・子ども 2 人と設定・YAML と埋め込みの一致');
+  await browserChecks();
 })().catch((e) => {
   console.error(e);
   process.exit(1);
 });
+
+// ---- ブラウザでの検査（playwright と Chromium があるときだけ。無ければ省いたと出す） ----
+async function browserChecks() {
+  let chromium;
+  try { ({ chromium } = require('playwright')); } catch (e) { console.log('省略: playwright が見つからないので、ブラウザでの検査をしていない'); return; }
+  const url = pathToFileURL(path.join(__dirname, 'sapporo-roadmap.html')).href + '?today=2026-11-07';
+  const browser = await chromium.launch();
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const page = await ctx.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    page.on('request', (r) => { if (!/^(file|data|about):/.test(r.url())) errors.push('外への通信 ' + r.url()); });
+    await page.goto(url);
+    // メイン画面に input と select が無い（詳細の「済んだ」のチェックを除く）
+    const stray = await page.evaluate(() => [...document.querySelectorAll('input, select, textarea')].filter((e) => !e.closest('#settings-view') && !(e.type === 'checkbox' && e.closest('details.item'))).length);
+    assert.equal(stray, 0);
+    assert.equal(await page.isVisible('#settings-view'), false);
+    assert.ok((await page.textContent('#cond')).startsWith('上の子 1 歳 0 か月'));
+    assert.ok(await page.isVisible('#rm'));
+    // ID が重ならない
+    const dup = await page.evaluate(() => { const a = [...document.querySelectorAll('[id]')].map((e) => e.id); return a.length - new Set(a).size; });
+    assert.equal(dup, 0);
+    // 年表のリンクを押すと、それぞれの子の詳細へ飛ぶ
+    for (const id of ['a-sapporo-procedures-shussho-todoke', 'b-sapporo-procedures-shussho-todoke']) {
+      await page.evaluate((i) => document.querySelector(`.el[data-id="${i}"]`).click(), id);
+      assert.equal(await page.evaluate((i) => document.getElementById('item-' + i).open, id), true, id);
+      assert.equal(await page.evaluate(() => decodeURIComponent(location.hash)), '#item-' + id);
+    }
+    const titleA = () => page.getAttribute('.el[data-id="a-sapporo-procedures-shussho-todoke"]', 'title');
+    assert.match(await titleA(), /2025\/11\/20/); // 2025-11-07 + 13 日
+    // 設定を変えると年表の日付が変わる
+    await page.evaluate(() => { location.hash = '#settings'; });
+    await page.waitForSelector('#settings-view:not([hidden])');
+    await page.fill('#s-elderBirth', '2025-12-01');
+    await page.dispatchEvent('#s-elderBirth', 'change');
+    await page.click('#back-main');
+    await page.waitForSelector('#main-view:not([hidden])');
+    assert.match(await titleA(), /2025\/12\/14/);
+    assert.ok((await page.textContent('#cond')).endsWith('あなたの設定'));
+    // 再読み込みしても残る
+    await page.reload();
+    assert.match(await titleA(), /2025\/12\/14/);
+    // 初期値に戻す
+    await page.evaluate(() => { location.hash = '#settings'; });
+    await page.waitForSelector('#settings-view:not([hidden])');
+    assert.equal(await page.inputValue('#s-elderBirth'), '2025-12-01');
+    await page.click('#b-reset');
+    assert.equal(await page.inputValue('#s-elderBirth'), '2025-11-07');
+    await page.click('#back-main');
+    await page.waitForSelector('#main-view:not([hidden])');
+    assert.match(await titleA(), /2025\/11\/20/);
+    assert.ok((await page.textContent('#cond')).endsWith('架空の例'));
+    // 下の子を空にすると 1 人分
+    await page.evaluate(() => { location.hash = '#settings'; });
+    await page.waitForSelector('#settings-view:not([hidden])');
+    await page.fill('#s-youngerDue', '');
+    await page.dispatchEvent('#s-youngerDue', 'change');
+    await page.click('#back-main');
+    await page.waitForSelector('#main-view:not([hidden])');
+    assert.equal(await page.evaluate(() => document.querySelectorAll('.el[data-id^="b-"]').length), 0);
+    assert.equal(await page.textContent('#views'), '');
+    assert.deepEqual(errors, []);
+    await ctx.close();
+    console.log('OK（ブラウザ）: メイン画面に入力欄なし・上の子 1 歳・各子の詳細へのリンク・ID の重複なし・設定の変更と再読み込みと初期値に戻す・1 人分');
+  } finally {
+    await browser.close();
+  }
+}

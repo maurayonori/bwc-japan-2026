@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>札幌の子育て年表</title>
-<meta name="description" content="子の生年月日から、誕生から小学校入学までの札幌市の手続き・任意接種・預け先の事前登録・給付を、レーン形式の年表にする試作。制度のデータは公式ページから起こし、出典と確認日つき。">
+<meta name="description" content="架空の子ども 2 人を例に、誕生から小学校入学までの札幌市の手続き・任意接種・預け先の事前登録・給付を、レーン形式の年表にする試作。制度のデータは公式ページから起こし、出典と確認日つき。">
 <style>
 :root {
   --bg: #f5f4ef;
@@ -33,6 +33,8 @@
   --lane-c-weak: #dcf0ec;
   --lane-e: #9a5a20;
   --lane-e-weak: #f6e9dc;
+  --who-a: #0b6b8f;
+  --who-b: #b2306f;
   --shadow: 0 1px 2px rgba(0,0,0,.06);
   color-scheme: light;
 }
@@ -64,6 +66,8 @@
     --lane-c-weak: #183b37;
     --lane-e: #e6b07c;
     --lane-e-weak: #3d2e1f;
+    --who-a: #6cc6ea;
+    --who-b: #f08cbd;
     --shadow: none;
     color-scheme: dark;
   }
@@ -95,6 +99,8 @@
   --lane-c-weak: #183b37;
   --lane-e: #e6b07c;
   --lane-e-weak: #3d2e1f;
+  --who-a: #6cc6ea;
+  --who-b: #f08cbd;
   --shadow: none;
   color-scheme: dark;
 }
@@ -131,28 +137,39 @@ button:hover { border-color: var(--accent); }
 [data-lane="childcare_registration"] { --lane: var(--lane-c); --lane-weak: var(--lane-c-weak); }
 [data-lane="events"] { --lane: var(--lane-e); --lane-weak: var(--lane-e-weak); }
 
-/* 入力（上部に小さく） */
-.inputs { margin: 10px 0 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 6px 12px; align-items: end; }
-.inputs label { display: grid; gap: 2px; font-size: 12px; font-weight: 600; color: var(--muted); min-width: 0; }
-.inputs input, .inputs select { width: 100%; min-width: 0; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 14px; color: var(--text); }
-.inputs .act { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.inputs .act button { font-size: 13px; padding: 3px 8px; }
-.meta { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; margin: 6px 2px 0; font-size: 12px; color: var(--muted); }
+/* 見出し・設定 */
+.top { align-items: baseline; }
+.cond { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.top-link { font-size: 13px; white-space: nowrap; flex: none; }
+.meta { margin: 8px 2px 0; font-size: 12px; color: var(--muted); }
 .meta.stale { color: var(--warn); }
-.meta .short { display: none; }
-#theme { white-space: nowrap; font-size: 13px; padding: 3px 8px; flex: none; }
-.legend-box > summary { cursor: pointer; font-size: 12px; color: var(--muted); margin: 0 0 4px; }
-.legend-box[open] > summary { display: none; }
-.error { color: var(--danger); font-weight: 600; margin: 6px 0 0; }
-@media (max-width: 760px) {
-  .inputs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .inputs .act { grid-column: 1 / -1; }
-}
+.error { color: var(--danger); font-weight: 600; margin: 6px 0 0; font-size: 14px; }
+.views { white-space: nowrap; }
+.linkish { background: none; border: 0; padding: 0 2px; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; font-size: 13px; border-radius: 3px; }
+.linkish[aria-pressed="true"] { color: var(--text); text-decoration: none; font-weight: 700; }
+.who { display: inline-block; font-style: normal; font-size: 10px; font-weight: 800; line-height: 12px; padding: 0 2px; border-radius: 3px; border: 1px solid currentColor; margin-right: 3px; vertical-align: 1px; }
+.who.a { color: var(--who-a); }
+.who.b { color: var(--who-b); }
+.legend-box { margin-top: 6px; }
+.legend-box > summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+#settings-view { margin-top: 12px; }
+.settings { display: grid; gap: 12px; max-width: 720px; }
+.settings fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 10px 14px 12px; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; }
+.settings legend { font-weight: 700; padding: 0 4px; }
+.settings label { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+.settings input, .settings select { width: 100%; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--text); }
+.settings .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn { display: inline-block; padding: 5px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--text); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 700; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.theme-set { display: block !important; }
 
 /* 年表 */
-.rm-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin: 12px 0 6px; }
-.rm-head strong { font-size: 15px; }
-.legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--muted); align-items: center; margin: 0 0 6px; }
+.rm-head { display: flex; flex-wrap: wrap; gap: 2px 16px; align-items: baseline; margin: 8px 0 6px; font-size: 13px; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--muted); align-items: center; margin: 4px 0 0; }
 .legend i { display: inline-block; vertical-align: -1px; margin-right: 4px; font-style: normal; }
 .lg-bar { width: 18px; height: 10px; border-radius: 3px; background: var(--lane-p-weak); border: 1px solid var(--lane-p); }
 .lg-dl { width: 9px; height: 9px; transform: rotate(45deg); background: var(--danger); }
@@ -181,6 +198,9 @@ button:hover { border-color: var(--accent); }
 .gl { position: absolute; width: 0; border-left: 1px solid var(--grid); pointer-events: none; }
 .gl.year { border-left-color: var(--line); border-left-width: 2px; }
 .gl.age { border-left: 1px dashed var(--lane-m); opacity: .45; }
+.gl.age.b { border-left-color: var(--who-b); }
+.gl.age.a { border-left-color: var(--who-a); }
+.hd-age { white-space: nowrap; }
 .today-line { position: absolute; width: 0; border-left: 2px solid var(--today); z-index: 3; pointer-events: none; }
 .today-chip { position: absolute; z-index: 4; background: var(--today); color: #fff; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; line-height: 18px; white-space: nowrap; transform: translateX(-50%); }
 .lane { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); }
@@ -209,11 +229,8 @@ button:hover { border-color: var(--accent); }
   .rm-labels .l { display: none; }
   .rm-labels .s { display: inline; }
   h1 { font-size: 20px; }
-  .meta .long { display: none; }
-  .meta .short { display: inline; }
-  .legend-box[open] > summary { display: block; }
-  .rm-head strong { font-size: 13px; }
   #hd-year { font-size: 11px; letter-spacing: -.3px; white-space: nowrap; }
+  .hd-age { font-size: 10px; letter-spacing: -.3px; }
 }
 
 /* 詳細 */
@@ -225,7 +242,8 @@ details.item { background: var(--surface); border: 1px solid var(--line); border
 details.item > summary { cursor: pointer; padding: 7px 12px; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; list-style-position: inside; }
 details.item > summary .nm { font-weight: 700; }
 details.item > summary .when { font-size: 13px; color: var(--muted); }
-details.item > summary .tags { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+details.item > summary .tags { display: inline-flex; gap: 4px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+details.item > summary .tags .tag { white-space: normal; }
 details.item.is-past > summary .nm { color: var(--muted); }
 details.item.cur { box-shadow: 0 0 0 3px var(--accent); }
 details.item.flash { animation: flash 1.6s ease-out; }
@@ -250,7 +268,7 @@ footer { margin: 28px 0 8px; font-size: 12px; color: var(--muted); }
   .kv { grid-template-columns: minmax(0, 1fr); }
   .kv dt { margin-top: 6px; }
 }
-@media print { .rm-scroll { overflow: visible; } #theme { display: none; } }
+@media print { .rm-scroll { overflow: visible; } .top-link { display: none; } }
 </style>
 </head>
 <body>
@@ -258,56 +276,88 @@ footer { margin: 28px 0 8px; font-size: 12px; color: var(--muted); }
   <header class="top">
     <div>
       <h1>札幌の子育て年表</h1>
-      <p class="sub">誕生から小学校入学まで。印や棒を押すと、下の詳細へ移ります。試作のページで、さきよみの提出物ではありません。</p>
+      <p class="cond" id="cond"></p>
     </div>
-    <button id="theme" type="button" aria-label="表示の明るさを切り替える">表示: 自動</button>
+    <a class="top-link" id="nav-link" href="#settings">設定</a>
   </header>
+  <p id="family-error" class="error" role="alert" hidden></p>
 
-  <form id="form" class="inputs" autocomplete="off" novalidate aria-label="入力">
-    <label>子の生年月日<input type="date" id="f-birth" min="2015-01-01" max="2035-12-31" required></label>
-    <label>住んでいる区<select id="f-ward"><option value="">選ばない</option></select></label>
-    <label>入園予定月（任意）<input type="month" id="f-nursery" min="2015-01" max="2042-12" placeholder="2027-04" pattern="\d{4}-\d{2}"></label>
-    <label>復職予定日（任意）<input type="date" id="f-work" min="2015-01-01" max="2042-12-31"></label>
-    <div class="act"><span id="example-badge" class="tag warn">架空の例</span><button type="button" id="b-example">例に戻す</button><button type="button" id="b-clear">消す</button></div>
-  </form>
-  <p class="meta" id="meta"></p>
-  <p id="form-error" class="error" role="alert" hidden></p>
+  <div id="main-view">
+    <section id="roadmap" aria-label="年表">
+      <div class="rm-head"><span id="today-text"></span><span class="views" id="views" role="group" aria-label="表示する子"></span></div>
+      <div id="rm"></div>
+      <p class="rm-note" id="rm-note"></p>
+      <details class="legend-box" id="legend"><summary>凡例</summary>
+        <div class="legend">
+          <span><i class="lg-bar"></i>準備を始める日〜期限</span>
+          <span><i class="lg-dl"></i>公式の締切</span>
+          <span><i class="lg-gd"></i>目安の日（公式の数字ではない）</span>
+          <span><i class="lg-st"></i>始まる日・受けられる時期</span>
+          <span><i class="lg-ms"></i>生後の節目</span>
+          <span><i class="lg-star">★</i>誕生・入園・復職・入学</span>
+          <span><i class="lg-pay"></i>児童手当の支給予定日</span>
+          <span><i class="who a">上</i><i class="who b">下</i>どちらの子か</span>
+          <span><i class="nc">!</i>対象か要確認</span>
+          <span><i class="lg-past"></i>過ぎた・済んだ</span>
+          <span><i class="lg-today"></i>今日</span>
+        </div>
+      </details>
+      <p class="meta" id="meta"></p>
+    </section>
 
-  <section id="roadmap" aria-labelledby="h-roadmap">
-    <div class="rm-head"><h2 id="h-roadmap" style="margin:0">年表</h2><strong id="today-text"></strong></div>
-    <details class="legend-box" id="legend"><summary>凡例を見る</summary>
-    <div class="legend">
-      <span><i class="lg-bar"></i>準備を始める日〜期限</span>
-      <span><i class="lg-dl"></i>公式の締切</span>
-      <span><i class="lg-gd"></i>目安の日（公式の数字ではない）</span>
-      <span><i class="lg-st"></i>始まる日・受けられる時期</span>
-      <span><i class="lg-ms"></i>生後の節目</span>
-      <span><i class="lg-star">★</i>家庭の予定・入学</span>
-      <span><i class="lg-pay"></i>児童手当の支給予定日</span>
-      <span><i class="nc">!</i>対象か要確認</span>
-      <span><i class="lg-past"></i>過ぎた・済んだ</span>
-      <span><i class="lg-today"></i>今日</span>
-    </div>
-    </details>
-    <div id="rm"></div>
-    <p class="rm-note" id="rm-note"></p>
-  </section>
+    <section id="details" class="details-sec" aria-labelledby="h-details">
+      <h2 id="h-details">詳細</h2>
+      <p class="small muted" style="margin:0">何を、いつまでに、準備、窓口、費用、出典と確認日をまとめます。公式の締切と、データに置いた目安（公式の数字ではない）は分けて書きます。予防接種の日付は公開情報から計算した「受けられる時期」で、受けるか・いつ受けるかは医師と相談してください。給付を受け取れるか、額、時期は申請先の判断で決まります。</p>
+      <div id="detail-list"></div>
+    </section>
 
-  <section id="details" class="details-sec" aria-labelledby="h-details">
-    <h2 id="h-details">詳細</h2>
-    <p class="small muted" style="margin:0">何を、いつまでに、準備、窓口、費用、出典と確認日をまとめます。公式の締切と、データに置いた目安（公式の数字ではない）は分けて書きます。予防接種の日付は公開情報から計算した「受けられる時期」で、受けるか・いつ受けるかは医師と相談してください。給付を受け取れるか、額、時期は申請先の判断で決まります。</p>
-    <div id="detail-list"></div>
-  </section>
+    <section class="details-sec" aria-labelledby="h-about">
+      <details class="item" id="about" data-lane="milestone">
+        <summary><span class="nm" id="h-about">計算の決まりと、このページに出しているもの</span></summary>
+        <div class="inner about" id="about-body"></div>
+      </details>
+    </section>
+  </div>
 
-  <section class="details-sec" aria-labelledby="h-about">
-    <details class="item" id="about" data-lane="milestone">
-      <summary><span class="nm" id="h-about">計算の決まりと、このページに出しているもの</span></summary>
-      <div class="inner about" id="about-body"></div>
-    </details>
+  <section id="settings-view" hidden aria-labelledby="h-settings">
+    <h2 id="h-settings">設定</h2>
+    <p class="small muted">年表の条件を変えます。値はこのブラウザの中だけに保存し、外へ送りません。初期値の日付と区はすべて架空です。<span id="storage-note"></span></p>
+    <form id="settings-form" class="settings" autocomplete="off" novalidate>
+      <fieldset>
+        <legend>上の子</legend>
+        <label>生年月日<input type="date" id="s-elderBirth" min="2015-01-01" max="2035-12-31"></label>
+        <label>入園予定月（任意）<input type="month" id="s-elderNursery" min="2015-01" max="2042-12" placeholder="2027-04" pattern="\d{4}-\d{2}"></label>
+      </fieldset>
+      <fieldset>
+        <legend>下の子</legend>
+        <label>出産予定日（生まれたら生年月日）<input type="date" id="s-youngerDue" min="2015-01-01" max="2036-12-31"></label>
+        <label>入園予定月（任意）<input type="month" id="s-youngerNursery" min="2015-01" max="2043-12" placeholder="2028-04" pattern="\d{4}-\d{2}"></label>
+        <p class="small muted" style="grid-column:1/-1;margin:0">初期値の 2027-03-15 は「来年 3 月」の日を仮に 15 日としたものです。</p>
+      </fieldset>
+      <fieldset>
+        <legend>家庭</legend>
+        <label>住んでいる区<select id="s-ward"><option value="">選ばない</option></select></label>
+        <label>復職予定日（任意）<input type="date" id="s-work" min="2015-01-01" max="2042-12-31"></label>
+      </fieldset>
+      <p class="small">どちらかの子の日付を空にすると、1 人分の年表になります。</p>
+      <p id="settings-msg" class="small" role="status"></p>
+      <div class="actions">
+        <a class="btn primary" href="#roadmap" id="back-main">年表に戻る</a>
+        <button type="button" id="b-reset">初期値に戻す</button>
+      </div>
+      <fieldset class="theme-set">
+        <legend>表示の明るさ</legend>
+        <div class="seg" role="group" aria-label="表示の明るさ">
+          <button type="button" data-theme-set="auto">自動</button>
+          <button type="button" data-theme-set="light">明るい</button>
+          <button type="button" data-theme-set="dark">暗い</button>
+        </div>
+      </fieldset>
+    </form>
   </section>
 
   <footer>
-    このページは「さきよみ」の提出物ではない試作です。医療の助言、給付の可否・額・時期の判断、保険や金融商品のすすめ、連絡や申請の代行はしません。例の日付と区はすべて架空です。入力とチェックはこのブラウザの中だけで使い、外へ送りません。<span id="storage-note"></span>
+    このページは「さきよみ」の提出物ではない試作です。医療の助言、給付の可否・額・時期の判断、保険や金融商品のすすめ、連絡や申請の代行はしません。初期値の子ども 2 人・日付・区はすべて架空です。設定とチェックはこのブラウザの中だけで使い、外へ送りません。
   </footer>
 </div>
 
@@ -525,7 +575,9 @@ function planItem(it, ctx) {
       if (p.closed.after != null) p.effDue = p.closed.after;
     }
   }
-  p.empty = p.start != null && p.end != null && p.end < p.start;
+  // 申込の締切の時点で、その子が対象の月齢・期間に入っていなければ、その子には出さない（生まれる前の締切など）
+  p.outOfAge = s.kind === 'application_window' && p.due != null && (p.due < ageFrom || (p.end != null && p.due > p.end));
+  p.empty = p.outOfAge || (p.start != null && p.end != null && p.end < p.start);
   p.status = statusOf(p, ctx);
   p.guidePast = p.dueKind === 'guide' && p.due != null && p.due < t;
   return p;
@@ -535,7 +587,7 @@ function planItem(it, ctx) {
 function statusOf(p, ctx) {
   var t = ctx.today;
   if (ctx.done && ctx.done[p.id]) return { key: 'done', text: '済んだ' };
-  if (p.empty) return { key: 'na', text: '入園予定月からみると対象の期間が無い' };
+  if (p.empty) return { key: 'na', text: p.outOfAge ? '申込の締切の時点で対象の月齢・期間に当たらない' : '入園予定月からみると対象の期間が無い' };
   if (p.seasons) {
     var cur = null, next = null, past = false;
     p.seasons.forEach(function (s) { if (s.start <= t && t <= s.end) cur = s; else if (s.start > t && !next) next = s; else if (s.end < t) past = true; });
@@ -701,6 +753,62 @@ function planAll(data, input, today) {
   };
 }
 
+// ---- 設定と家族（子ども 2 人まで） ----
+// 初期値はすべて架空。下の子の出産予定日の「日」は仮の値
+var DEFAULT_SETTINGS = { elderBirth: '2025-11-07', elderNursery: '2027-04', youngerDue: '2027-03-15', youngerNursery: '', ward: '北区', work: '2028-04-03' };
+var SETTING_KEYS = ['elderBirth', 'elderNursery', 'youngerDue', 'youngerNursery', 'ward', 'work'];
+function normalizeSettings(raw) {
+  var out = {};
+  SETTING_KEYS.forEach(function (k) { out[k] = raw && typeof raw[k] === 'string' ? raw[k].trim() : DEFAULT_SETTINGS[k]; });
+  return out;
+}
+function isDefaultSettings(st) { return SETTING_KEYS.every(function (k) { return st[k] === DEFAULT_SETTINGS[k]; }); }
+function inYears(s, y0, y1) { var n = parseDay(s); return n != null && n >= dayNum(y0, 1, 1) && n <= dayNum(y1, 12, 31); }
+function settingsErrors(st, wardNames) {
+  var e = [];
+  if (!st.elderBirth && !st.youngerDue) e.push('上の子の生年月日か、下の子の出産予定日を入れてください。');
+  if (st.elderBirth && !inYears(st.elderBirth, 2015, 2035)) e.push('上の子の生年月日は 2015〜2035 年の日付にしてください。');
+  if (st.youngerDue && !inYears(st.youngerDue, 2015, 2036)) e.push('下の子の出産予定日は 2015〜2036 年の日付にしてください。');
+  if (st.elderNursery && parseMonth(st.elderNursery) == null) e.push('上の子の入園予定月は「2027-04」の形で入れてください。');
+  if (st.youngerNursery && parseMonth(st.youngerNursery) == null) e.push('下の子の入園予定月は「2027-04」の形で入れてください。');
+  if (st.work && parseDay(st.work) == null) e.push('復職予定日を読めません。');
+  if (st.ward && wardNames && wardNames.indexOf(st.ward) < 0) e.push('区の名前を読めません。');
+  return e;
+}
+function childrenOf(st) {
+  var out = [];
+  if (inYears(st.elderBirth, 2015, 2035)) out.push({ key: 'a', label: '上の子', mark: '上', birth: st.elderBirth, nursery: parseMonth(st.elderNursery) != null ? st.elderNursery : '' });
+  if (inYears(st.youngerDue, 2015, 2036)) out.push({ key: 'b', label: '下の子', mark: '下', birth: st.youngerDue, nursery: parseMonth(st.youngerNursery) != null ? st.youngerNursery : '' });
+  return out;
+}
+// 「済んだ」は子どもごとに「a:項目 id」「b:項目 id」で持つ
+function doneKey(childKey, id) { return childKey + ':' + id; }
+function planFamily(data, settings, today, done) {
+  var st = normalizeSettings(settings);
+  var work = parseDay(st.work) != null ? st.work : '';
+  var kids = childrenOf(st);
+  kids.forEach(function (k) {
+    var d = {};
+    Object.keys(done || {}).forEach(function (key) { if (done[key] === true && key.indexOf(k.key + ':') === 0) d[key.slice(k.key.length + 1)] = true; });
+    k.plan = planAll(data, { birth: k.birth, nursery: k.nursery, work: work, done: d }, today);
+  });
+  return { children: kids, settings: st, today: today, work: work ? parseDay(work) : null };
+}
+function ageYM(birth, n) { var k = monthsBetween(birth, n); return Math.floor(k / 12) + ' 歳 ' + (k % 12) + ' か月'; }
+// 今の条件を 1 行で（例: 上の子 1 歳 0 か月・下の子 2027 年 3 月 15 日予定（日は仮）・北区・架空の例）
+function conditionText(fam) {
+  var t = fam.today, parts = [];
+  fam.children.forEach(function (k) {
+    var b = k.plan.ctx.birth, p = ymd(b);
+    if (b <= t) parts.push(k.label + ' ' + ageYM(b, t));
+    else parts.push(k.label + ' ' + p.y + ' 年 ' + p.m + ' 月 ' + p.d + ' 日予定' + (k.key === 'b' && fam.settings.youngerDue === DEFAULT_SETTINGS.youngerDue ? '（日は仮）' : ''));
+  });
+  if (fam.settings.ward) parts.push(fam.settings.ward);
+  if (fam.work != null) parts.push('復職予定 ' + fmtShort(fam.work));
+  parts.push(isDefaultSettings(fam.settings) ? '架空の例' : 'あなたの設定');
+  return parts.join('・');
+}
+
 // ---- 年表の配置 ----
 // 年表のラベル: 括弧の中を外し、長ければ省く（全文は詳細へ）
 function roadmapLabel(s, keepParens) {
@@ -722,29 +830,34 @@ function textWidth(s) {
   });
   return Math.ceil(w) + 2;
 }
+var WHO_W = 17; // 「上」「下」の印の幅
 // 段に詰める: 前の段の右端 + GAP より右から始まる最初の段に入れる
 function packRow(rowEnds, x0, x1) {
   for (var r = 0; r < rowEnds.length; r++) if (rowEnds[r] + GAP <= x0) { rowEnds[r] = x1; return r; }
   rowEnds.push(x1);
   return rowEnds.length - 1;
 }
-function roadmapElements(plan) {
+// 1 人分の年表の要素。child があれば id の頭に「a-」「b-」を付け、「上」「下」の印を付ける
+function roadmapElements(plan, child) {
   var ctx = plan.ctx, t = ctx.today;
+  var pre = child && child.key ? child.key + '-' : '', who = child && child.mark ? child.mark : null;
   var out = { milestone: [], procedures: [], vaccines: [], childcare_registration: [], events: [] }, skipped = [];
   plan.milestones.forEach(function (m) {
-    out.milestone.push({ lane: 'milestone', id: 'ms-' + m.key, kind: m.kind === 'age' ? 'ms' : 'star', a: m.date, z: m.date, label: m.short, title: m.title + ' ' + fmtLong(m.date), past: m.date < t });
+    var shared = m.kind === 'work'; // 復職予定日は家庭で 1 つ
+    out.milestone.push({ lane: 'milestone', id: (shared ? '' : pre) + 'ms-' + m.key, who: shared ? null : who, kind: m.kind === 'age' ? 'ms' : 'star', a: m.date, z: m.date, label: m.short, title: (shared || !who ? '' : who + 'の子 ') + m.title + ' ' + fmtLong(m.date), past: m.date < t });
   });
   plan.items.forEach(function (p) {
-    var it = p.item, k = it.schedule.kind;
-    if (p.empty) { skipped.push({ id: it.id, reason: '入園予定月からみると対象の期間が無い' }); return; }
-    if (k === 'after_previous' || (k === 'before_milestone' && p.due == null)) { skipped.push({ id: it.id, reason: p.noDate, milestone: p.milestone || null }); return; }
+    var it = p.item, k = it.schedule.kind, id = pre + it.id;
+    if (p.empty) { skipped.push({ id: id, item: it.id, reason: p.outOfAge ? '申込の締切の時点で対象の月齢に当たらない' : '入園予定月からみると対象の期間が無い' }); return; }
+    if (k === 'after_previous' || (k === 'before_milestone' && p.due == null)) { skipped.push({ id: id, item: it.id, reason: p.noDate, milestone: p.milestone || null }); return; }
     var label = roadmapLabel(it.name);
-    var base = { lane: p.lane, id: it.id, label: label, nc: it.nc, done: p.status.key === 'done', over: p.status.key === 'overdue' };
+    var head = who ? who + 'の子 ' : '';
+    var base = { lane: p.lane, id: id, item: it.id, who: who, label: label, nc: it.nc, done: p.status.key === 'done', over: p.status.key === 'overdue' };
     var ended = p.end != null && p.end < t;
     function push(o) { var e = Object.assign({}, base, o); e.past = e.done || (o.mark === 'st' && o.kind === 'point' ? ended : e.z < t); out[p.lane].push(e); }
     if (p.seasons) {
-      p.seasons.forEach(function (s) { push({ kind: 'bar', mark: null, a: s.start, z: s.end, title: label + '：受けられる時期 ' + fmtShort(s.start) + '〜' + fmtShort(s.end) }); });
-      if (!p.seasons.length) skipped.push({ id: it.id, reason: '入学までに受けられる時期が無い' });
+      p.seasons.forEach(function (s) { push({ kind: 'bar', mark: null, a: s.start, z: s.end, title: head + label + '：受けられる時期 ' + fmtShort(s.start) + '〜' + fmtShort(s.end) }); });
+      if (!p.seasons.length) skipped.push({ id: id, item: it.id, reason: '入学までに受けられる時期が無い' });
       return;
     }
     var end = p.dueKind === 'deadline' ? p.effDue : k === 'before_milestone' ? p.milestoneDate : p.dueKind === 'guide' ? p.due : null;
@@ -752,34 +865,54 @@ function roadmapElements(plan) {
     var mark = p.lane === 'vaccines' ? 'st' : p.dueKind === 'deadline' ? 'dl' : p.dueKind === 'guide' ? 'gd' : 'st';
     var what = p.dueKind === 'deadline' ? '公式の締切' : p.dueKind === 'guide' ? '目安' : '始まる日';
     if (end == null) {
-      if (p.start == null) { skipped.push({ id: it.id, reason: '日付が無い' }); return; }
-      push({ kind: 'point', mark: 'st', a: p.start, z: p.start, title: label + '：' + fmtShort(p.start) + ' から' });
+      if (p.start == null) { skipped.push({ id: id, item: it.id, reason: '日付が無い' }); return; }
+      push({ kind: 'point', mark: 'st', a: p.start, z: p.start, title: head + label + '：' + fmtShort(p.start) + ' から' });
     } else if (begin == null || begin >= end) {
-      push({ kind: 'point', mark: mark, a: end, z: end, title: label + '：' + fmtShort(end) + '（' + what + '）' });
+      push({ kind: 'point', mark: mark, a: end, z: end, title: head + label + '：' + fmtShort(end) + '（' + what + '）' });
     } else {
-      push({ kind: 'bar', mark: mark, a: begin, z: end, title: label + '：' + fmtShort(begin) + '〜' + fmtShort(end) + '（' + what + '）' });
+      push({ kind: 'bar', mark: mark, a: begin, z: end, title: head + label + '：' + fmtShort(begin) + '〜' + fmtShort(end) + '（' + what + '）' });
     }
   });
   plan.events.bands.forEach(function (bd) {
-    var e = { lane: 'events', id: bd.id, a: bd.start, z: bd.end, past: bd.end < t, nc: false };
+    var e = { lane: 'events', id: bd.id, item: bd.id, a: bd.start, z: bd.end, past: bd.end < t, nc: false, personal: bd.kind === 'money' || bd.kind === 'absence', who: who };
     if (bd.kind === 'pay') { e.kind = 'dot'; e.label = ''; e.title = fmtShort(bd.start) + ' 児童手当の支給予定日（認定されていれば）'; }
-    else { e.kind = 'bar'; e.mark = null; e.label = roadmapLabel(bd.text, true); e.title = bd.text + ' ' + fmtShort(bd.start) + '〜' + fmtShort(bd.end); }
+    else { e.kind = 'bar'; e.mark = null; e.label = roadmapLabel(bd.text, true); e.title = (e.personal && who ? who + 'の子 ' : '') + bd.text + ' ' + fmtShort(bd.start) + '〜' + fmtShort(bd.end); }
     out.events.push(e);
   });
   return { lanes: out, skipped: skipped };
 }
-// 年表全体の配置（px）。ラベルの幅は textWidth で見積もり、同じ段で重ならないように段を分ける
-function layoutRoadmap(plan) {
-  var ctx = plan.ctx;
-  var r0 = Math.min(ctx.birth, ctx.today) - 15;
-  var r1 = Math.max(ctx.school + 75, ctx.today + 30);
+// 家族の年表全体の配置（px）。view は 'all'・'a'・'b'。ラベルの幅は textWidth で見積もり、同じ段で重ならないように段を分ける
+function layoutFamily(fam, view) {
+  var kids = fam.children.filter(function (k) { return !view || view === 'all' || k.key === view; });
+  if (!kids.length) kids = fam.children;
+  var today = fam.today;
+  var r0 = Math.min.apply(null, kids.map(function (k) { return k.plan.ctx.birth; }).concat([today])) - 15;
+  var r1 = Math.max.apply(null, kids.map(function (k) { return k.plan.ctx.school + 75; }).concat([today + 30]));
   var ppd = MONTH_PX * 12 / 365.25;
   function x(d) { return Math.round((d - r0) * ppd); }
-  var built = roadmapElements(plan);
+  var all = { milestone: [], procedures: [], vaccines: [], childcare_registration: [], events: [] }, skipped = [], evSeen = {}, workSeen = false;
+  kids.forEach(function (k) {
+    var built = roadmapElements(k.plan, k);
+    LANE_ORDER.forEach(function (lane) {
+      built.lanes[lane].forEach(function (e) {
+        if (lane === 'milestone' && e.id === 'ms-work') { if (workSeen) return; workSeen = true; }
+        if (lane === 'events') {
+          // 流行期や支給予定日など 2 人で同じ帯・点は 1 つにまとめ、印を付けない
+          var key = e.id + '|' + e.a + '|' + e.z + '|' + e.kind;
+          if (evSeen[key]) { evSeen[key].whos.push(k.mark); evSeen[key].who = null; return; }
+          e.whos = [k.mark];
+          if (!e.personal) e.who = null;
+          evSeen[key] = e;
+        }
+        all[lane].push(e);
+      });
+    });
+    built.skipped.forEach(function (sk) { skipped.push(Object.assign({ child: k.key || null, who: k.mark || null }, sk)); });
+  });
   var lanes = LANE_ORDER.map(function (key) {
-    var geo = built.lanes[key].filter(function (e) { return e.z >= r0 && e.a <= r1; }).map(function (e) {
+    var geo = all[key].filter(function (e) { return e.z >= r0 && e.a <= r1; }).map(function (e) {
       var g = Object.assign({}, e);
-      g.labelW = e.label ? textWidth(e.label) + (e.nc ? 16 : 0) : 0;
+      g.labelW = e.label ? textWidth(e.label) + (e.nc ? 16 : 0) + (e.who ? WHO_W : 0) : 0;
       if (e.kind === 'bar') {
         g.xa = x(Math.max(e.a, r0));
         g.xz = Math.max(x(Math.min(e.z, r1) + 1), g.xa + 6);
@@ -803,19 +936,29 @@ function layoutRoadmap(plan) {
     geo.filter(function (g) { return g.kind === 'dot'; }).forEach(function (g) { g.row = ends.length + packRow(dotEnds, g.x0, g.x1); });
     return { key: key, name: LANE_NAMES[key], short: LANE_SHORT[key], rows: Math.max(1, ends.length + dotEnds.length), els: geo };
   });
-  // 軸: 年、子の年齢、月
-  var years = [], ages = [], months = [];
+  // 軸: 年、子ごとの年齢、月
+  var years = [], months = [], ages = [];
   for (var m = dayNum(ymd(r0).y, ymd(r0).m, 1); m <= r1; m = addMonths(m, 1)) {
     if (m < r0) continue;
     var pm = ymd(m);
     months.push({ x: x(m), text: String(pm.m), jan: pm.m === 1 });
     if (pm.m === 1) years.push({ x: x(m), text: pm.y + '年' });
   }
-  for (var k = 0; k <= 7; k++) {
-    var bd = addMonths(ctx.birth, 12 * k);
-    if (bd >= r0 && bd <= r1) ages.push({ x: x(bd), text: k + '歳' });
-  }
-  return { r0: r0, r1: r1, ppd: ppd, width: x(r1) + 1, today: x(ctx.today), x: x, lanes: lanes, skipped: built.skipped, axis: { years: years, ages: ages, months: months } };
+  kids.forEach(function (k, row) {
+    for (var yy = 0; yy <= 7; yy++) {
+      var bd = addMonths(k.plan.ctx.birth, 12 * yy);
+      if (bd >= r0 && bd <= r1) ages.push({ x: x(bd), text: yy + '歳', who: k.mark || null, row: row });
+    }
+  });
+  return {
+    r0: r0, r1: r1, ppd: ppd, width: x(r1) + 1, today: x(today), x: x, lanes: lanes, skipped: skipped,
+    kids: kids.map(function (k) { return { key: k.key || null, mark: k.mark || null, label: k.label || null, birth: k.plan.ctx.birth }; }),
+    axis: { years: years, ages: ages, months: months }
+  };
+}
+// 1 人分（子の印なし）の配置。テストと 1 人の表示に使う
+function layoutRoadmap(plan) {
+  return layoutFamily({ children: [{ key: null, mark: null, plan: plan }], today: plan.ctx.today }, 'all');
 }
 // 同じ段の印・棒・ラベルが重なっていないか（重なりの組を返す。空なら重なりなし）
 function overlaps(lane) {
@@ -833,17 +976,16 @@ function overlaps(lane) {
 (function () {
   'use strict';
   var DATA = JSON.parse(document.getElementById('data').textContent);
-  var EXAMPLE = { birth: '2026-08-31', ward: '北区', nursery: '2027-04', work: '2027-04-05' };
-  var KEY = 'sapporo-roadmap:v1';
-  var state = { input: copy(EXAMPLE), done: {}, theme: 'auto' };
+  var KEY = 'sapporo-roadmap:v2';
+  var WARDS = DATA.wards.map(function (w) { return w.name; });
+  var state = { settings: normalizeSettings(DEFAULT_SETTINGS), done: {}, theme: 'auto', view: 'all' };
   var canStore = false;
   var ITEM_IDS = {}; DATA.items.forEach(function (it) { ITEM_IDS[it.id] = it; });
   var q = /[?&]today=(\d{4}-\d{2}-\d{2})/.exec(location.search);
   var TODAY = q && parseDay(q[1]) != null ? parseDay(q[1]) : todayJst(Date.now());
   var TODAY_FIXED = !!(q && parseDay(q[1]) != null);
-  var current = { plan: null, layout: null, openId: null };
+  var current = { fam: null, layout: null, openId: null };
 
-  function copy(o) { return JSON.parse(JSON.stringify(o)); }
   function el(tag, attrs, kids) {
     var e = document.createElement(tag);
     if (attrs) Object.keys(attrs).forEach(function (k) {
@@ -859,13 +1001,14 @@ function overlaps(lane) {
     return e;
   }
   function tag(text, cls) { return el('span', { class: 'tag ' + (cls || ''), text: text }); }
+  function whoMark(mark) { return mark ? el('i', { class: 'who ' + (mark === '上' ? 'a' : 'b'), text: mark, title: mark + 'の子' }) : null; }
   function link(url, text) { return el('a', { href: url, target: '_blank', rel: 'noopener noreferrer', text: text || url }); }
   function telLink(phone) { return el('a', { href: 'tel:' + String(phone).replace(/[^\d+]/g, ''), text: phone }); }
   function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
   function $(id) { return document.getElementById(id); }
   function relDays(n, t) { var d = n - t; return d === 0 ? '今日' : d > 0 ? 'あと ' + d + ' 日' : (-d) + ' 日前'; }
 
-  // ---- 保存（使えなくても動く） ----
+  // ---- 保存（使えなくても動く。外へは送らない） ----
   function load() {
     try {
       var raw = window.localStorage.getItem(KEY);
@@ -873,152 +1016,194 @@ function overlaps(lane) {
       if (!raw) return;
       var s = JSON.parse(raw);
       if (s && typeof s === 'object') {
-        if (s.input && typeof s.input === 'object') ['birth', 'ward', 'nursery', 'work'].forEach(function (k) { if (typeof s.input[k] === 'string') state.input[k] = s.input[k]; });
-        if (s.done && typeof s.done === 'object') Object.keys(s.done).forEach(function (k) { if (ITEM_IDS[k] && s.done[k] === true) state.done[k] = true; });
+        if (s.settings && typeof s.settings === 'object') state.settings = normalizeSettings(s.settings);
+        if (s.done && typeof s.done === 'object') Object.keys(s.done).forEach(function (k) { var m = /^([ab]):(.+)$/.exec(k); if (m && ITEM_IDS[m[2]] && s.done[k] === true) state.done[k] = true; });
         if (['auto', 'light', 'dark'].indexOf(s.theme) >= 0) state.theme = s.theme;
+        if (['all', 'a', 'b'].indexOf(s.view) >= 0) state.view = s.view;
       }
     } catch (e) { canStore = false; }
   }
   function save() {
     if (!canStore) return;
-    try { window.localStorage.setItem(KEY, JSON.stringify({ input: state.input, done: state.done, theme: state.theme })); }
+    try { window.localStorage.setItem(KEY, JSON.stringify({ settings: state.settings, done: state.done, theme: state.theme, view: state.view })); }
     catch (e) { canStore = false; storageNote(); }
   }
   function storageNote() {
-    $('storage-note').textContent = canStore ? 'このブラウザに残します（「消す」で消えます）。' : 'このブラウザでは保存できないので、閉じると入力とチェックは消えます。';
+    $('storage-note').textContent = canStore ? '' : 'このブラウザでは保存できないので、閉じると設定とチェックは初期値に戻ります。';
   }
   function applyTheme() {
     var root = document.documentElement;
     if (state.theme === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', state.theme);
-    $('theme').textContent = '表示: ' + { auto: '自動', light: '明るい', dark: '暗い' }[state.theme];
+    document.querySelectorAll('[data-theme-set]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-theme-set') === state.theme)); });
+  }
+  function wardOf() { return DATA.wards.filter(function (w) { return w.name === state.settings.ward; })[0] || null; }
+
+  // ---- 画面の切り替え（#settings で設定画面） ----
+  function route() {
+    var inSettings = location.hash === '#settings';
+    $('main-view').hidden = inSettings;
+    $('settings-view').hidden = !inSettings;
+    var nav = $('nav-link');
+    nav.textContent = inSettings ? '年表に戻る' : '設定';
+    nav.setAttribute('href', inSettings ? '#roadmap' : '#settings');
+    if (inSettings) { writeForm(); showSettingsMsg(); window.scrollTo(0, 0); return; }
+    render();
+    if (/^#item-/.test(location.hash)) fromHash(true);
+    else if (location.hash === '#roadmap') window.scrollTo(0, 0);
   }
 
-  // ---- 入力 ----
-  function readForm() { state.input = { birth: $('f-birth').value, ward: $('f-ward').value, nursery: $('f-nursery').value.trim(), work: $('f-work').value }; }
-  function writeForm() { $('f-birth').value = state.input.birth || ''; $('f-ward').value = state.input.ward || ''; $('f-nursery').value = state.input.nursery || ''; $('f-work').value = state.input.work || ''; }
-  function validate(inp) {
-    var b = parseDay(inp.birth);
-    if (b == null) return '子の生年月日を入れてください（例: 2026-08-31）。';
-    if (b < dayNum(2015, 1, 1) || b > dayNum(2035, 12, 31)) return '生年月日は 2015 年から 2035 年の日付にしてください。';
-    if (inp.nursery && parseMonth(inp.nursery) == null) return '入園予定月は「2027-04」の形で入れてください。';
-    if (inp.nursery && parseMonth(inp.nursery) < addMonths(b, -1)) return '入園予定月が生年月日より前になっています。';
-    if (inp.work && parseDay(inp.work) == null) return '復職予定日を読めません。';
-    return null;
+  // ---- 設定画面 ----
+  var FIELDS = { elderBirth: 's-elderBirth', elderNursery: 's-elderNursery', youngerDue: 's-youngerDue', youngerNursery: 's-youngerNursery', ward: 's-ward', work: 's-work' };
+  function writeForm() { Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).value = state.settings[k] || ''; }); }
+  function readForm() { var s = {}; Object.keys(FIELDS).forEach(function (k) { s[k] = $(FIELDS[k]).value.trim(); }); return normalizeSettings(s); }
+  function showSettingsMsg(extra) {
+    var errs = settingsErrors(state.settings, WARDS);
+    var m = $('settings-msg');
+    m.className = 'small' + (errs.length ? ' error' : '');
+    m.textContent = errs.length ? errs.join(' ') : (extra || '') + (isDefaultSettings(state.settings) ? 'いまは初期値（架空の例）です。' : '');
   }
-  function isExample() { return ['birth', 'ward', 'nursery', 'work'].every(function (k) { return (state.input[k] || '') === EXAMPLE[k]; }); }
-  function wardOf() { return DATA.wards.filter(function (w) { return w.name === state.input.ward; })[0] || null; }
+  function onSettingsChange() {
+    state.settings = readForm();
+    save();
+    showSettingsMsg(canStore ? '保存しました（このブラウザの中だけ）。' : '');
+  }
 
   // ---- 描画 ----
   function render() {
-    var ex = isExample();
-    $('example-badge').textContent = ex ? '架空の例' : 'あなたの入力';
-    $('example-badge').className = 'tag ' + (ex ? 'warn' : 'accent');
-    $('example-badge').title = ex ? '生年月日・区・入園予定月・復職予定日は、動きを見せるための架空の例です' : '';
-    var err = validate(state.input);
-    $('form-error').hidden = !err;
-    $('form-error').textContent = err || '';
-    ['rm', 'rm-note', 'detail-list', 'about-body', 'today-text'].forEach(function (id) { clear($(id)); });
+    var errs = settingsErrors(state.settings, WARDS);
+    var fam = planFamily(DATA, state.settings, TODAY, state.done);
+    current.fam = fam;
+    ['rm', 'rm-note', 'detail-list', 'about-body', 'today-text', 'views', 'meta'].forEach(function (id) { clear($(id)); });
+    $('cond').textContent = fam.children.length ? conditionText(fam) : '子どもの日付が設定されていません';
+    var ferr = $('family-error');
+    ferr.hidden = !errs.length;
+    clear(ferr);
+    if (errs.length) { ferr.appendChild(document.createTextNode(errs.join(' ') + ' ')); ferr.appendChild(el('a', { href: '#settings', text: '設定を開く' })); }
+    if (!fam.children.length) { current.layout = null; return; }
+    if (fam.children.length < 2) state.view = 'all';
+    renderViews(fam);
+    var layout = layoutFamily(fam, state.view);
+    current.layout = layout;
+    $('today-text').textContent = '今日 ' + fmtLong(TODAY);
+    renderRoadmap(fam, layout);
     renderMeta();
-    if (err) { current.plan = null; return; }
-    var plan = planAll(DATA, { birth: state.input.birth, nursery: state.input.nursery, work: state.input.work, done: state.done }, TODAY);
-    var layout = layoutRoadmap(plan);
-    current.plan = plan; current.layout = layout;
-    $('today-text').textContent = '今日 ' + fmtLong(TODAY) + '・' + (plan.ctx.birth > TODAY ? '生まれる予定の日まであと ' + (plan.ctx.birth - TODAY) + ' 日' : ageText(plan.ctx.birth, TODAY)) + (ex ? '（架空の例）' : '');
-    renderRoadmap(plan, layout);
-    renderDetails(plan, layout);
-    renderAbout(plan, layout);
+    renderDetails(fam, layout);
+    renderAbout(fam, layout);
   }
-
+  function renderViews(fam) {
+    var box = $('views');
+    if (fam.children.length < 2) return;
+    box.appendChild(document.createTextNode('表示: '));
+    [['all', 'すべて']].concat(fam.children.map(function (k) { return [k.key, k.label]; })).forEach(function (o, i) {
+      if (i) box.appendChild(document.createTextNode('・'));
+      box.appendChild(el('button', { type: 'button', class: 'linkish', 'aria-pressed': String(state.view === o[0]), onclick: function () { state.view = o[0]; save(); current.openId = null; render(); } }, [o[1]]));
+    });
+  }
   function renderMeta() {
     var oldest = DATA.items.concat(DATA.events).map(function (x) { return x.chk; }).sort()[0];
     var days = TODAY - parseDay(oldest);
     var m = $('meta');
     m.className = 'meta' + (days > STALE_DAYS ? ' stale' : '');
-    clear(m);
-    var fixed = TODAY_FIXED ? ' ※ 基準日を URL の today= で ' + fmtLong(TODAY) + ' にしています。' : '';
-    m.appendChild(el('span', { class: 'long', text: '制度のデータは ' + fmtLong(parseDay(oldest)) + ' に公式ページで確認したもので、今日で ' + days + ' 日たっています' + (days > STALE_DAYS ? '（' + STALE_DAYS + ' 日を過ぎて古くなっています）' : '') + '。制度は変わることがあるので、手続きの前に出典で確かめてください。入力は外へ送りません。' + fixed }));
-    m.appendChild(el('span', { class: 'short', text: 'データ確認 ' + fmtShort(parseDay(oldest), TODAY) + '（' + days + ' 日前' + (days > STALE_DAYS ? '・古い' : '') + '）。出典で確かめてから手続きを。入力は外へ送りません。' + fixed }));
+    m.textContent = '制度のデータは ' + fmtLong(parseDay(oldest)) + ' に公式ページで確認したもので、今日で ' + days + ' 日たっています' + (days > STALE_DAYS ? '（' + STALE_DAYS + ' 日を過ぎて古くなっています）' : '') + '。制度は変わることがあるので、手続きの前に出典で確かめてください。' + (TODAY_FIXED ? ' ※ 基準日を URL の today= で ' + fmtLong(TODAY) + ' にしています。' : '');
   }
 
   // ---- 年表 ----
-  var AXIS_H = 82;
-  function renderRoadmap(plan, L) {
+  function renderRoadmap(fam, L) {
+    var nAge = Math.max(1, L.kids.length);
+    var Y_TOP = 22, A_TOP = 42, M_TOP = 42 + 18 * nAge;
+    var AXIS_H = M_TOP + 20;
     var canvas = el('div', { class: 'rm-canvas' });
-    var H = AXIS_H;
-    // 軸
     var axis = el('div', { class: 'ax-row', style: 'top:0;height:' + AXIS_H + 'px' });
-    L.axis.years.forEach(function (y) { axis.appendChild(el('span', { class: 'ax year', style: 'left:' + y.x + 'px;top:22px', text: y.text })); });
-    L.axis.ages.forEach(function (a) { axis.appendChild(el('span', { class: 'ax age', style: 'left:' + a.x + 'px;top:42px', text: a.text })); });
-    L.axis.months.forEach(function (m) { axis.appendChild(el('span', { class: 'ax mon', style: 'left:' + m.x + 'px;top:62px', text: m.text })); });
+    L.axis.years.forEach(function (y) { axis.appendChild(el('span', { class: 'ax year', style: 'left:' + y.x + 'px;top:' + Y_TOP + 'px', text: y.text })); });
+    L.axis.ages.forEach(function (a) { axis.appendChild(el('span', { class: 'ax age', style: 'left:' + a.x + 'px;top:' + (A_TOP + 18 * a.row) + 'px' }, [whoMark(a.who), a.text])); });
+    L.axis.months.forEach(function (m) { axis.appendChild(el('span', { class: 'ax mon', style: 'left:' + m.x + 'px;top:' + M_TOP + 'px', text: m.text })); });
     canvas.appendChild(axis);
-    var hdYear = el('span', { id: 'hd-year', text: '年' }), hdAge = el('span', { id: 'hd-age', text: '年齢' });
-    var labels = [el('div', { style: 'height:' + AXIS_H + 'px' }, [hdYear, hdAge, el('span', { text: '月' })])];
+    var hdYear = el('span', { id: 'hd-year', text: '年' });
+    var hdAges = L.kids.map(function (k) { return el('span', { class: 'hd-age' }, [whoMark(k.mark), el('span', { text: '年齢' })]); });
+    var labels = [el('div', { style: 'height:' + AXIS_H + 'px' }, [hdYear].concat(hdAges).concat([el('span', { text: '月' })]))];
     var top = AXIS_H;
     L.lanes.forEach(function (lane) {
       var h = lane.rows * ROW_H + 8;
       var node = el('div', { class: 'lane', 'data-lane': lane.key, style: 'top:' + top + 'px;height:' + h + 'px' });
-      lane.els.forEach(function (g) { node.appendChild(elementNode(g, plan)); });
+      lane.els.forEach(function (g) { node.appendChild(elementNode(g)); });
       canvas.appendChild(node);
       labels.push(el('div', { 'data-lane': lane.key, style: 'height:' + h + 'px' }, [el('span', { class: 'l', text: lane.name }), el('span', { class: 's', text: lane.short })]));
       top += h;
     });
-    H = top;
-    // 目盛りの線（月・年・誕生日）と今日の線
-    L.axis.months.forEach(function (m) { canvas.insertBefore(el('span', { class: 'gl' + (m.jan ? ' year' : ''), style: 'left:' + m.x + 'px;top:' + (m.jan ? 22 : 62) + 'px;height:' + (H - (m.jan ? 22 : 62)) + 'px' }), canvas.firstChild); });
-    L.axis.ages.forEach(function (a) { canvas.insertBefore(el('span', { class: 'gl age', style: 'left:' + a.x + 'px;top:42px;height:' + (H - 42) + 'px' }), canvas.firstChild); });
+    var H = top;
+    L.axis.months.forEach(function (m) { canvas.insertBefore(el('span', { class: 'gl' + (m.jan ? ' year' : ''), style: 'left:' + m.x + 'px;top:' + (m.jan ? Y_TOP : M_TOP) + 'px;height:' + (H - (m.jan ? Y_TOP : M_TOP)) + 'px' }), canvas.firstChild); });
+    L.axis.ages.forEach(function (a) { canvas.insertBefore(el('span', { class: 'gl age ' + (a.who === '下' ? 'b' : 'a'), style: 'left:' + a.x + 'px;top:' + (A_TOP + 18 * a.row) + 'px;height:' + (H - A_TOP - 18 * a.row) + 'px' }), canvas.firstChild); });
     canvas.appendChild(el('span', { class: 'today-line', style: 'left:' + L.today + 'px;top:2px;height:' + (H - 2) + 'px' }));
     canvas.appendChild(el('span', { class: 'today-chip', style: 'left:' + L.today + 'px;top:2px', text: '今日 ' + fmtShort(TODAY, TODAY) }));
     canvas.style.width = L.width + 'px';
     canvas.style.height = H + 'px';
     var scroll = el('div', { class: 'rm-scroll', id: 'rm-scroll', tabindex: '0', role: 'region', 'aria-label': '年表（横に動かせます）' }, [canvas]);
-    // 見えている左端の年と子の年齢を、左の固定列に出す
+    // 見えている左端の年と、子ごとの年齢を、左の固定列に出す
     var pending = false;
     function edge() {
       pending = false;
       var d = Math.round(L.r0 + scroll.scrollLeft / L.ppd);
-      if (d < plan.ctx.birth && plan.ctx.birth - d <= 20) d = plan.ctx.birth; // 誕生直前の余白は 0 歳として出す
       hdYear.textContent = ymd(d).y + '年';
-      var k = monthsBetween(plan.ctx.birth, d);
-      hdAge.textContent = k < 0 ? '誕生前' : Math.floor(k / 12) + '歳';
+      L.kids.forEach(function (k, i) {
+        var dd = d < k.birth && k.birth - d <= 20 ? k.birth : d; // 誕生直前の余白は 0 歳として出す
+        var m = monthsBetween(k.birth, dd);
+        hdAges[i].lastChild.textContent = m < 0 ? '誕生前' : Math.floor(m / 12) + '歳';
+      });
     }
     scroll.addEventListener('scroll', function () { if (!pending) { pending = true; requestAnimationFrame(edge); } }, { passive: true });
     $('rm').appendChild(el('div', { class: 'rm' }, [el('div', { class: 'rm-labels', 'aria-hidden': 'true' }, labels), scroll]));
-    // 年表に置いていないもの
-    var note = $('rm-note');
-    var needN = L.skipped.filter(function (s) { return s.milestone === 'nursery_start'; });
-    var needW = L.skipped.filter(function (s) { return s.milestone === 'return_to_work'; });
-    var parts = [];
-    if (needN.length) parts.push(['入園予定月を入れると ' + needN.length + ' 件出ます（', needN, '）']);
-    if (needW.length) parts.push(['復職予定日を入れると ' + needW.length + ' 件出ます（', needW, '）']);
-    var others = L.skipped.filter(function (s) { return !s.milestone; });
-    var undated = plan.events.undated;
-    note.appendChild(document.createTextNode('年表に置いていないもの: '));
-    parts.forEach(function (p) { note.appendChild(document.createTextNode(p[0])); linkList(note, p[1].map(function (s) { return s.id; })); note.appendChild(document.createTextNode(p[2] + '。')); });
-    others.forEach(function (s) { linkList(note, [s.id]); note.appendChild(document.createTextNode('（' + shortReason(s.reason) + '）。')); });
-    if (undated.length) {
-      note.appendChild(document.createTextNode('日付の無い統計など ' + undated.length + ' 件は、'));
-      note.appendChild(el('a', { href: '#group-events', text: '詳細の「イベントと給付」' }));
-      note.appendChild(document.createTextNode('だけに出します。'));
-    }
-    // 今日の線が見える位置へ
+    renderNote(fam, L);
     requestAnimationFrame(function () {
       if (!(current.openId && scrollToElement(current.openId, false))) scroll.scrollLeft = Math.max(0, L.today - scroll.clientWidth * 0.28);
       edge();
     });
   }
-  function shortReason(s) { return String(s).replace(/（データの値）。.*$/, '').replace(/。.*$/, ''); }
-  function nameOf(id) {
-    if (ITEM_IDS[id]) return roadmapLabel(ITEM_IDS[id].name);
-    var e = DATA.events.filter(function (x) { return x.id === id; })[0];
-    return e ? roadmapLabel(e.name.split('。')[0], true) : id;
+  // 年表に置いていないもの
+  function renderNote(fam, L) {
+    var note = $('rm-note');
+    var parts = [];
+    L.kids.forEach(function (k) {
+      var pre = L.kids.length > 1 ? k.label + 'の' : '';
+      var needN = L.skipped.filter(function (s) { return s.child === k.key && s.milestone === 'nursery_start'; });
+      var needW = L.skipped.filter(function (s) { return s.child === k.key && s.milestone === 'return_to_work'; });
+      if (needN.length) parts.push([pre + '入園予定月を設定すると ' + needN.length + ' 件出ます（', needN, '）']);
+      if (needW.length) parts.push(['復職予定日を設定すると ' + needW.length + ' 件出ます（', needW, '）']);
+    });
+    note.appendChild(document.createTextNode('年表に置いていないもの: '));
+    parts.forEach(function (p) { note.appendChild(document.createTextNode(p[0])); linkList(note, p[1]); note.appendChild(document.createTextNode(p[2] + '。')); });
+    // 同じ理由の項目は、子をまとめて 1 回だけ書く
+    var others = {}, order = [];
+    L.skipped.filter(function (s) { return !s.milestone; }).forEach(function (s) {
+      var key = s.item + '|' + shortReason(s.reason);
+      if (!others[key]) { others[key] = []; order.push(key); }
+      others[key].push(s);
+    });
+    order.forEach(function (key) {
+      var list = others[key];
+      linkList(note, [list[0]]);
+      if (list.length > 1) list.slice(1).forEach(function (s) { note.appendChild(document.createTextNode('・')); note.appendChild(el('a', { href: '#item-' + s.id, onclick: function (ev) { ev.preventDefault(); go(s.id); }, text: s.who + 'の子' })); });
+      note.appendChild(document.createTextNode('（' + shortReason(list[0].reason) + '）。'));
+    });
+    var undated = {};
+    fam.children.forEach(function (k) { k.plan.events.undated.forEach(function (u) { undated[u.id] = true; }); });
+    var placed = {};
+    L.lanes.forEach(function (lane) { lane.els.forEach(function (g) { placed[g.id] = true; }); });
+    var n = Object.keys(undated).filter(function (id) { return !placed[id]; }).length;
+    if (n) {
+      note.appendChild(document.createTextNode('日付の無い統計など ' + n + ' 件は、'));
+      note.appendChild(el('a', { href: '#group-events', text: '詳細の「イベントと給付」' }));
+      note.appendChild(document.createTextNode('だけに出します。'));
+    }
   }
-  function linkList(node, ids) {
-    ids.forEach(function (id, i) {
+  function shortReason(s) { return String(s).replace(/（データの値）。.*$/, '').replace(/。.*$/, ''); }
+  function linkList(node, list) {
+    list.forEach(function (s, i) {
       if (i) node.appendChild(document.createTextNode('、'));
-      node.appendChild(el('a', { href: '#item-' + id, onclick: function (ev) { ev.preventDefault(); go(id); }, text: nameOf(id) }));
+      var it = ITEM_IDS[s.item];
+      node.appendChild(el('a', { href: '#item-' + s.id, onclick: function (ev) { ev.preventDefault(); go(s.id); } }, [whoMark(s.who), it ? roadmapLabel(it.name) : s.id]));
     });
   }
-  function elementNode(g, plan) {
+  function elementNode(g) {
     var cls = 'el ' + g.kind + (g.past ? ' past' : '') + (g.over ? ' over' : '') + (g.done ? ' done' : '');
     var a = el('a', { href: '#item-' + g.id, class: cls, 'data-id': g.id, title: g.title, 'aria-label': g.title + (g.nc ? '（対象か要確認）' : ''), style: 'left:' + g.x0 + 'px;top:' + (4 + g.row * ROW_H) + 'px;width:' + (g.x1 - g.x0) + 'px', onclick: function (ev) { ev.preventDefault(); go(g.id); } });
     if (g.kind === 'bar') {
@@ -1031,7 +1216,7 @@ function overlaps(lane) {
       var r = g.kind === 'dot' ? 4 : 5;
       a.appendChild(el('span', { class: 'mk ' + cl, style: 'left:' + (g.xa - g.x0 - r) + 'px' }));
     }
-    if (g.label) a.appendChild(el('span', { class: 'lbl', style: 'left:' + (g.labelX - g.x0) + 'px' }, [g.nc ? el('i', { class: 'nc', text: '!' }) : null, g.label]));
+    if (g.label) a.appendChild(el('span', { class: 'lbl', style: 'left:' + (g.labelX - g.x0) + 'px' }, [whoMark(g.who), g.nc ? el('i', { class: 'nc', text: '!' }) : null, g.label]));
     return a;
   }
 
@@ -1051,6 +1236,7 @@ function overlaps(lane) {
     var s = target.querySelector('summary');
     if (s) s.focus({ preventScroll: true });
   }
+  function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
   function scrollToElement(id, focus) {
     var sc = $('rm-scroll');
     var node = sc && sc.querySelector('.el[data-id="' + cssEsc(id) + '"]');
@@ -1064,7 +1250,6 @@ function overlaps(lane) {
     }
     return true;
   }
-  function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
   function backToRoadmap(id) {
     try { history.pushState(null, '', '#roadmap'); } catch (e) { /* 使えなくても動く */ }
     if (id != null && scrollToElement(id, true)) return;
@@ -1073,7 +1258,10 @@ function overlaps(lane) {
   }
   function fromHash(instant) {
     var m = /^#item-(.+)$/.exec(decodeURIComponent(location.hash || ''));
-    if (m && $('item-' + m[1])) go(m[1], { noHistory: true, instant: instant });
+    if (!m) return;
+    // 絞り込みで隠れている子の項目なら、すべてに戻して開く
+    if (!$('item-' + m[1]) && state.view !== 'all') { state.view = 'all'; render(); }
+    if ($('item-' + m[1])) go(m[1], { noHistory: true, instant: instant });
   }
 
   // ---- 詳細 ----
@@ -1087,46 +1275,57 @@ function overlaps(lane) {
   function backButton(id, placed) {
     return placed ? el('button', { type: 'button', onclick: function () { backToRoadmap(id); } }, ['年表に戻る']) : el('a', { href: '#roadmap', onclick: function (ev) { ev.preventDefault(); backToRoadmap(null); } }, ['年表に戻る']);
   }
-  function renderDetails(plan, L) {
+  function shownKids(fam) { return fam.children.filter(function (k) { return state.view === 'all' || k.key === state.view; }); }
+  function renderDetails(fam, L) {
     var box = $('detail-list');
     var placed = {};
     L.lanes.forEach(function (lane) { lane.els.forEach(function (g) { placed[g.id] = true; }); });
+    var kids = shownKids(fam);
+    var multi = fam.children.length > 1;
     LANE_ORDER.forEach(function (lane) {
       var list = el('div', { class: 'list' });
       if (lane === 'milestone') {
-        plan.milestones.forEach(function (m) { list.appendChild(milestoneDetail(m, plan, placed)); });
+        var ms = [];
+        kids.forEach(function (k) { k.plan.milestones.forEach(function (m) { if (m.kind === 'work') return; ms.push({ m: m, k: k }); }); });
+        if (fam.work != null) { var w0 = kids[0].plan.milestones.filter(function (m) { return m.kind === 'work'; })[0]; if (w0) ms.push({ m: w0, k: null }); }
+        ms.sort(function (a, c) { return a.m.date - c.m.date; });
+        ms.forEach(function (o) { list.appendChild(milestoneDetail(o.m, o.k, multi, placed)); });
         var w = wardOf();
         if (w) list.appendChild(wardDetail(w));
       } else if (lane === 'events') {
-        DATA.events.forEach(function (e) { list.appendChild(eventDetail(e, plan, placed)); });
+        DATA.events.forEach(function (e) { list.appendChild(eventDetail(e, fam, placed)); });
       } else {
-        var ps = plan.items.filter(function (p) { return p.lane === lane; });
-        ps.sort(function (a, c) { return sortKey(a) - sortKey(c); });
-        ps.forEach(function (p) { list.appendChild(itemDetail(p, plan, placed)); });
+        var ps = [];
+        kids.forEach(function (k) { k.plan.items.forEach(function (p) { if (p.lane === lane) ps.push({ p: p, k: k }); }); });
+        ps.sort(function (a, c) { return sortKey(a.p) - sortKey(c.p) || (a.k.key < c.k.key ? -1 : 1); });
+        ps.forEach(function (o) { list.appendChild(itemDetail(o.p, o.k, multi, placed)); });
       }
       box.appendChild(el('div', { class: 'group', id: 'group-' + lane, 'data-lane': lane }, [el('h3', { text: LANE_NAMES[lane] }), list]));
     });
   }
   function sortKey(p) { var v = p.prep != null ? p.prep : p.effDue != null ? p.effDue : p.seasons && p.seasons[0] ? p.seasons[0].start : p.start; return v == null ? Infinity : v; }
   function whenText(p, t) {
+    if (p.empty) return '対象外';
     if (p.seasons) { var s = p.seasons.filter(function (x) { return x.end >= t; })[0] || p.seasons[p.seasons.length - 1]; return s ? '受けられる時期 ' + fmtShort(s.start, t) + '〜' + fmtShort(s.end, t) : '受けられる時期なし'; }
     if (p.dueKind === 'deadline') return '締切 ' + fmtShort(p.effDue, t) + (p.dueTime ? ' ' + p.dueTime : '');
     if (p.dueKind === 'guide') return '目安 ' + fmtShort(p.due, t);
     if (p.start != null && !p.noDate) return fmtShort(p.start, t) + ' から';
     return '日付なし';
   }
-  function itemDetail(p, plan, placed) {
-    var it = p.item, b = plan.ctx.birth, t = TODAY;
+  function itemDetail(p, k, multi, placed) {
+    var it = p.item, b = k.plan.ctx.birth, t = TODAY, id = k.key + '-' + it.id;
     var past = ['done', 'ended', 'na', 'season-over', 'overdue'].indexOf(p.status.key) >= 0;
     var stCls = { overdue: 'danger', open: 'ok', upcoming: 'accent', nodate: 'warn', done: 'ok' }[p.status.key] || '';
     var summary = el('summary', null, [
-      el('span', { class: 'nm', text: roadmapLabel(it.name) }),
+      el('span', { class: 'nm' }, [multi ? whoMark(k.mark) : null, roadmapLabel(it.name)]),
       el('span', { class: 'when', text: whenText(p, t) }),
-      el('span', { class: 'tags' }, [tag(p.status.key === 'overdue' ? '期限切れ' : p.status.text, stCls), it.nc ? tag('要確認', 'warn') : null, p.closed ? tag('締切が閉庁日', 'warn') : null])
+      el('span', { class: 'tags' }, [tag(p.status.key === 'overdue' ? '期限切れ' : p.status.key === 'nodate' ? '日付なし' : p.status.text, stCls), it.nc ? tag('要確認', 'warn') : null, p.closed ? tag('締切が閉庁日', 'warn') : null])
     ]);
     var rows = [['何を', el('span', { class: 'big', text: it.name })]];
-    // いつまでに
-    if (p.seasons) {
+    if (multi) rows.push(['どの子', k.label + '（' + (b > t ? fmtLong(b) + ' 生まれる予定' : fmtLong(b) + ' 生まれ') + '）']);
+    if (p.empty) {
+      rows.push(['いつまでに', p.status.text]);
+    } else if (p.seasons) {
       var ns = p.seasons.filter(function (s) { return s.end >= t; })[0];
       rows.push(['受けられる時期', ns ? fmtLong(ns.start) + ' 〜 ' + fmtLong(ns.end) + (ns.start <= t ? '（いま受けられる時期）' : '（' + relDays(ns.start, t) + '）') + '。毎年 ' + mdText(it.schedule.start) + '〜' + mdText(it.schedule.end) + '、' + ageText(b, p.start) + 'から' : '入学までに受けられる時期は過ぎました']);
     } else if (p.dueKind === 'deadline') {
@@ -1139,17 +1338,18 @@ function overlaps(lane) {
     } else if (p.dueKind === 'guide') {
       rows.push(['いつまでに', [el('span', { class: 'big', text: fmtLong(p.due) }), ' ' + relDays(p.due, t) + '・目安（公式の数字ではない）', el('div', { class: 'small muted', text: it.schedule.kind === 'before_milestone' ? (p.milestone === 'nursery_start' ? '入園予定月の初日' : '復職予定日') + 'の ' + p.lead + ' 日前（データの days_before）。' : '使える月齢（' + fmtLong(p.start) + '）の ' + p.lead + ' 日前（データの recommended_lead_days）。' })]]);
     } else if (p.noDate) {
-      rows.push(['いつまでに', el('span', { class: 'big', text: p.noDate })]);
+      rows.push(['いつまでに', el('span', { class: 'big', text: p.noDate.replace('入園予定月を入れると', (multi ? k.label + 'の' : '') + '入園予定月を設定すると').replace('復職予定日を入れると', '復職予定日を設定すると') })]);
     } else if (p.noDue) {
       rows.push(['いつまでに', p.noDue]);
     } else {
       rows.push(['いつまでに', '締切はデータに無い（期限なし、または出典に記載なし）']);
     }
-    // 準備
-    if (p.prep != null) rows.push(['準備', [el('span', { class: 'big', text: fmtLong(p.prep) + ' から' }), ' ' + relDays(p.prep, t) + '・目安（公式の数字ではない）', el('div', { class: 'small muted', text: '期日の ' + it.prep + ' 日前（データの prep_days）' })]]);
-    else if (p.due != null && (p.status.key === 'open' || p.status.key === 'upcoming')) rows.push(['準備', '準備に要る日数はデータに無いので、期日より前の余裕のある日に']);
-    if (p.start != null && !p.seasons && it.schedule.kind !== 'before_milestone') rows.push(['始まり', fmtLong(p.start) + '（' + ageText(b, p.start) + '）' + (p.nurseryNote ? '。' + p.nurseryNote : '')]);
-    if (p.end != null && !p.seasons) rows.push(['対象の終わり', fmtLong(p.end) + 'まで（' + ageText(b, p.end) + '）' + (it.ageNote ? '。制度の本来の上限: ' + it.ageNote : '')]);
+    if (!p.empty) {
+      if (p.prep != null) rows.push(['準備', [el('span', { class: 'big', text: fmtLong(p.prep) + ' から' }), ' ' + relDays(p.prep, t) + '・目安（公式の数字ではない）', el('div', { class: 'small muted', text: '期日の ' + it.prep + ' 日前（データの prep_days）' })]]);
+      else if (p.due != null && (p.status.key === 'open' || p.status.key === 'upcoming')) rows.push(['準備', '準備に要る日数はデータに無いので、期日より前の余裕のある日に']);
+      if (p.start != null && !p.seasons && it.schedule.kind !== 'before_milestone') rows.push(['始まり', fmtLong(p.start) + '（' + ageText(b, p.start) + '）' + (p.nurseryNote ? '。' + p.nurseryNote : '')]);
+      if (p.end != null && !p.seasons) rows.push(['対象の終わり', fmtLong(p.end) + 'まで（' + ageText(b, p.end) + '）' + (it.ageNote ? '。制度の本来の上限: ' + it.ageNote : '')]);
+    }
     rows.push(['対象', '生後 ' + it.age[0] + '〜' + (it.age[1] == null ? '上限なし' : it.age[1] + ' か月') + '・働き方: ' + (it.work ? it.work.join('・') : '問わない') + '・保育園: ' + (it.nursery === null ? '問わない' : it.nursery ? '通っている家庭' : '通っていない家庭')]);
     if (it.need.length) rows.push(['必要な物', it.need.map(function (s) { return el('div', { text: s }); })]);
     var w = wardOf();
@@ -1177,14 +1377,21 @@ function overlaps(lane) {
     if (it.work) inner.appendChild(el('p', { class: 'note', text: 'この項目は働き方（' + it.work.join('・') + '）で対象が変わります。このページは働き方を聞かないので、対象か確かめてください。' }));
     if (p.lane === 'vaccines') inner.appendChild(el('p', { class: 'note med', text: '任意接種の公開情報から計算した「受けられる時期」です。受けるか、いつ受けるかは医師と相談してください。このページは接種をすすめません。' }));
     if (p.lane === 'procedures' && it.cost.subsidy) inner.appendChild(el('p', { class: 'note', text: '受け取れるか、額、時期は申請先の判断で決まります。ここに書いた額は公表の値で、あなたが受け取る額ではありません。' }));
-    var cb = el('input', { type: 'checkbox', id: 'done-' + it.id, onchange: function (ev) { if (ev.target.checked) state.done[it.id] = true; else delete state.done[it.id]; save(); current.openId = it.id; render(); var d = $('item-' + it.id); if (d) { d.open = true; d.classList.add('cur'); } var c = $('done-' + it.id); if (c) c.focus({ preventScroll: true }); } });
-    cb.checked = !!state.done[it.id];
-    inner.appendChild(el('div', { class: 'row-act' }, [el('label', null, [cb, '済んだ']), backButton(it.id, placed[it.id])]));
-    return el('details', { class: 'item' + (past ? ' is-past' : ''), id: 'item-' + it.id, 'data-lane': p.lane, open: current.openId === it.id }, [summary, inner]);
+    var dk = doneKey(k.key, it.id);
+    var cb = el('input', { type: 'checkbox', id: 'done-' + id, onchange: function (ev) {
+      if (ev.target.checked) state.done[dk] = true; else delete state.done[dk];
+      save(); current.openId = id; render();
+      var d = $('item-' + id); if (d) { d.open = true; d.classList.add('cur'); }
+      var c = $('done-' + id); if (c) c.focus({ preventScroll: true });
+    } });
+    cb.checked = !!state.done[dk];
+    inner.appendChild(el('div', { class: 'row-act' }, [el('label', null, [cb, (multi ? k.label + 'の分は' : '') + '済んだ']), backButton(id, placed[id])]));
+    return el('details', { class: 'item' + (past ? ' is-past' : ''), id: 'item-' + id, 'data-lane': p.lane, open: current.openId === id }, [summary, inner]);
   }
-  function eventDetail(e, plan, placed) {
+  function eventDetail(e, fam, placed) {
     var t = TODAY, days = t - parseDay(e.chk);
-    var und = plan.events.undated.filter(function (u) { return u.id === e.id; })[0];
+    var reasons = [];
+    fam.children.forEach(function (k) { k.plan.events.undated.forEach(function (u) { if (u.id === e.id && reasons.indexOf(u.reason) < 0) reasons.push(u.reason); }); });
     var val = e.value == null ? '' : (typeof e.value === 'number' ? e.value.toLocaleString('ja-JP') : e.value) + (e.unit ? ' ' + e.unit : '') + (e.stat ? '（' + ({ average: '平均', mode: '最も多い値', range: '幅', share: '割合', fixed: '定額', rate: '率' }[e.stat] || e.stat) + '）' : '');
     var summary = el('summary', null, [el('span', { class: 'nm', text: roadmapLabel(e.name.split('。')[0], true) }), el('span', { class: 'when', text: placed[e.id] ? '年表に表示' : '詳細だけ' })]);
     var rows = [
@@ -1192,7 +1399,7 @@ function overlaps(lane) {
       ['値', val],
       e.months ? ['月', e.months.join('・') + ' 月'] : null,
       e.age ? ['対象', '生後 ' + e.age[0] + '〜' + (e.age[1] == null ? '' : e.age[1]) + ' か月' + (e.nursery ? '・保育園に通う子' : '')] : e.nursery ? ['対象', '保育園に通う子'] : null,
-      ['年表では', placed[e.id] ? (e.kind === 'money_in' && /^\d+/.test(String(e.value)) ? '札幌市の決まり（偶数月の 13 日、土日祝なら前日）から計算した支給予定日の点。受け取れるか・いつの分からかは認定で決まります' : '帯で表示') : und ? und.reason : '出していない'],
+      ['年表では', placed[e.id] ? (e.kind === 'money_in' && /^\d+/.test(String(e.value)) ? '札幌市の決まり（偶数月の 13 日、土日祝なら前日）から計算した支給予定日の点。2 人とも同じ日なので 1 つにまとめています。受け取れるか・いつの分からかは認定で決まります' : '帯で表示') : reasons.length ? reasons.join('。') : '出していない'],
       ['出典', link(e.src)],
       ['確認日', [e.chk + '（' + days + ' 日前）', days > STALE_DAYS ? ' ' : null, days > STALE_DAYS ? tag('確認が古い', 'warn') : null]],
       e.basis ? ['調べ方', e.basis] : null,
@@ -1204,46 +1411,51 @@ function overlaps(lane) {
     inner.appendChild(el('div', { class: 'row-act' }, [backButton(e.id, placed[e.id])]));
     return el('details', { class: 'item', id: 'item-' + e.id, 'data-lane': 'events', open: current.openId === e.id }, [summary, inner]);
   }
-  function milestoneDetail(m, plan, placed) {
-    var t = TODAY, id = 'ms-' + m.key;
+  function milestoneDetail(m, k, multi, placed) {
+    var t = TODAY, id = (k ? k.key + '-' : '') + 'ms-' + m.key;
+    var plan = k ? k.plan : current.fam.children[0].plan;
     function li(o) {
       var p = plan.items.filter(function (x) { return x.id === o.id; })[0];
-      return el('li', null, [el('a', { href: '#item-' + o.id, onclick: function (ev) { ev.preventDefault(); go(o.id); }, text: roadmapLabel(p.item.name) }), ' ', el('span', { class: 'small muted', text: (o.date != null ? fmtShort(o.date, t) : '') + (o.kind === 'deadline' ? '・公式の締切' : o.kind === 'guide' ? '・目安' : '') + (o.text || '') })]);
+      var target = (k ? k.key : current.fam.children[0].key) + '-' + o.id;
+      return el('li', null, [el('a', { href: '#item-' + target, onclick: function (ev) { ev.preventDefault(); go(target); }, text: roadmapLabel(p.item.name) }), ' ', el('span', { class: 'small muted', text: (o.date != null ? fmtShort(o.date, t) : '') + (o.kind === 'deadline' ? '・公式の締切' : o.kind === 'guide' ? '・目安' : '') + (o.text || '') })]);
     }
+    var title = (k && multi ? k.label + ' ' : '') + m.title;
     var body = [dl([
-      ['日付', fmtLong(m.date) + '・' + relDays(m.date, t) + (m.kind === 'age' || m.kind === 'birth' ? '' : '・' + ageText(plan.ctx.birth, m.date))],
-      ['決まり方', m.kind === 'age' ? '生年月日の ' + m.months + ' か月後の同じ日（その日が無い月は月末）' : m.kind === 'school' ? '満 6 歳になった日の翌日以後の最初の 4 月 1 日として計算した目安です（データに出典はありません）。入学の時期は区・学校からの案内で確かめてください。' : m.kind === 'nursery' ? '入力した入園予定月の初日' : m.kind === 'work' ? '入力した復職予定日' : '入力した生年月日']
+      ['日付', fmtLong(m.date) + '・' + relDays(m.date, t) + (k && m.kind !== 'age' && m.kind !== 'birth' ? '・' + ageText(k.plan.ctx.birth, m.date) : '')],
+      ['決まり方', m.kind === 'age' ? '生年月日の ' + m.months + ' か月後の同じ日（その日が無い月は月末）' + (k && k.plan.ctx.birth > t ? '。出産予定日から数えています' : '') : m.kind === 'school' ? '満 6 歳になった日の翌日以後の最初の 4 月 1 日として計算した目安です（データに出典はありません）。入学の時期は区・学校からの案内で確かめてください。' : m.kind === 'nursery' ? '設定した入園予定月の初日' : m.kind === 'work' ? '設定した復職予定日（家庭で 1 つ）' : k && k.plan.ctx.birth > t ? '設定した出産予定日' + (k.key === 'b' && state.settings.youngerDue === DEFAULT_SETTINGS.youngerDue ? '（日は仮）' : '') : '設定した生年月日']
     ])];
     if (m.finish.length) body.push(el('div', { class: 'small', style: 'margin-top:8px;font-weight:700', text: 'この日までに期限・目安があるもの（前の節目の後）' }), el('ul', { class: 'ms-list small' }, m.finish.map(li)));
     if (m.begin.length) body.push(el('div', { class: 'small', style: 'margin-top:8px;font-weight:700', text: 'このころ始まるもの' }), el('ul', { class: 'ms-list small' }, m.begin.map(li)));
-    if (m.related.length) body.push(el('div', { class: 'small', style: 'margin-top:8px;font-weight:700', text: m.kind === 'nursery' ? '入園で対象が変わるもの' : '復職に関わりうるもの' }), el('ul', { class: 'ms-list small' }, m.related.map(li)));
+    if (m.related.length) body.push(el('div', { class: 'small', style: 'margin-top:8px;font-weight:700', text: m.kind === 'nursery' ? '入園で対象が変わるもの' : '復職に関わりうるもの' + (multi ? '（' + (k ? k.label : current.fam.children[0].label) + 'の項目）' : '') }), el('ul', { class: 'ms-list small' }, m.related.map(li)));
     body.push(el('div', { class: 'row-act' }, [backButton(id, placed[id])]));
     return el('details', { class: 'item' + (m.date < t ? ' is-past' : ''), id: 'item-' + id, 'data-lane': 'milestone', open: current.openId === id }, [
-      el('summary', null, [el('span', { class: 'nm', text: m.title }), el('span', { class: 'when', text: fmtShort(m.date, t) + '・' + relDays(m.date, t) })]),
+      el('summary', null, [el('span', { class: 'nm' }, [k && multi ? whoMark(k.mark) : null, title]), el('span', { class: 'when', text: fmtShort(m.date, t) + '・' + relDays(m.date, t) })]),
       el('div', { class: 'inner' }, body)
     ]);
   }
   function wardDetail(w) {
     var t = TODAY, days = t - parseDay(w.chk);
-    return el('details', { class: 'item', id: 'item-ward', 'data-lane': 'milestone' }, [
-      el('summary', null, [el('span', { class: 'nm', text: w.name + 'の窓口' }), el('span', { class: 'when', text: '入力した区' })]),
+    return el('details', { class: 'item', id: 'item-ward', 'data-lane': 'milestone', open: current.openId === 'ward' }, [
+      el('summary', null, [el('span', { class: 'nm', text: w.name + 'の窓口' }), el('span', { class: 'when', text: '設定した区' })]),
       el('div', { class: 'inner' }, [dl(w.offices.map(function (o) {
         return [ROLE_NAMES[o.role] || o.role, [link(o.url, o.name), o.phone ? ' ' : null, o.phone ? telLink(o.phone) : null, o.address ? el('div', { class: 'small muted', text: o.address }) : null]];
       }).concat([['確認日', w.chk + '（' + days + ' 日前）。電話と場所は出典のページで確かめてから出かけてください。']]))])
     ]);
   }
 
-  function renderAbout(plan, L) {
+  function renderAbout(fam, L) {
     var counts = {};
     DATA.items.forEach(function (it) { counts[it.domain] = (counts[it.domain] || 0) + 1; });
     var onMap = {};
-    L.lanes.forEach(function (lane) { lane.els.forEach(function (g) { onMap[g.id] = true; }); });
+    L.lanes.forEach(function (lane) { lane.els.forEach(function (g) { onMap[g.item] = true; }); });
     var itemsOn = DATA.items.filter(function (it) { return onMap[it.id]; }).length;
     var eventsOn = DATA.events.filter(function (e) { return onMap[e.id]; }).length;
+    var p0 = fam.children[0].plan;
     $('about-body').appendChild(el('ul', null, [
       el('li', { text: '使ったデータ: リポジトリの data/items/ にある、人が確かめた項目だけです（data/candidates/ は使いません）。手続き ' + (counts.procedures || 0) + ' 件・予防接種 ' + (counts.vaccines || 0) + ' 件・預け先の事前登録 ' + (counts.childcare_registration || 0) + ' 件・起きうること ' + DATA.events.length + ' 件・区 ' + DATA.wards.length + ' 区。' }),
-      el('li', { text: 'このページに出している数: 詳細に ' + DATA.items.length + ' 項目と起きうること ' + DATA.events.length + ' 件をすべて出します。年表に置いているのは ' + itemsOn + ' 項目と ' + eventsOn + ' 件で、置いていないものは年表の下に理由を書いています。区は入力の選択肢に ' + DATA.wards.length + ' 区。' }),
-      el('li', { text: '確認日: ' + plan.checkedOldest + (plan.checkedNewest !== plan.checkedOldest ? '〜' + plan.checkedNewest : '') + '（今日で ' + plan.checkedDays + ' 日前）。確認から ' + STALE_DAYS + ' 日を過ぎた項目には「確認が古い」と出します。' }),
+      el('li', { text: 'このページに出している数: 詳細に ' + DATA.items.length + ' 項目（子ごと）と起きうること ' + DATA.events.length + ' 件をすべて出します。年表に置いているのは ' + itemsOn + ' 項目と ' + eventsOn + ' 件で、置いていないものは年表の下に理由を書いています。区は設定の選択肢に ' + DATA.wards.length + ' 区。' }),
+      el('li', { text: '子ども 2 人: どちらの子にも同じデータから期日を計算します。データに無い項目や数字は足しません。第 2 子以降に関わる制度（保育料の多子軽減など）は、データの「要確認」のまま出し、対象かどうかは決めません。生まれる前の子は出産予定日から数えます。申込の締切がその子の対象の月齢より前に来る項目は、その子には出しません。' }),
+      el('li', { text: '確認日: ' + p0.checkedOldest + (p0.checkedNewest !== p0.checkedOldest ? '〜' + p0.checkedNewest : '') + '（今日で ' + p0.checkedDays + ' 日前）。確認から ' + STALE_DAYS + ' 日を過ぎた項目には「確認が古い」と出します。' }),
       el('li', { text: '年表の棒: 準備を始める日（データに prep_days があればその日、無ければ受付が始まる日）から期限（公式の締切、または目安の日）まで。1 日だけのものは点。予防接種は毎年の受けられる時期の帯か、受けられる月齢になる日の点です。' }),
       el('li', { text: '生後 N か月の日: 生年月日の N か月後の同じ日。その日が無い月は月末（例: 1/31 生まれの 1 か月後は 2/28、うるう年は 2/29）。いつも生年月日から数えます。' }),
       el('li', { text: '締切: 出生日 + データの日数。出生届のように初日から数える制度は、データの側で 1 を引いてあります。申込の締切（年つき）はデータの日時のままです。' }),
@@ -1261,23 +1473,21 @@ function overlaps(lane) {
     load();
     storageNote();
     applyTheme();
-    var sel = $('f-ward');
+    var sel = $('s-ward');
     DATA.wards.forEach(function (w) { sel.appendChild(el('option', { value: w.name, text: w.name })); });
-    writeForm();
-    ['f-birth', 'f-ward', 'f-nursery', 'f-work'].forEach(function (id) { $(id).addEventListener('change', function () { readForm(); save(); render(); }); });
-    $('f-nursery').addEventListener('input', function () { if (/^\d{4}-\d{2}$/.test(this.value.trim()) || this.value === '') { readForm(); save(); render(); } });
-    $('b-example').addEventListener('click', function () { state.input = copy(EXAMPLE); writeForm(); save(); render(); });
-    $('b-clear').addEventListener('click', function () {
-      state.input = { birth: '', ward: '', nursery: '', work: '' }; state.done = {};
-      try { window.localStorage.removeItem(KEY); } catch (e) { /* 保存できない環境 */ }
-      writeForm(); render();
+    Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).addEventListener('change', onSettingsChange); });
+    $('s-elderNursery').addEventListener('input', function () { if (/^\d{4}-\d{2}$/.test(this.value.trim()) || this.value === '') onSettingsChange(); });
+    $('s-youngerNursery').addEventListener('input', function () { if (/^\d{4}-\d{2}$/.test(this.value.trim()) || this.value === '') onSettingsChange(); });
+    $('b-reset').addEventListener('click', function () {
+      state.settings = normalizeSettings(DEFAULT_SETTINGS);
+      state.view = 'all';
+      save(); writeForm(); showSettingsMsg('初期値に戻しました。');
     });
-    $('theme').addEventListener('click', function () { state.theme = { auto: 'light', light: 'dark', dark: 'auto' }[state.theme]; applyTheme(); save(); });
-    window.addEventListener('popstate', function () { if (/^#item-/.test(location.hash)) fromHash(false); else if (location.hash === '#roadmap' || !location.hash) $('roadmap').scrollIntoView({ block: 'start' }); });
-    window.addEventListener('hashchange', function () { fromHash(false); });
+    document.querySelectorAll('[data-theme-set]').forEach(function (b) { b.addEventListener('click', function () { state.theme = b.getAttribute('data-theme-set'); applyTheme(); save(); }); });
     if (window.innerWidth > 760) $('legend').open = true;
-    render();
-    fromHash(true);
+    window.addEventListener('hashchange', route);
+    window.addEventListener('popstate', function () { if (location.hash !== '#settings' && !$('settings-view').hidden) route(); else if (/^#item-/.test(location.hash)) fromHash(false); else if (location.hash === '#roadmap' || !location.hash) $('roadmap').scrollIntoView({ block: 'start' }); });
+    route();
   }
   init();
 })();
