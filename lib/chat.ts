@@ -10,7 +10,14 @@ import {
 } from "ai";
 import { attachMoney, type ToolEvent } from "./money/attach";
 import { todayInJapan } from "./money/dates";
-import { checkReply } from "./money/guard";
+import {
+  checkReply,
+  fitLength,
+  maskProblems,
+  maskUnverified,
+  softenClaims,
+  softenTitle,
+} from "./money/guard";
 import {
   MAX_WARNINGS,
   calculationSchema,
@@ -20,6 +27,7 @@ import {
 import { TOOLS, executeTool } from "./money/tools";
 import { buildSystem } from "./prompt";
 import {
+  TEXT_LIMITS,
   modelReplySchema,
   type ChatRequest,
   type Message,
@@ -153,6 +161,67 @@ function proseOf(reply: string, cards: readonly Proposal[]): string {
 
 const toPromptMessage = ({ id, role, text }: Message) => ({ id, role, text });
 
+type CheckArgs = Omit<Parameters<typeof checkReply>[0], "reply">;
+
+// 給付の断定や代行の完了を言う文を、固定の案内に置き換える（#59 の指摘 7、#61 の指摘 5・6）。
+// 見出しも含めて、生成した欄をすべて見る。残しておく言葉は本人の原文なので触らない。
+function softenCard(card: Proposal, userTexts: readonly string[]): Proposal {
+  if (card.kind === "memory") return card;
+  const options = { voice: "card" as const, userTexts };
+  return {
+    ...card,
+    title: softenTitle(card.title, options),
+    body: softenClaims(card.body, options).text,
+    nextStep: softenClaims(card.nextStep, options).text,
+    uncertainty: softenClaims(card.uncertainty, options).text,
+  };
+}
+
+// 照らせない金額や日付を含むカードは採用しない（#59 の指摘 1）。採用しなければ、前の版が画面に残る。
+// お金のカードの表はプログラムの計算なので残し、照らせない部分だけを伏せる（#61 の指摘 7）。
+function keepVerified(
+  cards: readonly Proposal[],
+  args: CheckArgs,
+): { cards: Proposal[]; warnings: MoneyWarning[] } {
+  const warnings: MoneyWarning[] = [];
+  const kept = cards.flatMap((card): Proposal[] => {
+    if (checkReply({ ...args, reply: proseOf("", [card]) }).length === 0)
+      return [card];
+    if (card.kind === "money") {
+      const mask = (text: string) => maskProblems({ ...args, text }).text;
+      return [
+        {
+          ...card,
+          title: mask(card.title),
+          body: mask(card.body),
+          nextStep: mask(card.nextStep),
+          uncertainty: mask(card.uncertainty),
+        },
+      ];
+    }
+    const title = card.title.slice(0, 80);
+    warnings.push({
+      kind: "card",
+      shown: title,
+      message: `「${title}」のメモは、計算結果や話した内容と照らせない金額か日付があったので、出しませんでした（前の版があれば、そのまま残しています）。もう一度送ると、作り直せます。`,
+    });
+    return [];
+  });
+  return { cards: kept, warnings };
+}
+
+// 後処理で字数が増えても、画面の形の上限に収める（#61 の指摘 3）。残しておく言葉は原文なので切らない。
+function fitCard(card: Proposal): Proposal {
+  if (card.kind === "memory") return card;
+  return {
+    ...card,
+    title: fitLength(card.title, TEXT_LIMITS.title),
+    body: fitLength(card.body, TEXT_LIMITS.body),
+    nextStep: fitLength(card.nextStep, TEXT_LIMITS.nextStep),
+    uncertainty: fitLength(card.uncertainty, TEXT_LIMITS.uncertainty),
+  };
+}
+
 export async function runChat({
   model,
   input,
@@ -219,29 +288,49 @@ export async function runChat({
         },
       },
     });
-    const { reply, cards: proposals } = result.output;
-    const { cards, warnings } = attachMoney({
+    const { reply: rawReply, cards: proposals } = result.output;
+    const attached = attachMoney({
       ...context,
       proposals,
     });
-    const guardWarnings = checkReply({
-      reply: proseOf(reply, cards),
+    const textsOf = (role: Message["role"]) =>
+      input.messages
+        .filter((message) => message.role === role)
+        .map((message) => message.text);
+    const checkArgs: CheckArgs = {
       toolEvents: [...prior.events, ...events],
-      userTexts: input.messages
-        .filter((message) => message.role === "user")
-        .map((message) => message.text),
+      userTexts: textsOf("user"),
+      earlierReplies: textsOf("assistant"),
       today,
+    };
+    const reply = softenClaims(rawReply, {
+      voice: "reply",
+      userTexts: checkArgs.userTexts,
+    }).text;
+    const softened = attached.cards.map((card) =>
+      softenCard(card, checkArgs.userTexts),
+    );
+    const guardWarnings = checkReply({
+      ...checkArgs,
+      reply: proseOf(reply, softened),
     });
-    return finish(reply, cards, [...guardWarnings, ...warnings], {
-      steps: result.steps.length,
-      usage: {
-        inputTokens: result.usage.inputTokens,
-        outputTokens: result.usage.outputTokens,
-        cacheReadTokens: result.usage.inputTokenDetails?.cacheReadTokens,
-        cacheWriteTokens: result.usage.inputTokenDetails?.cacheWriteTokens,
+    const verified = keepVerified(softened, checkArgs);
+    return finish(
+      // 返答の本文の照らせない金額と日付は伏せ、短い注記を足す。
+      fitLength(maskUnverified({ ...checkArgs, reply }).text, TEXT_LIMITS.reply),
+      verified.cards.map(fitCard),
+      [...guardWarnings, ...attached.warnings, ...verified.warnings],
+      {
+        steps: result.steps.length,
+        usage: {
+          inputTokens: result.usage.inputTokens,
+          outputTokens: result.usage.outputTokens,
+          cacheReadTokens: result.usage.inputTokenDetails?.cacheReadTokens,
+          cacheWriteTokens: result.usage.inputTokenDetails?.cacheWriteTokens,
+        },
+        fallback: false,
       },
-      fallback: false,
-    });
+    );
   } catch (error) {
     // 利用者が中止したとき、計算が 1 つも済んでいないときは、失敗として返す。
     if (signal?.aborted || !events.some((event) => event.ok)) throw error;
