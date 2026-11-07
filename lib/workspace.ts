@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { todayInJapan } from "./money/dates";
 import { citationsToText, moneyToText } from "./money/format";
-import { maskProblems } from "./money/guard";
+import { fixGapDirection, maskProblems } from "./money/guard";
 import {
   MAX_WARNINGS,
   moneyRequestSchema,
@@ -265,7 +265,12 @@ function verifiedForExport(
       .map((message) => message.text),
     today: todayInJapan(),
   };
-  const mask = (text: string) => maskProblems({ ...args, text }).text;
+  // 足りない額と残る額の向きを逆に書いた文は、計算から作った文に置き換えてから伏せる（#66 の A-3）。
+  const mask = (text: string) =>
+    maskProblems({
+      ...args,
+      text: fixGapDirection(text, args.toolEvents).text,
+    }).text;
   return {
     ...card,
     title: mask(card.title),

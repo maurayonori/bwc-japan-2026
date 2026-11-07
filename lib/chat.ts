@@ -10,9 +10,11 @@ import {
 } from "ai";
 import { attachMoney, type ToolEvent } from "./money/attach";
 import { todayInJapan } from "./money/dates";
+import { monthSplitError } from "./money/month-split";
 import {
   checkReply,
   fitLength,
+  fixGapDirection,
   maskProblems,
   maskUnverified,
   softenClaims,
@@ -82,11 +84,20 @@ export function toResponse(result: ChatResult): {
   };
 }
 
+// 計算の前に、会話の中で前に呼んだ計算と合わせて見ないと分からない誤りを差し戻す（#66）。
+type Precheck = (name: string, input: unknown) => string | null;
+
 function runRecorded(
   name: string,
   input: unknown,
   record: (event: ToolEvent) => void,
+  precheck: Precheck,
 ): unknown {
+  const rejected = precheck(name, input);
+  if (rejected) {
+    record({ name, input, ok: false, error: rejected });
+    throw new Error(rejected);
+  }
   let result: ReturnType<typeof executeTool>;
   try {
     result = executeTool(name, input);
@@ -104,7 +115,7 @@ function runRecorded(
   return result.output;
 }
 
-function aiTools(record: (event: ToolEvent) => void): ToolSet {
+function aiTools(record: (event: ToolEvent) => void, precheck: Precheck): ToolSet {
   return Object.fromEntries(
     TOOLS.map((definition) => [
       definition.name,
@@ -115,7 +126,7 @@ function aiTools(record: (event: ToolEvent) => void): ToolSet {
         ),
         strict: true,
         execute: async (input: unknown) =>
-          runRecorded(definition.name, input, record),
+          runRecorded(definition.name, input, record, precheck),
       }),
     ]),
   );
@@ -267,7 +278,18 @@ export async function runChat({
         messages: input.messages.map(toPromptMessage),
         cards: input.cards,
       }),
-      tools: aiTools((event) => events.push(event)),
+      tools: aiTools(
+        (event) => events.push(event),
+        (name, toolInput) =>
+          name === "simulate_cashflow"
+            ? monthSplitError(
+                toolInput,
+                [...prior.events, ...events].filter(
+                  (event) => event.ok && event.name === "kougaku_gendo",
+                ),
+              )
+            : null,
+      ),
       output: Output.object({ schema: modelReplySchema }),
       // 構造化出力を書くステップも 1 回に数える。
       stopWhen: isStepCount(MAX_STEPS),
@@ -303,13 +325,37 @@ export async function runChat({
       earlierReplies: textsOf("assistant"),
       today,
     };
-    const reply = softenClaims(rawReply, {
-      voice: "reply",
-      userTexts: checkArgs.userTexts,
-    }).text;
-    const softened = attached.cards.map((card) =>
-      softenCard(card, checkArgs.userTexts),
+    // 足りない額と残る額の向きを逆に書いた文は、計算から作った文に置き換え、注意で伝える（#66 の A-3）。
+    const gapWarnings: MoneyWarning[] = [];
+    const fixGap = (text: string) => {
+      const fixed = fixGapDirection(text, checkArgs.toolEvents);
+      for (const sentence of fixed.sentences) {
+        const shown = sentence.slice(0, 120);
+        gapWarnings.push({
+          kind: "amount",
+          shown,
+          message: `「${shown}」は、足りない額と残る額の向きが計算と逆だったので、計算から作った文に置き換えました。`,
+        });
+      }
+      return fixed.text;
+    };
+    const reply = fixGap(
+      softenClaims(rawReply, {
+        voice: "reply",
+        userTexts: checkArgs.userTexts,
+      }).text,
     );
+    const softened = attached.cards.map((card) => {
+      const soft = softenCard(card, checkArgs.userTexts);
+      if (soft.kind === "memory") return soft;
+      return {
+        ...soft,
+        title: fixGap(soft.title),
+        body: fixGap(soft.body),
+        nextStep: fixGap(soft.nextStep),
+        uncertainty: fixGap(soft.uncertainty),
+      };
+    });
     const guardWarnings = checkReply({
       ...checkArgs,
       reply: proseOf(reply, softened),
@@ -319,7 +365,7 @@ export async function runChat({
       // 返答の本文の照らせない金額と日付は伏せ、短い注記を足す。
       fitLength(maskUnverified({ ...checkArgs, reply }).text, TEXT_LIMITS.reply),
       verified.cards.map(fitCard),
-      [...guardWarnings, ...attached.warnings, ...verified.warnings],
+      [...gapWarnings, ...guardWarnings, ...attached.warnings, ...verified.warnings],
       {
         steps: result.steps.length,
         usage: {
