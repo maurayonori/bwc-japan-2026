@@ -7,6 +7,7 @@ import {
   type MoneyWarning,
   type WhatToConfirm,
 } from "./schema";
+import { mainCashflowIndex } from "./main-cashflow";
 
 // 返答に書かれた金額と日付が、プログラムの計算結果・利用者の発言・持っている事実のどれかにあるかを照らす。
 // 「金額と日付は、プログラムが計算したものだけを見せる」という約束を、目で確かめられるようにするため。
@@ -538,12 +539,15 @@ interface ScenarioRange {
   need_high: number;
 }
 
-// 最新の見通しの、筋書きごとの要る額の範囲と、結び付けに使う名前と入出金の label。
+// 本線の見通し（同じ回に複数あれば、内訳の計算と額が合う最後のもの。#82）の、筋書きごとの要る額の範囲と、
+// 結び付けに使う名前と入出金の label。本線の結果が読めなければ、それより前の見通しをさかのぼる。
 function latestScenarios(toolEvents: readonly GuardToolEvent[]): {
   confirm: WhatToConfirm;
   scenarios: ScenarioRange[];
 } | null {
-  for (const event of [...toolEvents].reverse()) {
+  const main = mainCashflowIndex(toolEvents);
+  const ordered = main < 0 ? [...toolEvents].reverse() : [toolEvents[main], ...toolEvents.slice(0, main).reverse()];
+  for (const event of ordered) {
     const output = event.output;
     if (output === null || typeof output !== "object" || !("what_to_confirm" in output))
       continue;
