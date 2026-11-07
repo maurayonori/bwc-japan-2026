@@ -41,6 +41,8 @@ type Take = {
   rec: MediaRecorder;
   // 録画を止めて、止まった知らせを待つ。来なければ waitMs のあとで後始末する。何度呼んでもよい。
   halt: (waitMs: number) => void;
+  // 録画を止め、後始末のあとでこの録画のカメラ（rec.stream）も止める。止める予約はこの録画のカメラにだけ付く。
+  release: () => void;
 };
 
 const NO_CLIPS: readonly Clip[] = [];
@@ -80,20 +82,13 @@ export function Kagami() {
   const request = useRef(0);
   // 開いたことのあるカメラの向き（deviceId ごと、トラックの設定で確かめられたものだけ）。切り替えの文言に使う。
   const facingById = useRef(new Map<string, Facing>());
-  // 録画の後始末が済んでから止めるカメラ。最後のかたまりを受け取ってから止める（先に止めると、残すものが短くなる）。
-  const release = useRef<MediaStream | null>(null);
-
-  // 録画の途中か、止めて後始末を待っているあいだなら、録画を止めて後始末のあとでカメラを止める。
-  // 録画が無ければ、すぐ止める。後始末は、止まった知らせが来なくても 3 秒で必ず行う（そのときにカメラも止める）。
+  // 録画の途中か止める途中なら、録画を止め、後始末のあとでその録画のカメラを止める（最後のかたまりを受け取ってから止める。
+  // 先に止めると、残すものが短くなる）。後始末は、止まった知らせが来なくても 3 秒で必ず行う。
+  // 録画に使っていないカメラは、すぐ止める（止める予約を別のカメラで上書きしない）。
   function stopRecordingThenRelease(media: MediaStream | null) {
-    if (!media) return;
     const current = take.current;
-    if (current) {
-      release.current = media;
-      current.halt(STOP_WAIT_MS);
-    } else {
-      stopStream(media);
-    }
+    if (current) current.release();
+    if (media && media !== current?.rec.stream) stopStream(media);
   }
   const cameraNow = useRef<Camera>("off");
   const latestClip = clips.find((clip) => clip.id === latest) ?? null;
@@ -156,6 +151,8 @@ export function Kagami() {
   }
 
   async function open(target: Target) {
+    // 前の録画の後始末が済むまでは、カメラを開き直さない（前のカメラを止める前に、別のカメラを開かない）。
+    if (take.current) return;
     const id = ++request.current;
     // 画面を離れた・タブが隠れた・止めた・別の要求に替わったあとなら、この要求の結果は使わない。
     const stale = () => !mounted.current || request.current !== id;
@@ -249,8 +246,11 @@ export function Kagami() {
     };
     let failed = false;
     let finished = false;
-    // 止まった知らせを待つあいだの、待ち時間のタイマー
+    // 後始末のあとで、この録画のカメラを止めるか
+    let releaseAfter = false;
+    // 止まった知らせを待つあいだの、待ち時間のタイマーとその期限
     let waiting: number | null = null;
+    let deadline = Infinity;
     const stopTimer = () => {
       if (timer.current !== null) window.clearInterval(timer.current);
       timer.current = null;
@@ -265,13 +265,9 @@ export function Kagami() {
       // 止められなかった録画を、管理の外で録り続けさせない。カメラのトラックを止めて終わらせる。
       const stuck = rec.state !== "inactive";
       const cameraStopped = stuck && stream.current === rec.stream;
-      if (stuck) stopStream(rec.stream);
+      // 止められなかった録画か、止めると決めていた録画のカメラを止める。
+      if (stuck || releaseAfter) stopStream(rec.stream);
       if (cameraStopped) stream.current = null;
-      // 録画が終わったので、止めると決めていたカメラを止める。
-      if (release.current) {
-        stopStream(release.current);
-        release.current = null;
-      }
       const blobType = rec.mimeType || type || "video/webm";
       // 実際に録った長さを出す（上限で止めたときも 2:00 に丸めない）。
       const durationMs = performance.now() - began;
@@ -317,7 +313,17 @@ export function Kagami() {
           // 止められなければ、待ったあとの後始末でカメラを止める
         }
       }
-      if (waiting === null) waiting = window.setTimeout(finish, waitMs);
+      // すでに待っていれば、今ある期限と新しい期限の早いほうで待ち直す（止めたあとにエラーが来たら 1.5 秒で片付ける）。
+      const due = performance.now() + waitMs;
+      if (due < deadline) {
+        deadline = due;
+        if (waiting !== null) window.clearTimeout(waiting);
+        waiting = window.setTimeout(finish, waitMs);
+      }
+    };
+    const release = () => {
+      releaseAfter = true;
+      halt(STOP_WAIT_MS);
     };
     rec.onstop = () => finish();
     rec.onerror = () => {
@@ -330,7 +336,7 @@ export function Kagami() {
       setNote("録画を始められませんでした。カメラをつけ直して、もう一度試してください。");
       return;
     }
-    take.current = { rec, halt };
+    take.current = { rec, halt, release };
     setRecording(true);
     setElapsed(0);
     setLatest(null);
@@ -468,7 +474,8 @@ export function Kagami() {
                 type="button"
                 className="primary"
                 onClick={() => void open({ facingMode: "user" })}
-                disabled={camera === "starting"}
+                // 前の録画の後始末が済むまでは押せない（録画中の表示が消えると押せる）
+                disabled={camera === "starting" || recording}
               >
                 {camera === "starting" ? "カメラを開いています…" : "カメラをつける"}
               </button>

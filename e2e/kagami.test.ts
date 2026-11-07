@@ -925,3 +925,74 @@ test("録画を止めた直後にメニューで移っても、止まった知�
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+test("録画を止める途中（止まった知らせを待つあいだ）は開き直せず、戻って開き直そうとしても、最後にすべてのトラックが止まる", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  await context.addInitScript(KEEP_STREAMS);
+  await context.addInitScript(CONTROL_RECORDERS);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await cameraOn(page);
+  await page.evaluate(`window.__hold = true`);
+  await page.getByRole("button", { name: "録画を始める" }).click();
+  await page.locator(".kagami-rec").waitFor();
+  await feed(page);
+  // 1. 止まった知らせを控えたまま、タブが隠れる
+  await page.evaluate(HIDE);
+  await page.getByText("タブを離れたので、録画とカメラを止めました。撮ったところまでは残っています。").waitFor();
+  // 2. 3 秒以内に戻って、カメラを開き直そうとする
+  await page.evaluate(SHOW);
+  const turnOn = page.getByRole("button", { name: "カメラをつける" });
+  assert.equal(await turnOn.isDisabled(), true, "止める途中に「カメラをつける」を押せた");
+  await turnOn.click({ force: true });
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(`window.__cameraCalls`), 1, "止める途中にカメラを開き直した");
+  // 3. もう一度隠れてから、前の録画の止まった知らせが来る
+  await page.evaluate(HIDE);
+  await page.evaluate(`window.__recorders[0].__flush()`);
+  await page.locator(".kagami-rec").waitFor({ state: "detached" });
+  await stoppedAfterNotice(page);
+  const all = `window.__streams.flatMap((s) => s.getTracks().map((t) => t.readyState))`;
+  let states = (await page.evaluate(all)) as string[];
+  assert.ok(states.length >= 2 && states.every((s) => s === "ended"), JSON.stringify(states));
+  assert.equal(await page.locator(".kagami-item").count(), 1);
+  // 4. 後始末が済むと開ける。開いたカメラは、メニューで移るとすぐ止まる
+  await page.evaluate(SHOW);
+  await page.evaluate(`window.__hold = false`);
+  await page.getByRole("button", { name: "残して、続けて撮る" }).click();
+  await cameraOn(page);
+  assert.equal(await page.evaluate(`window.__cameraCalls`), 2);
+  await page.locator('nav[aria-label="メニュー"]').getByRole("link", { name: "年表" }).click();
+  await page.waitForURL(`${base}/roadmap`);
+  await page.waitForFunction(`${all}.every((s) => s === "ended")`);
+  states = (await page.evaluate(all)) as string[];
+  assert.ok(states.length >= 4 && states.every((s) => s === "ended"), JSON.stringify(states));
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("録画を止めたあとにエラーが来たら、止めたときの 3 秒を待たず、エラーから 1.5 秒で片付ける", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  await context.addInitScript(CONTROL_RECORDERS);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await cameraOn(page);
+  await page.evaluate(`window.__hold = true`);
+  await page.getByRole("button", { name: "録画を始める" }).click();
+  await page.locator(".kagami-rec").waitFor();
+  await feed(page);
+  // 「録画を止める」のすぐあとにエラーを出し、録画中の表示が消えるまでの時間をページの中で測る
+  const waited = (await page.evaluate(`(async () => {
+    document.querySelector("button.kagami-stop").click();
+    const at = performance.now();
+    window.__recorders[0].dispatchEvent(new Event("error"));
+    while (document.querySelector(".kagami-rec")) await new Promise((r) => setTimeout(r, 20));
+    return performance.now() - at;
+  })()`)) as number;
+  assert.ok(waited >= 1400 && waited < 2500, `エラーから ${Math.round(waited)} ms で片付いた`);
+  await page.getByText("録画が途中で止まりました。撮ったところまでは残っています。").waitFor();
+  assert.equal(await page.locator(".kagami-item").count(), 1);
+  assert.equal(await firstClipSize(page), FAKE_BYTES);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
