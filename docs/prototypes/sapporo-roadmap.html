@@ -1,0 +1,1420 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>札幌の子育て年表</title>
+<meta name="description" content="架空の子ども 2 人を例に、誕生から小学校入学までの札幌市の手続き・任意接種・預け先の事前登録・給付を、レーン形式の年表にする試作。制度のデータは公式ページから起こし、出典と確認日つき。">
+<!-- さきよみの色と文字（トークンと基本の決まり）。さきよみの中では、アプリが同じものを読んでいる。 -->
+<link rel="stylesheet" href="../../app/globals.css">
+<style>
+/* 色と文字は、さきよみのトークン（app/globals.css の --ink・--muted・--green・--line・--paper・--bg・--sage・--amber・--font）に揃える（#52、ADR 0015）。
+   単独で開くときも、さきよみの中（/roadmap）でも同じに見えるよう、globals.css を読んだ上に重ねる。年表の規則はすべて .rmp の中に閉じる。
+   年表だけで使う色（レーン・締切・今日の線・子の印）は、さきよみの色から濃さを合わせて決めた。
+   さきよみに暗い表示は無いので、年表も端末の設定にかかわらず明るいトークンのまま出す（暗い表示の切り替えは外した）。 */
+.rmp {
+  --surface: var(--paper);
+  --surface-2: var(--sage);
+  --text: var(--ink);
+  --grid: #e9ece3;
+  --accent: var(--green);
+  --accent-weak: #e4ece3;
+  --danger: #a8392d;
+  --danger-weak: #f7e5e0;
+  --warn: var(--amber);
+  --warn-weak: #f4ecdc;
+  --ok: #3d7650;
+  --ok-weak: #e2eddf;
+  --today: #c4513d;
+  --lane-m: var(--amber);
+  --lane-m-weak: #f4ecdc;
+  --lane-p: var(--green);
+  --lane-p-weak: #e4ece3;
+  --lane-v: #6f4f86;
+  --lane-v-weak: #eee7f2;
+  --lane-c: #2b6a72;
+  --lane-c-weak: #dfeded;
+  --lane-e: #a0622a;
+  --lane-e-weak: #f6ebdd;
+  --who-a: #2f6c8c;
+  --who-b: #a3466b;
+  --shadow: 0 3px 9px #344a2a08;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body { overflow-x: hidden; }
+.rmp a { color: var(--accent); overflow-wrap: anywhere; }
+.rmp button, .rmp input, .rmp select { font: inherit; color: inherit; }
+.rmp.wrap { max-width: 1240px; margin: 0 auto; padding: 12px 16px 24px; }
+.rmp .top { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+.rmp h1 { font-size: 20px; line-height: 1.3; margin: 0; font-weight: 600; letter-spacing: .04em; }
+.rmp h2 { font-size: 16px; line-height: 1.35; margin: 0 0 6px; font-weight: 600; letter-spacing: .04em; }
+.rmp h3 { font-size: 15px; margin: 0; }
+.rmp .sub { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+/* globals.css の .muted（会話の画面の小さな注記）の大きさと余白は持ち込まない。 */
+.rmp .muted { color: var(--muted); font-size: inherit; margin: 0; }
+.rmp .small { font-size: 13px; }
+.rmp button { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+.rmp button:hover { border-color: var(--accent); }
+.rmp :focus-visible { outline: 3px solid #9bb397; outline-offset: 2px; }
+.rmp .tag { margin: 0; display: inline-block; font-size: 12px; line-height: 1.5; padding: 0 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); white-space: nowrap; font-weight: 600; }
+.rmp .tag.warn { background: var(--warn-weak); color: var(--warn); border-color: transparent; }
+.rmp .tag.danger { background: var(--danger-weak); color: var(--danger); border-color: transparent; }
+.rmp .tag.ok { background: var(--ok-weak); color: var(--ok); border-color: transparent; }
+.rmp .tag.accent { background: var(--accent-weak); color: var(--accent); border-color: transparent; }
+.rmp [data-lane="milestone"] { --lane: var(--lane-m); --lane-weak: var(--lane-m-weak); }
+.rmp [data-lane="procedures"] { --lane: var(--lane-p); --lane-weak: var(--lane-p-weak); }
+.rmp [data-lane="vaccines"] { --lane: var(--lane-v); --lane-weak: var(--lane-v-weak); }
+.rmp [data-lane="childcare_registration"] { --lane: var(--lane-c); --lane-weak: var(--lane-c-weak); }
+.rmp [data-lane="events"] { --lane: var(--lane-e); --lane-weak: var(--lane-e-weak); }
+
+/* 見出し・設定 */
+.rmp .top { align-items: baseline; }
+.rmp .cond { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.rmp .top-link { font-size: 13px; white-space: nowrap; flex: none; }
+.rmp .meta { margin: 8px 2px 0; font-size: 12px; color: var(--muted); }
+.rmp .meta.stale { color: var(--warn); }
+/* 条件の誤りは、さきよみの注意の箱（globals.css の .error）で出す。 */
+.rmp .error { font-weight: 600; margin: 8px 0 0; }
+.rmp .settings .error { padding: 6px 10px; margin: 0; }
+.rmp #settings-view > p { margin: 0 0 12px; }
+.rmp .views { white-space: nowrap; }
+.rmp .linkish { background: none; border: 0; padding: 0 2px; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; font-size: 13px; border-radius: 3px; }
+.rmp .linkish[aria-pressed="true"] { color: var(--text); text-decoration: none; font-weight: 700; }
+.rmp .who { display: inline-block; font-style: normal; font-size: 10px; font-weight: 800; line-height: 12px; padding: 0 2px; border-radius: 3px; border: 1px solid currentColor; margin-right: 3px; vertical-align: 1px; }
+.rmp .who.a { color: var(--who-a); }
+.rmp .who.b { color: var(--who-b); }
+.rmp .legend-box { margin-top: 6px; }
+.rmp .legend-box > summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.rmp #settings-view { margin-top: 12px; }
+.rmp .settings { display: grid; gap: 12px; max-width: 720px; }
+.rmp .settings fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 10px 14px 12px; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; }
+.rmp .settings legend { font-weight: 700; padding: 0 4px; }
+.rmp .settings label { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+.rmp .settings input, .rmp .settings select { width: 100%; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--text); }
+.rmp .settings .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.rmp .btn { display: inline-block; padding: 5px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--text); }
+.rmp .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; font-size: 13px; line-height: 1.8; }
+
+/* 年表 */
+.rmp .rm-head { display: flex; flex-wrap: wrap; gap: 2px 16px; align-items: baseline; margin: 8px 0 6px; font-size: 13px; color: var(--muted); }
+.rmp .legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--muted); align-items: center; margin: 4px 0 0; }
+.rmp .legend i { display: inline-block; vertical-align: -1px; margin-right: 4px; font-style: normal; }
+.rmp .lg-bar { width: 18px; height: 10px; border-radius: 3px; background: var(--lane-p-weak); border: 1px solid var(--lane-p); }
+.rmp .lg-dl { width: 9px; height: 9px; transform: rotate(45deg); background: var(--danger); }
+.rmp .lg-gd { width: 9px; height: 9px; transform: rotate(45deg); border: 2px solid var(--muted); }
+.rmp .lg-st { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--muted); }
+.rmp .lg-ms { width: 9px; height: 9px; transform: rotate(45deg); background: var(--lane-m); }
+.rmp .lg-star { color: var(--lane-m); font-size: 13px; line-height: 1; }
+.rmp .lg-pay { width: 7px; height: 7px; border-radius: 50%; background: var(--lane-e); }
+.rmp .lg-past { width: 18px; height: 10px; border-radius: 3px; background: var(--lane-p-weak); border: 1px solid var(--lane-p); opacity: .4; }
+.rmp .lg-today { width: 2px; height: 13px; background: var(--today); }
+.rmp .nc { display: inline-block; width: 13px; height: 13px; line-height: 13px; border-radius: 50%; background: var(--warn); color: var(--surface); font-size: 10px; font-weight: 800; text-align: center; margin-right: 3px; vertical-align: 1px; font-style: normal; }
+.rmp .rm { display: grid; grid-template-columns: 132px minmax(0, 1fr); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+.rmp .rm-labels { border-right: 1px solid var(--line); position: relative; z-index: 2; background: var(--surface); }
+.rmp .rm-labels > div { padding: 4px 8px; font-size: 12.5px; font-weight: 700; line-height: 1.35; border-top: 1px solid var(--line); border-left: 4px solid var(--lane, transparent); color: var(--lane, var(--muted)); background: var(--lane-weak, var(--surface)); overflow: hidden; }
+.rmp .rm-labels > div:first-child { border-top: 0; color: var(--muted); font-weight: 700; font-size: 12px; display: grid; align-content: end; gap: 2px; line-height: 18px; padding-bottom: 2px; background: var(--surface); }
+.rmp #hd-year { color: var(--text); font-size: 13px; }
+.rmp #hd-age { color: var(--lane-m); }
+.rmp .rm-labels .s { display: none; }
+.rmp .rm-scroll { overflow-x: auto; overflow-y: hidden; position: relative; overscroll-behavior-x: contain; scroll-behavior: auto; }
+.rmp .rm-canvas { position: relative; }
+.rmp .ax-row { position: absolute; left: 0; right: 0; }
+.rmp .ax { position: absolute; white-space: nowrap; font-size: 12px; line-height: 18px; padding-left: 3px; }
+.rmp .ax.year { font-weight: 700; font-size: 13px; }
+.rmp .ax.age { color: var(--lane-m); font-weight: 700; }
+.rmp .ax.mon { color: var(--muted); font-size: 11px; }
+.rmp .gl { position: absolute; width: 0; border-left: 1px solid var(--grid); pointer-events: none; }
+.rmp .gl.year { border-left-color: var(--line); border-left-width: 2px; }
+.rmp .gl.age { border-left: 1px dashed var(--lane-m); opacity: .45; }
+.rmp .gl.age.b { border-left-color: var(--who-b); }
+.rmp .gl.age.a { border-left-color: var(--who-a); }
+.rmp .hd-age { white-space: nowrap; }
+.rmp .today-line { position: absolute; width: 0; border-left: 2px solid var(--today); z-index: 3; pointer-events: none; }
+.rmp .today-chip { position: absolute; z-index: 4; background: var(--today); color: #fff; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; line-height: 18px; white-space: nowrap; transform: translateX(-50%); }
+.rmp .lane { position: absolute; left: 0; right: 0; border-top: 1px solid var(--line); }
+.rmp .lane:nth-of-type(odd) { background: color-mix(in srgb, var(--bg) 55%, transparent); }
+.rmp .el { position: absolute; height: 18px; display: block; text-decoration: none; color: var(--text); border-radius: 4px; }
+.rmp .el:hover .lbl { text-decoration: underline; }
+.rmp .el .body { position: absolute; top: 2px; bottom: 2px; border-radius: 4px; background: var(--lane-weak); border: 1px solid var(--lane); }
+.rmp .el .lbl { position: absolute; top: 0; font-size: 12px; line-height: 18px; white-space: nowrap; font-weight: 600; }
+.rmp .el .mk { position: absolute; top: 4px; width: 10px; height: 10px; }
+.rmp .mk.dl { background: var(--danger); transform: rotate(45deg); }
+.rmp .mk.gd { background: var(--surface); border: 2px solid var(--lane); transform: rotate(45deg); }
+.rmp .mk.st { background: var(--surface); border: 2px solid var(--lane); border-radius: 50%; }
+.rmp .mk.dot { top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--lane); }
+.rmp .mk.ms { background: var(--lane-m); transform: rotate(45deg); }
+.rmp .mk.star { top: 0; width: 14px; height: 18px; color: var(--lane-m); font-size: 15px; line-height: 18px; text-align: center; }
+.rmp .el.past { opacity: .42; }
+.rmp .el.past:hover, .rmp .el.past:focus-visible { opacity: .85; }
+.rmp .el.over .body { border: 2px solid var(--danger); }
+.rmp .el.done .lbl::before { content: "✓ "; color: var(--ok); }
+.rmp .el.cur { outline: 2px solid var(--accent); outline-offset: 1px; opacity: 1; }
+.rmp .rm-note { font-size: 13px; color: var(--muted); margin: 8px 2px 0; }
+.rmp .rm-note a { margin-right: 2px; }
+@media (max-width: 760px) {
+  .rmp .rm { grid-template-columns: 58px minmax(0, 1fr); }
+  .rmp .rm-labels > div { padding: 4px 3px 4px 4px; font-size: 11px; border-left-width: 3px; white-space: nowrap; }
+  .rmp .rm-labels .l { display: none; }
+  .rmp .rm-labels .s { display: inline; }
+  .rmp h1 { font-size: 20px; }
+  .rmp #hd-year { font-size: 11px; letter-spacing: -.3px; white-space: nowrap; }
+  .rmp .hd-age { font-size: 10px; letter-spacing: -.3px; }
+}
+
+/* 詳細 */
+.rmp .details-sec { margin-top: 28px; }
+.rmp .group { margin: 16px 0 0; }
+.rmp .group > h3 { font-size: 14px; color: var(--lane); margin: 0 0 6px; padding-left: 8px; border-left: 4px solid var(--lane); }
+.rmp .list { display: grid; gap: 6px; }
+.rmp details.item { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--lane); border-radius: 8px; scroll-margin-top: 12px; }
+.rmp details.item > summary { cursor: pointer; padding: 7px 12px; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline; list-style-position: inside; }
+.rmp details.item > summary .nm { font-weight: 700; }
+.rmp details.item > summary .when { font-size: 13px; color: var(--muted); }
+.rmp details.item > summary .tags { display: inline-flex; gap: 4px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.rmp details.item > summary .tags .tag { white-space: normal; }
+.rmp details.item.is-past > summary .nm { color: var(--muted); }
+.rmp details.item.cur { box-shadow: 0 0 0 3px var(--accent); }
+.rmp details.item.flash { animation: rmp-flash 1.6s ease-out; }
+@keyframes rmp-flash { 0% { background: var(--accent-weak); } 100% { background: var(--surface); } }
+.rmp details.item .inner { padding: 4px 14px 12px; border-top: 1px solid var(--line); }
+.rmp .kv { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 3px 12px; margin: 8px 0 0; font-size: 14px; }
+.rmp .kv dt { color: var(--muted); font-weight: 600; }
+.rmp .kv dd { margin: 0; overflow-wrap: anywhere; }
+.rmp .kv .big { font-weight: 700; }
+.rmp .note { font-size: 13px; margin: 8px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); }
+.rmp .note.warn { background: var(--warn-weak); color: var(--warn); }
+.rmp .note.med { background: var(--lane-v-weak); }
+.rmp blockquote { margin: 0; padding: 2px 10px; border-left: 3px solid var(--line); color: var(--muted); font-size: 13px; }
+.rmp .row-act { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 10px; font-size: 14px; }
+.rmp .row-act label { display: inline-flex; gap: 6px; align-items: center; }
+.rmp .row-act input { width: 18px; height: 18px; accent-color: var(--accent); }
+.rmp .ms-list { margin: 4px 0 0; padding-left: 18px; }
+.rmp .about { font-size: 14px; }
+.rmp .about li { margin: 3px 0; }
+.rmp footer { margin: 28px 0 8px; font-size: 12px; color: var(--muted); }
+@media (max-width: 520px) {
+  .rmp .kv { grid-template-columns: minmax(0, 1fr); }
+  .rmp .kv dt { margin-top: 6px; }
+}
+@media print { .rmp .rm-scroll { overflow: visible; } .rmp .top-link { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap rmp">
+  <header class="top">
+    <div>
+      <h1>札幌の子育て年表</h1>
+      <p class="cond" id="cond"></p>
+    </div>
+    <a class="top-link" id="nav-link" href="#settings">設定</a>
+  </header>
+  <p id="family-error" class="error" role="alert" hidden></p>
+
+  <div id="main-view">
+    <section id="roadmap" aria-label="年表">
+      <div class="rm-head"><span id="today-text"></span><span class="views" id="views" role="group" aria-label="表示する子"></span></div>
+      <div id="rm"></div>
+      <p class="rm-note" id="rm-note"></p>
+      <details class="legend-box" id="legend"><summary>凡例</summary>
+        <div class="legend">
+          <span><i class="lg-bar"></i>準備を始める日〜期限</span>
+          <span><i class="lg-dl"></i>公式の締切</span>
+          <span><i class="lg-gd"></i>目安の日（公式の数字ではない）</span>
+          <span><i class="lg-st"></i>始まる日・受けられる時期</span>
+          <span><i class="lg-ms"></i>生後の節目</span>
+          <span><i class="lg-star">★</i>誕生・入園・復職・入学</span>
+          <span><i class="lg-pay"></i>児童手当の支給予定日</span>
+          <span><i class="who a">上</i><i class="who b">下</i>どちらの子か</span>
+          <span><i class="nc">!</i>対象か要確認</span>
+          <span><i class="lg-past"></i>過ぎた・済んだ</span>
+          <span><i class="lg-today"></i>今日</span>
+        </div>
+      </details>
+      <p class="meta" id="meta"></p>
+    </section>
+
+    <section id="details" class="details-sec" aria-labelledby="h-details">
+      <h2 id="h-details">詳細</h2>
+      <p class="small muted" style="margin:0">何を、いつまでに、準備、窓口、費用、出典と確認日をまとめます。公式の締切と、データに置いた目安（公式の数字ではない）は分けて書きます。予防接種の日付は公開情報から計算した「受けられる時期」で、受けるか・いつ受けるかは医師と相談してください。給付を受け取れるか、額、時期は申請先の判断で決まります。</p>
+      <div id="detail-list"></div>
+    </section>
+
+    <section class="details-sec" aria-labelledby="h-about">
+      <details class="item" id="about" data-lane="milestone">
+        <summary><span class="nm" id="h-about">計算の決まりと、このページに出しているもの</span></summary>
+        <div class="inner about" id="about-body"></div>
+      </details>
+    </section>
+  </div>
+
+  <section id="settings-view" hidden aria-labelledby="h-settings">
+    <h2 id="h-settings">設定</h2>
+    <p class="small muted">年表の条件を変えます。値はこのブラウザの中だけに保存し、外へ送りません。初期値の日付と区はすべて架空です。<span id="storage-note"></span></p>
+    <form id="settings-form" class="settings" autocomplete="off" novalidate>
+      <fieldset>
+        <legend>上の子</legend>
+        <label>生年月日<input type="date" id="s-elderBirth" min="2015-01-01" max="2035-12-31"></label>
+        <label>入園予定月（任意）<input type="month" id="s-elderNursery" min="2015-01" max="2042-12" placeholder="2027-04" pattern="\d{4}-\d{2}"></label>
+      </fieldset>
+      <fieldset>
+        <legend>下の子</legend>
+        <label>出産予定日（生まれたら生年月日）<input type="date" id="s-youngerDue" min="2015-01-01" max="2036-12-31"></label>
+        <label>入園予定月（任意）<input type="month" id="s-youngerNursery" min="2015-01" max="2043-12" placeholder="2028-04" pattern="\d{4}-\d{2}"></label>
+        <p class="small muted" style="grid-column:1/-1;margin:0">初期値の 2027-03-15 は「来年 3 月」の日を仮に 15 日としたものです。</p>
+      </fieldset>
+      <fieldset>
+        <legend>家庭</legend>
+        <label>住んでいる区<select id="s-ward"><option value="">選ばない</option></select></label>
+        <label>復職予定日（任意）<input type="date" id="s-work" min="2015-01-01" max="2042-12-31"></label>
+      </fieldset>
+      <p class="small">どちらかの子の日付を空にすると、1 人分の年表になります。</p>
+      <p id="settings-msg" class="small" role="status"></p>
+      <div class="actions">
+        <a class="btn primary" href="#roadmap" id="back-main">年表に戻る</a>
+        <button type="button" id="b-reset">初期値に戻す</button>
+      </div>
+    </form>
+  </section>
+
+  <footer>
+    このページは「さきよみ」の提出物ではない試作です。医療の助言、給付の可否・額・時期の判断、保険や金融商品のすすめ、連絡や申請の代行はしません。初期値の子ども 2 人・日付・区はすべて架空です。設定とチェックはこのブラウザの中だけで使い、外へ送りません。
+  </footer>
+</div>
+
+<script id="data" type="application/json">{"items":[{"id":"sapporo-procedures-shussho-todoke","domain":"procedures","muni":"札幌市","name":"出生届の提出（出生した日から 14 日以内に区役所の戸籍住民課へ）","age":[0,1],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"birth_offset","start_days":0,"deadline_days":13},"prep":null,"cost":{"amount":null,"subsidy":null},"contacts":[{"name":"各区役所 戸籍住民課 戸籍係（電話・所在地は出典ページのリンク先）"}],"src":"https://www.city.sapporo.jp/shimin/koseki/koseki/syussyo.html","chk":"2026-11-04","ev":"「出生した日から14日以内（国外で出生した場合は3ヶ月以内）」「令和7年5月26日以降、出生子の名の振り仮名の届出が必須になります。」","check":["期間は「出生した日から」なので、出生日を 1 日目と数えるかは計算時に要確認（戸籍法の数え方。14 日目が閉庁日のときの扱いもページに記載なし）。"],"need":["必要なものとして母子手帳（出生届済証明欄に証明）。"],"closedRule":null},{"id":"sapporo-procedures-jido-teate","domain":"procedures","muni":"札幌市","name":"児童手当の認定請求（出生日の翌日から 15 日以内なら出生月の翌月分から支給）","age":[0,12],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"birth_offset","start_days":0,"deadline_days":15},"prep":null,"cost":{"amount":null,"subsidy":"月額は 3 歳未満 15,000 円、3 歳から 18 歳到達後の最初の年度末までは第 1 子・第 2 子 10,000 円、第 3 子以降 30,000 円（第 3 子以降の 3 歳未満の額は出典の表で要確認）。所得制限は 2024-10 に撤廃。原則偶数月の 13 日に年 6 回支給"},"contacts":[{"name":"各区役所 保健福祉課 福祉助成係"},{"name":"札幌市子ども未来局子育て支援部子育て支援課 手当給付係 011-211-3944"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html","chk":"2026-11-04","ev":"「出生日の翌日から15日以内に認定請求すると、出生月の翌月分から支給されます。」「申請が遅れると、遅れた月分の手当を受けられなくなりますので、ご注意ください。」","check":[],"need":[],"closedRule":"next"},{"id":"sapporo-procedures-kodomo-iryohi","domain":"procedures","muni":"札幌市","name":"子ども医療費受給者証の申請（事前に交付を受けて受診時に提示する）","age":[0,12],"work":null,"nursery":null,"nc":true,"schedule":{"kind":"birth_offset","start_days":0,"deadline_days":null},"prep":null,"cost":{"amount":"一部負担金は医科の初診 580 円、歯科の初診 510 円。再診・調剤薬局などは 0 円（保険診療分）。訪問看護療養費は 1 割負担（1 か所あたり月 3,000 円が限度）","subsidy":"保険診療の自己負担額から一部負担金を除いた額を札幌市が助成。対象は高校生世代まで（18 歳に達する日以後の最初の 3 月 31 日まで）"},"contacts":[{"name":"各区役所 保健福祉課 福祉助成係（新規申請・各種届出・払戻し）"},{"name":"札幌市保健福祉局保険医療部保険企画課 011-211-2960（制度の問い合わせ）"}],"src":"https://www.city.sapporo.jp/hoken-iryo/iryojosei/nyuyoji.html","chk":"2026-11-04","ev":"「高校生世代※まで（18歳に達する日以後の最初の3月31日まで）のお子さんの医療費の一部を札幌市が助成します。」","check":["要確認: 所得制限がある（主たる生計維持者の前年の所得が限度額未満。助成対象月が 1〜7 月なら前々年。両親の場合は所得が高いほうで判定）。","出生後いつまでに申請するか、いつから有効かの記載はページに無い（要確認）。"],"need":["区役所申請の必要書類: 受給資格登録申請書、申請者の本人確認書類、子の公的医療保険情報を確認できる書類（資格確認書・資格情報のお知らせ・マイナポータルの画面のいずれか）、市外に所得情報がある人は同意書か所得・課税証明書。"],"closedRule":null},{"id":"national-procedures-shussan-ichijikin","domain":"procedures","muni":"国","name":"出産育児一時金（1 児 50 万円。直接支払制度を使わなかった分・差額は加入する健康保険へ申請）","age":[0,24],"work":null,"nursery":null,"nc":true,"schedule":{"kind":"birth_offset","start_days":0,"deadline_days":730},"prep":null,"cost":{"amount":null,"subsidy":"1 児につき 50 万円（産科医療補償制度に加入する医療機関等で在胎週数 22 週以降の出産）。在胎週数 22 週に達しない出産などは 48.8 万円。多胎は胎児数分"},"contacts":[{"name":"加入する健康保険（協会けんぽの場合。直接支払制度は医療機関の窓口で代理契約を結ぶ）"},{"name":"札幌市国民健康保険の場合: 各区役所 保険年金課","url":"https://www.city.sapporo.jp/hoken-iryo/kokuho/shussan.html"}],"src":"https://www.kyoukaikenpo.or.jp/benefit/childbirth/002/index.html","chk":"2026-11-04","ev":"「直接支払制度は、協会けんぽから支給される出産育児一時金を医療機関等における出産費用に充てることができるよう、出産育児一時金を協会けんぽから医療機関等に対して直接支払う制度のことです。」「1児につき50万円」","check":["要確認: 加入する健康保険の種類（会社の健保・協会けんぽ・国保・共済）は入力から判定できない。","協会けんぽのページには時効の記載が無いので、会社の健保の期限は要確認。"],"need":[],"closedRule":null},{"id":"sapporo-procedures-ninpu-shien-kyufu-2","domain":"procedures","muni":"札幌市","name":"妊婦のための支援給付の 2 回目（胎児 1 人につき 5 万円）の申請","age":[0,24],"work":null,"nursery":null,"nc":true,"schedule":{"kind":"birth_offset","start_days":0,"deadline_days":null},"prep":null,"cost":{"amount":null,"subsidy":"1 回目は妊娠届出に基づき 5 万円、2 回目は胎児の数 1 人につき 5 万円（双子は 10 万円）。申請から支給まで 2〜3 か月程度"},"contacts":[{"name":"札幌市妊婦のための支援給付コールセンター 011-213-0383（9:00〜18:00、土日祝・年末年始を除く）"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/13589.html","chk":"2026-11-04","ev":"2 回目の申請期限は「出産予定日の８週前から2年を経過する日まで」。支給までの期間は「２か月～３か月程度かかります」","check":["要確認: 札幌市で妊娠届出をして 1 回目を申請済みか（転入者は扱いが違う可能性）。"],"need":[],"closedRule":null},{"id":"national-procedures-ikuji-kyugyo-kyufu","domain":"procedures","muni":"国","name":"育児休業給付金の支給申請（事業主経由でハローワークへ。初回のあとは原則 2 か月ごと）","age":[0,24],"work":["育休中"],"nursery":null,"nc":true,"schedule":{"kind":"birth_offset","start_days":58,"deadline_days":null},"prep":null,"cost":{"amount":null,"subsidy":"休業開始時賃金日額 × 支給日数 × 67%（育児休業の開始から 181 日目以降は 50%）。休業開始時賃金日額の上限は 16,540 円（令和 9 年 7 月 31 日までの額）。非課税で、育休中は申出により健康保険・厚生年金保険料が免除"},"contacts":[{"name":"育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15。北海道労働局の案内）","url":"https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html"},{"name":"提出先は事業所の所在地を管轄するハローワーク（原則、事業主が提出。電子申請も可）","url":"https://www.mhlw.go.jp/content/11600000/001461102.pdf"}],"src":"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000158500.html","chk":"2026-11-04","ev":"初回の申請期限は「受給資格確認手続のみ行う場合は初回の支給申請を行う日まで、初回の支給申請も同時に行う場合は育児休業開始日から４か月を経過する日の属する月の末日まで」。支給率は「67％（ただし、育児休業の開始から181日目以降は50％）」","check":["要確認: 雇用保険の被保険者で、「育児休業を開始した日前２年間に賃金支払基礎日数が11日以上ある（ない場合は就業した時間数が80時間以上の）月が12か月以上あること。」。"],"need":[],"closedRule":null},{"id":"national-procedures-ikuji-kyugyo-kyufu-encho","domain":"procedures","muni":"国","name":"育児休業給付金の 1 歳 6 か月までの延長（1 歳の誕生日以前の入所希望日で保育所の申込みをしておく）","age":[6,12],"work":["育休中"],"nursery":false,"nc":true,"schedule":{"kind":"birth_offset","start_days":180,"deadline_days":305},"prep":null,"cost":{"amount":null,"subsidy":"延長が認められると 1 歳 6 か月に達する日前まで育児休業給付金の支給が続く。1 歳 6 か月時点でも同じ事由があれば 2 歳に達する日前まで"},"contacts":[{"name":"育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15）","url":"https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html"},{"name":"保育所の申込みは各区 健康・子ども課 子ども家庭福祉（担当）係（入所希望日の 2 か月前まで）","url":"https://kosodate.city.sapporo.jp/q_a/hoikusyo/4879.html"}],"src":"https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000158500.html","chk":"2026-11-04","ev":"延長の要件は保育所等に利用を申し込んだものの「その子が１歳に達する日（※）後の期間について、当面その実施が行われない場合」など。利用開始希望日が「子の１歳の誕生日（又は１歳６か月の誕生日応答日）の翌日以降の場合は、要件を満たしません」","check":[],"need":[],"closedRule":null},{"id":"national-procedures-shusseigo-kyugyo-shien","domain":"procedures","muni":"国","name":"出生後休業支援給付金（出生後 8 週間以内（産後休業をした母は 16 週間以内）に両親とも 14 日以上の育休で 13% 上乗せ）","age":[0,4],"work":["育休中","復職予定","働いている"],"nursery":null,"nc":true,"schedule":{"kind":"birth_offset","start_days":0,"deadline_days":56},"prep":null,"cost":{"amount":null,"subsidy":"休業開始時賃金日額 × 休業日数（最大 28 日）× 13%。出生時育児休業給付金（67%）と合わせて給付率 80%（手取りで 10 割相当）。休業 28 日の支給上限額 60,205 円（令和 9 年 7 月 31 日までの額）"},"contacts":[{"name":"育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15）","url":"https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html"},{"name":"申請は出生時育児休業給付金・育児休業給付金と同じ申請書で、事業主経由で事業所の所在地を管轄するハローワークへ"}],"src":"https://www.mhlw.go.jp/content/11600000/001461102.pdf","chk":"2026-11-04","ev":"「同一の子について、出生時育児休業給付金が支給される産後パパ育休（出生時育児休業）を通算して14日以上取得した被保険者であること。」。対象期間は「被保険者が産後休業をしている場合（被保険者が母親、かつ、子が養子でない場合）は、「子の出生日または出産予定日のうち早い日」から「子の出生日または出産予定日のうち遅い日から起算して16週間を経過する日の翌日」までの期間。」","check":["要確認: 雇用保険の被保険者か、配偶者の就労状況。"],"need":[],"closedRule":null},{"id":"national-procedures-ikuji-jitan-kyufu","domain":"procedures","muni":"国","name":"育児時短就業給付金（2 歳未満の子を育てて時短で働くとき。賃金の 10%。事業主経由でハローワークへ）","age":[0,24],"work":["復職予定","働いている"],"nursery":null,"nc":true,"schedule":{"kind":"age_start","start_months":0,"recommended_lead_days":null},"prep":null,"cost":{"amount":null,"subsidy":"育児時短就業中の各月に支払われた賃金額 × 10%（賃金と支給額の合計が時短開始時の賃金額を超えないよう支給率を調整）。支給限度額 484,121 円、支給額が 2,562 円を超えない場合は不支給（いずれも 2027 年 7 月 31 日までの額。毎年 8 月 1 日に改定）"},"contacts":[{"name":"育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15）","url":"https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html"},{"name":"事業所を管轄するハローワーク（事業主が賃金の届出・受給資格確認・支給申請を行う。本人が直接行うことも可）"}],"src":"https://www.mhlw.go.jp/content/11600000/001395102.pdf","chk":"2026-11-04","ev":"「２歳未満の子を養育するために、１週間当たりの所定労働時間を短縮して就業する被保険者であること。」「支給申請は、原則として２つの支給対象月について２か月ごとに行うようにしてください。」","check":["要確認: 雇用保険の被保険者で、育児休業給付の対象となる育児休業から引き続き（終了日と開始日の間が 14 日以内）同一の子について時短就業を始めたこと、または時短開始日前 2 年間に賃金支払基礎日数 11 日以上の完全月が 12 か月以上あること。"],"need":[],"closedRule":null},{"id":"national-procedures-sango-papa-ikukyu","domain":"procedures","muni":"国","name":"産後パパ育休（出生時育児休業）の申出（出生後 8 週間以内に 4 週間まで。原則 2 週間前までに勤務先へ）","age":[0,2],"work":["働いている"],"nursery":null,"nc":true,"schedule":{"kind":"birth_offset","start_days":0,"deadline_days":56},"prep":14,"cost":{"amount":null,"subsidy":"出生時育児休業給付金として休業開始時賃金日額の 67% 相当（休業 28 日の支給上限 310,290 円、令和 9 年 7 月 31 日までの額）。要件を満たせば出生後休業支援給付金 13% が上乗せされ合わせて 80%"},"contacts":[{"name":"勤務先（事業主）に申出。給付金は事業主経由で事業所の所在地を管轄するハローワークへ"},{"name":"育児休業等給付コールセンター 0570-200-406（平日 8:30〜17:15）","url":"https://jsite.mhlw.go.jp/hokkaido-roudoukyoku/hourei_seido_tetsuzuki/koyou_hoken.html"}],"src":"https://www.mhlw.go.jp/seisakunitsuite/bunya/koyou_roudou/koyoukintou/ryouritsu/ikuji/paternity/","chk":"2026-11-04","ev":"取得できる期間は「原則として子の出生後８週間以内の期間内で通算４週間（28日）まで」。申出は「休業開始予定日の２週間前まで（労使協定を締結している場合は最大１か月前まで）に事業主に申出。」","check":["対象は産後休業をしていない労働者（主に父。自営は対象外）なので、どちらの親かは入力から判定できず要確認。"],"need":[],"closedRule":null},{"id":"sapporo-procedures-kokuho-kanyu","domain":"procedures","muni":"札幌市","name":"子の国民健康保険の加入届（国保の世帯。出生から 14 日以内に区役所の保険年金課へ）","age":[0,3],"work":["自営","働いていない"],"nursery":null,"nc":true,"schedule":{"kind":"birth_offset","start_days":0,"deadline_days":14},"prep":null,"cost":{"amount":null,"subsidy":null},"contacts":[{"name":"各区役所 保険年金課 保険係"},{"name":"札幌市保健福祉局保険医療部保険企画課 011-211-2952（ページの問い合わせ先）"}],"src":"https://www.city.sapporo.jp/hoken-iryo/kokuho/todokede-kanyu.html","chk":"2026-11-04","ev":"届出は「事実が発生した日（札幌市に転入した日や勤務先を退職した日の翌日など）から14日以内」。「届け出が遅れると、届け出の前日までの医療費は、原則として全額自己負担となります」","check":["要確認: 子が国保に入るか（親のどちらかの勤務先の健康保険の被扶養者になるか）は入力から判定できない。"],"need":["必要なもの: 届出人の本人確認書類、世帯主と子の個人番号がわかるもの、国保の資格確認書または資格情報のお知らせ、母子健康手帳。"],"closedRule":null},{"id":"national-procedures-kenpo-hifuyosha-tsuika","domain":"procedures","muni":"国","name":"子を勤務先の健康保険の被扶養者にする届出（事実発生から 5 日以内に事業主経由で日本年金機構へ）","age":[0,3],"work":["育休中","復職予定","働いている"],"nursery":null,"nc":true,"schedule":{"kind":"birth_offset","start_days":0,"deadline_days":5},"prep":null,"cost":{"amount":null,"subsidy":null},"contacts":[{"name":"勤務先（事業主）経由で日本年金機構の事務センターまたは管轄の年金事務所へ（協会けんぽ加入の事業所の場合）"}],"src":"https://www.nenkin.go.jp/service/kounen/tekiyo/hihokensha1/20141202.html","chk":"2026-11-04","ev":"提出時期は「事実発生から5日以内」。「被保険者は事業主を経由して「被扶養者（異動）届」を日本年金機構へ提出します。」","check":["要確認: 協会けんぽ以外（健康保険組合・共済組合）は各保険者の手続きで、期限や様式が違う可能性がある。"],"need":[],"closedRule":null},{"id":"sapporo-procedures-hoikusho-4gatsu-nyusho-r9","domain":"procedures","muni":"札幌市","name":"認可保育所等の令和 9 年 4 月入所の申込（1 次調整の受付締切 2026-11-30 17:15 必着）","age":[0,72],"work":["育休中","復職予定","働いている","自営"],"nursery":false,"nc":true,"schedule":{"kind":"application_window","start":null,"deadline":"2026-11-30T17:15"},"prep":null,"cost":{"amount":null,"subsidy":null},"contacts":[{"name":"お住まいの区の保健センター 健康・子ども課 子ども家庭福祉（担当）係（申込先）"},{"name":"札幌市子ども未来局子育て支援部保育推進課 保育企画係 011-211-2346"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/8935.html","chk":"2026-11-04","ev":"「1次調整の受付締切（令和8年11月30日17時15分）より後にお申込みいただいた場合は、1次調整の対象とすることができず、2次調整の対象となります。」","check":["要確認: 受付開始日と 2 次調整の受付期間は画像「令和９年度年次選考スケジュール（一次）」「（二次）」の中にあり、テキストで確認できなかったので start は null。"],"need":[],"closedRule":null},{"id":"sapporo-procedures-hoikusho-nendotochu","domain":"procedures","muni":"札幌市","name":"認可保育所等の年度途中の入所申込（入所を希望する日の 2 か月前まで。区の担当係で随時受付）","age":[0,72],"work":["育休中","復職予定","働いている","自営"],"nursery":false,"nc":true,"schedule":{"kind":"age_start","start_months":0,"recommended_lead_days":60},"prep":null,"cost":{"amount":null,"subsidy":null},"contacts":[{"name":"各区 健康・子ども課 子ども家庭福祉（担当）係（随時受付。各施設の受け入れ状況も電話等で確認）"},{"name":"札幌市子ども未来局子育て支援部保育推進課 保育企画係 011-211-2346"}],"src":"https://kosodate.city.sapporo.jp/q_a/hoikusyo/4879.html","chk":"2026-11-04","ev":"「入所を希望する日の２ヵ月前までにお申し込みください。」「入所申込は各区健康・子ども課子ども家庭福祉（担当）係で随時受け付けており、内容を審査の上、入所決定します。」","check":["受け入れ可能な最低月齢は施設ごとに違い、このページに記載なし（要確認）"],"need":[],"closedRule":null},{"id":"sapporo-procedures-hoikuryo-tashi-keigen","domain":"procedures","muni":"札幌市","name":"保育料と第 2 子以降の無償（0〜2 歳児クラス。札幌市は所得制限なしで第 2 子以降が無償）","age":[0,36],"work":null,"nursery":true,"nc":true,"schedule":{"kind":"age_start","start_months":0,"recommended_lead_days":null},"prep":null,"cost":{"amount":"0〜2 歳児クラスの第 1 子の保育料は保育時間（保育標準時間 11 時間／保育短時間 8 時間）と世帯の市民税所得割額の合計で決まる。市民税非課税世帯は無料。4〜8 月分は前年度、9〜翌年 3 月分は当年度の市民税で計算し、毎年 4 月と 9 月に切り替わる","subsidy":"生計を一にする子のうち第 2 子以降は所得制限なしで保育料が無償（認可保育所・認定こども園（保育所部分）・地域型保育事業所。企業主導型保育施設・認可外保育施設は対象外）。3 歳児クラス以上は世帯の所得にかかわらず無償。副食費（おかず・おやつ代）は別で、免除制度あり"},"contacts":[{"name":"お住まいの区の保健センター 健康・子ども課 子ども家庭福祉係","url":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/941/941.html"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/hoiku/ninka/941/846.html","chk":"2026-11-04","ev":"「札幌市では これらをすべて撤廃し、第2子以降であれば、一律で保育料を無償としており、無償化になる対象が国と比べて非常に広くなっています。」","check":["多子軽減（第 2 子以降の無償）を受けるのに兄姉の申告や申請書が要るかは 846・941 のどちらのページにも記載がなく要確認。"],"need":[],"closedRule":null},{"id":"sapporo-procedures-sango-care","domain":"procedures","muni":"札幌市","name":"札幌市産後ケア事業の利用申請（予約サービス「テオテ産後ケア」で事前に申請。宿泊・日帰りは生後 6 か月未満、訪問は 1 年未満）","age":[0,12],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"age_start","start_months":0,"recommended_lead_days":30},"prep":null,"cost":{"amount":"宿泊型 1 泊 7,500 円、日帰り型 1 日 2,500 円、訪問型 1 回 2,500 円（市民税非課税世帯・生活保護世帯はそれぞれ 2,500 円・1,000 円・1,000 円）","subsidy":"宿泊型と日帰り型を合わせて 7 日以内（1 泊 2 日は 2 日と数える）、訪問型のみは 6 回以内が助成の上限。市の承認前に利用した分は助成なし（全額自己負担）"},"contacts":[{"name":"札幌市子ども未来局子育て支援部子育て支援課 母子保健係 011-211-2785"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/kenko/shussan/1002.html","chk":"2026-11-04","ev":"表「利用できる方」の値は「生後６か月未満」「生後１年未満」。「※赤ちゃんかお母さんのどちらかが札幌市民ではない場合、利用対象外です。」「※お母さんに心身の不調や疾患がある等、医療的介入が必要な場合は利用対象外です。」","check":["利用時間の並び（宿泊 11 時〜翌 15 時、日帰り 11 時〜15 時、訪問 9〜17 時の間の 2 時間）から、宿泊型・日帰り型が生後 6 か月未満、訪問型が生後 1 年未満と読める（要確認）。"],"need":[],"closedRule":null},{"id":"sapporo-procedures-gomibukuro-nyuyoji","domain":"procedures","muni":"札幌市","name":"乳幼児のいる世帯への指定ごみ袋の交付（2 歳になるまでの分。出生届のあと引換券が自動で郵送される）","age":[0,24],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"birth_offset","start_days":30,"deadline_days":null},"prep":null,"cost":{"amount":"無料（10 リットル用または 20 リットル用の指定ごみ袋のいずれか一方）","subsidy":"枚数は届出時点の月齢で決まる。0 か月以上 3 か月未満: 10L 用 200 枚または 20L 用 100 枚、3〜6 か月未満: 180 枚または 90 枚、6〜9 か月未満: 160 枚または 80 枚、9 か月〜1 歳未満: 140 枚または 70 枚、1 歳 0〜3 か月未満: 100 枚または 50 枚、1 歳 3〜6 か月未満: 80 枚または 40 枚、1 歳 6〜9 か月未満: 60 枚または 30 枚、1 歳 9 か月〜2 歳未満: 40 枚または 20 枚"},"contacts":[{"name":"札幌市環境局環境事業部循環型社会推進課 011-211-2912"}],"src":"https://www.city.sapporo.jp/seiso/yuryoka/gemmen.html","chk":"2026-11-04","ev":"「お子様が2歳になるまでの分として、10リットル用指定ごみ袋または20リットル用指定ごみ袋のうち、ご希望するいずれか一方を交付いたします。」「住民登録以外の手続きは必要ありません。」","check":["引換券の有効期限はページに記載なし（要確認）。"],"need":[],"closedRule":null},{"id":"sapporo-vaccines-influenza-first","domain":"vaccines","muni":"札幌市","name":"季節性インフルエンザワクチン 1 回目（生後 6 か月から受けられる。13 歳未満は 2 回）","age":[6,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"annual_period","start":"10-01","end":"01-31"},"prep":null,"cost":{"amount":null,"subsidy":null},"contacts":[{"name":"各区健康・子ども課（保健センター）。電話番号は出典ページの末尾に区ごとに掲載"}],"src":"https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html","chk":"2026-11-04","ev":"「任意予防接種は、医師と相談の上、接種者や保護者の判断により接種するもので、接種費用は自己負担となります。」「主な任意予防接種の種類」の表、季節性インフルエンザワクチンの行:「6か月以上」「生後6か月～13歳未満：2回」「13歳以上：1回」「※市販されている一部のワクチンは1歳以上の接種となります。」","check":[],"need":[],"closedRule":null},{"id":"sapporo-vaccines-influenza-second","domain":"vaccines","muni":"国","name":"季節性インフルエンザワクチン 2 回目（13 歳未満。1 回目から 2〜4 週後）","age":[6,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"after_previous","days_after":28,"dose":2},"prep":null,"cost":{"amount":null,"subsidy":null},"contacts":[{"name":"各区健康・子ども課（保健センター）。電話番号は札幌市の予防接種全般ページの末尾に区ごとに掲載","url":"https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html"}],"src":"https://id-info.jihs.go.jp/surveillance/iasr/IASR/Vol46/549/549r04.html","chk":"2026-11-04","ev":"「また, 生後6か月から任意接種として接種が可能で, 13歳未満の小児においては2～4週間の間隔をおいて毎シーズン2回の接種が推奨されている。」（IASR Vol.46 p222-224、2025 年 11 月号「2024年度感染症流行予測調査におけるインフルエンザ予防接種状況および抗体保有状況（2025年9月現在）」）","check":[],"need":[],"closedRule":null},{"id":"sapporo-vaccines-covid-child","domain":"vaccines","muni":"札幌市","name":"新型コロナワクチン（生後 6 か月から受けられる。任意接種・自費）","age":[6,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"age_start","start_months":6,"recommended_lead_days":null},"prep":null,"cost":{"amount":null,"subsidy":null},"contacts":[{"name":"札幌市保健所感染症総合対策課（予防接種担当） 電話 011-211-8189（平日 8 時 45 分〜17 時 15 分）"}],"src":"https://www.city.sapporo.jp/hokenjo/f1kansen/fy01yobousessyu.html","chk":"2026-11-04","ev":"「主な任意予防接種の種類」の表、新型コロナワクチンの行:「6か月以上」「1回」「※接種についての詳細は接種医にご相談ください。」「任意予防接種は、医師と相談の上、接種者や保護者の判断により接種するもので、接種費用は自己負担となります。」","check":["医療機関に要確認。"],"need":[],"closedRule":null},{"id":"sapporo-vaccines-mumps-subsidy","domain":"vaccines","muni":"札幌市","name":"おたふくかぜワクチン（1 歳から受けられる。札幌市の一部費用助成は生後 36 か月未満に 1 回 3,000 円）","age":[12,35],"work":null,"nursery":null,"nc":true,"schedule":{"kind":"age_start","start_months":12,"recommended_lead_days":null},"prep":null,"cost":{"amount":null,"subsidy":"札幌市が 1 回 3,000 円を助成（札幌市にお住まいの生後 12 か月以上 36 か月未満。札幌市内の実施医療機関で接種した場合）。事前申請は不要で、医療機関の窓口で実費から 3,000 円を差し引いた額を支払う。市外の医療機関で接種した場合は対象外"},"contacts":[{"name":"札幌市保健福祉局保健所感染症総合対策課（予防接種担当） 電話 011-211-8189"},{"name":"子どもと妊婦の予防接種実施医療機関名簿（区ごとの PDF。各区健康・子ども課の電話番号も掲載）","url":"https://www.city.sapporo.jp/hokenjo/f1kansen/teikiaruimeibo.html"}],"src":"https://www.city.sapporo.jp/hokenjo/f1kansen/0801otafuku.html","chk":"2026-11-04","ev":"「■助成対象者: 札幌市にお住まいの生後12ヶ月以上36か月未満の方」「■助成回数:1回」「■助成金額: 3,000円」「※医療機関では、接種時にかかった実費から助成金額を差し引いた金額をお支払いください。」","check":["要確認: 「おたふくかぜワクチンの予防接種歴がある方」「おたふくかぜに罹患したことのある方」は助成の対象外（入力から判定できない）。","令和 8 年度の予診票が差し替わっていないかは要確認。"],"need":["持ち物: 氏名・生年月日・住所が分かるもの（マイナンバーカード、資格確認書など）、母子健康手帳、予診票（市のページから入手できるほか実施医療機関でも配布）。"],"closedRule":null},{"id":"sapporo-childcare-byouji-teote-account","domain":"childcare_registration","muni":"札幌市","name":"病児・病後児保育（こどもデイサービス）の予約システム「テオテ」のアカウント作成","age":[5,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"age_start","start_months":5,"recommended_lead_days":30},"prep":null,"cost":{"amount":"アカウント作成・登録の費用はページに記載が無い。利用時は 1 日あたり利用料 3,000 円＋給食費など 300 円","subsidy":"生活保護受給世帯・市町村民税非課税世帯は利用料 0 円（給食費 300 円はかかる）。札幌市民は利用前にテオテから減免申請する（年 1 回）。非課税の判定は 4〜8 月利用は前年度、9〜3 月利用は当年度の市町村民税"},"contacts":[{"name":"予約システム「テオテ」のアカウント作成ページ（運営: Goodbaton Inc.。2026 年 4 月に「あずかるこちゃん」から名称変更）","url":"https://sickkids-care.teote.jp/users/sign_in"},{"name":"札幌市子ども未来局子育て支援部施設運営課運営調整担当係（電話 011-211-2986、FAX 011-231-6221）"}],"src":"https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html","chk":"2026-11-04","ev":"「事前に予約システム「テオテ」でアカウントを作成し、施設への登録をお願いします」「初回の予約時にアカウント作成してもご利用いただけますが、事前に作成いただくと初回もスムーズにご利用いただけます。」","check":[],"need":[],"closedRule":null},{"id":"sapporo-childcare-byouji-teote-facility","domain":"childcare_registration","muni":"札幌市","name":"病児・病後児保育の施設への子どもの登録（テオテ。子どもごと・複数施設に登録できる）","age":[5,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"age_start","start_months":5,"recommended_lead_days":30},"prep":null,"cost":{"amount":"施設登録の費用はページに記載が無い。利用時は 1 日あたり利用料 3,000 円＋給食費など 300 円","subsidy":"生活保護受給世帯・市町村民税非課税世帯は利用料 0 円（給食費 300 円はかかる）。札幌市民は利用前にテオテから減免申請（年 1 回）"},"contacts":[{"name":"テオテ「施設を探す」（マップから施設を選び「施設への登録」をタップ）","url":"https://sickkids-care.teote.jp/map_facilities"},{"name":"札幌市子ども未来局子育て支援部施設運営課運営調整担当係（電話 011-211-2986）。実施施設一覧と「受入のめやす」PDF はこのページ"},{"ward":"東区","name":"天使こどもデイサービスセンター（病児対応型・定員 6・東区北 12 条東 3 丁目・天使病院に付設）／東雁来すこやかこどもデイサービスセンター（病児対応型・定員 6・東区東雁来 10 条 1 丁目）"},{"ward":"厚別区","name":"楡の会こどもデイサービスセンター（病児対応型・定員 4・厚別区厚別町下野幌 49 番地・楡の会こどもクリニックに付設）"},{"ward":"豊平区","name":"北海道こどもデイサービスセンター（病児対応型・定員 4・豊平区中の島 1 条 8 丁目・JCHO 北海道病院に付設）"},{"ward":"手稲区","name":"手稲渓仁会こどもデイサービスセンター（病児対応型・定員 6・手稲区前田 1 条 12 丁目・手稲渓仁会病院に隣接）"},{"ward":"南区","name":"真駒内駐屯地こどもデイサービスセンター（病後児対応型・定員 6・南区真駒内 17 番地・真駒内駐屯地託児所と同一建物）"}],"src":"https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1140.html","chk":"2026-11-04","ev":"「※施設への登録はお子さんごとに必要です。」「※複数施設への登録が可能です。自宅周辺だけでなく、勤務先や祖父母宅の近く、通勤経路上の施設にも登録しておくと安心です。」","check":["関連: sapporo-childcare-kosodate-info-setsumeikai（この説明会で病児保育の登録も扱うとされるが、テオテ移行後の運用は要確認）"],"need":[],"closedRule":null},{"id":"sapporo-childcare-kosodate-info-setsumeikai","domain":"childcare_registration","muni":"札幌市","name":"こそだてインフォメーションの事前利用登録説明会（子サポ・緊サポ・病児保育の 3 事業を一度に会員登録。各区で平日毎日・予約不要）","age":[0,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"age_start","start_months":0,"recommended_lead_days":0},"prep":null,"cost":{"amount":"参加費の記載は無い。子サポ・緊サポの会員登録は無料（出典 1138「どちらも会員登録は無料です。」）","subsidy":null},"contacts":[{"name":"札幌市子ども未来局子育て支援推進担当課（説明会の案内ページ）"},{"ward":"中央区","name":"こそだてインフォメーション（中央区南 3 条西 11 丁目・中央区複合庁舎 4 階）","url":"https://kosodate.city.sapporo.jp/chuou/facility/267.html"},{"ward":"北区","name":"こそだてインフォメーション「ぽっぴぃ★らんど」（北区北 25 条西 6 丁目・北保健センター 1 階）","url":"https://kosodate.city.sapporo.jp/kita/facility/311.html"},{"ward":"東区","name":"こそだてインフォメーション「タッピールーム」（東区北 11 条東 7 丁目・東保健センター 1 階）","url":"https://kosodate.city.sapporo.jp/higashi/facility/6350.html"},{"ward":"白石区","name":"こそだてインフォメーション（白石区南郷通 1 丁目南・白石区複合庁舎 3 階）","url":"https://kosodate.city.sapporo.jp/shiroishi/facility/294.html"},{"ward":"厚別区","name":"こそだてインフォメーション（厚別区厚別中央 1 条 5 丁目・厚別保健センター 3 階）","url":"https://kosodate.city.sapporo.jp/atsubetsu/facility/319.html"},{"ward":"豊平区","name":"こそだてインフォメーション「りんごの森」（豊平区平岸 6 条 10 丁目・豊平区役所 3 階）","url":"https://kosodate.city.sapporo.jp/toyohira/facility/10582.html"},{"ward":"清田区","name":"こそだてインフォメーション「きよっちるーむ」（清田区平岡 1 条 1 丁目・清田区役所 2 階）","url":"https://kosodate.city.sapporo.jp/kiyota/facility/6348.html"},{"ward":"南区","name":"こそだてインフォメーション（南区真駒内幸町 1 丁目・南保健センター 1 階）","url":"https://kosodate.city.sapporo.jp/minami/facility/522.html"},{"ward":"西区","name":"こそだてインフォメーション「さんかくやまべェのへや」（西区琴似 2 条 7 丁目・西保健センター 1 階）","url":"https://kosodate.city.sapporo.jp/nishi/facility/6356.html"},{"ward":"手稲区","name":"こそだてインフォメーション「きてみてルーム」（手稲区前田 1 条 11 丁目・手稲区民センター 1 階）","url":"https://kosodate.city.sapporo.jp/teine/facility/513.html"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/7325.html","chk":"2026-11-04","ev":"「それぞれの説明会に参加しなければならなかったものが、一度の説明会に参加するだけで３つのサービスの会員登録をすることができます。」「0歳から小学校6年生までのお子様がいる、すべての区のご家庭が対象です。」","check":["要確認: このページの更新日は 2025-02-25 で、病児保育の登録がテオテ（旧あずかるこちゃん）に一本化され「以前に紙で利用登録した方も改めてテオテでの登録が必要」とされた後の運用が書かれていない。"],"need":["持ち物は必須ではないが、緊急連絡先・かかりつけ医・保育所などを記入するため連絡先が分かるものや母子健康手帳があると書きやすいとある。"],"closedRule":null},{"id":"sapporo-childcare-kosapo-register","domain":"childcare_registration","muni":"札幌市","name":"さっぽろ子育てサポートセンター（子サポ）の依頼会員の登録（登録説明会に参加して会員登録）","age":[0,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"age_start","start_months":0,"recommended_lead_days":0},"prep":null,"cost":{"amount":"会員登録は無料。利用料は 30 分あたり、一人目 350 円（月〜金 7 時〜19 時）／400 円（土日祝・年末年始とそれ以外の時間帯）、二人目以降は一人につき 150 円／200 円。提供会員が用意した食事は 1 食 200 円。送迎の交通費、ミルク・おやつ・おむつ等の実費、キャンセル料は別","subsidy":null},"contacts":[{"name":"さっぽろ子育てサポートセンター（札幌市社会福祉総合センター内・中央区大通西 19 丁目。電話 011-623-2415、FAX 011-623-4011。受付は月〜金と第 2・第 4 土曜の 8:45〜17:15）"}],"src":"https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1138.html","chk":"2026-11-04","ev":"「依頼会員になるには、原則、事前登録説明会に参加をしていただく必要があります。」「札幌市内に在住または勤務先のある0歳から小学校6年生の子どもを育てている家庭の方で、就労家庭、自営業家庭、専業主婦家庭などすべての子育て家庭が対象です。」","check":[],"need":[],"closedRule":null},{"id":"sapporo-childcare-kosapo-kaoawase","domain":"childcare_registration","muni":"札幌市","name":"子サポの利用申込と提供会員との事前打ち合わせ（顔合わせ。利用日の 1 か月前から依頼できる）","age":[0,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"before_milestone","milestone":"nursery_start","days_before":30},"prep":null,"cost":{"amount":"事前打ち合わせの費用の記載は無い。利用料は sapporo-childcare-kosapo-register のとおり（30 分 350 円〜）","subsidy":null},"contacts":[{"name":"さっぽろ子育てサポートセンター（電話 011-623-2415。月〜金と第 2・第 4 土曜の 8:45〜17:15）"}],"src":"https://kosodate.city.sapporo.jp/nenrei/mosugu/azukeru/1138.html","chk":"2026-11-04","ev":"「利用日より、1か月前からの依頼調整が可能です。」「依頼会員と提供会員が実際に会って、利用日までに事前打ち合わせを行います。」","check":[],"need":[],"closedRule":null},{"id":"sapporo-childcare-kinsapo-register","domain":"childcare_registration","muni":"札幌市","name":"札幌市こども緊急サポートネットワーク（緊サポ）の依頼会員の事前登録（事務局の電話面談、またはこそだてインフォメーションの説明会）","age":[0,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"age_start","start_months":0,"recommended_lead_days":0},"prep":null,"cost":{"amount":"会員登録は無料。利用料は 30 分あたり、病気以外の預かり 500 円（月〜日 7:30〜18:00）／600 円（月〜日 18:00〜23:00）、病児・病後児の預かり 500 円（月〜土 7:30〜18:00）。宿泊（保育園・学童終了時から登園・登校まで）は 3 歳以上 10,000 円・3 歳未満 12,000 円で、病児の宿泊は無い。キャンセル料、送迎の交通費、ミルク・おやつ・おむつ等の実費は別","subsidy":"病児・病後児預かり利用料補助制度: 1 日の利用のうち最初の 3 時間は通常料金、3 時間を超えた分は 30 分あたり 350 円を減免。かかりつけ医が作成した様式 2「診療情報提供書」を預かり開始時に提供会員へ提出し、受診日から 7 日以内（受診日を含む）の利用が対象。遡っての減免は不可（出典 https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/839.html 、更新日 2025-04-01）"},"contacts":[{"name":"札幌市こども緊急サポートネットワーク事務局（運営: 特定非営利活動法人北海道子育て支援ワーカーズ。西区二十四軒 1 条 4 丁目 二十四軒ターミナルビル 2 階。電話 011-621-6626、FAX 011-632-5181）"},{"name":"病児・病後児預かり利用料補助制度の問い合わせ: 札幌市子ども未来局子育て支援推進担当課子育て支援企画係（電話 011-211-2997）","url":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/839.html"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/syogakumae/1131.html","chk":"2026-11-04","ev":"「依頼会員になるには、札幌市こども緊急サポートネットワークが実施する事前登録面談またはこそだてインフォメーションで実施する事前登録説明会に参加いただく必要があります。」「そのため、必ずしも自分の希望する援助を利用・提供できない場合もありますが、本事業の趣旨を十分にご理解いただいたうえで、入会くださいますようお願いします。」","check":[],"need":[],"closedRule":null},{"id":"sapporo-childcare-shortstay","domain":"childcare_registration","muni":"札幌市","name":"子どもショートステイ（保護者の病気・出産・出張などのとき、児童養護施設等で原則 7 日以内の預かり。申込は区の健康・子ども課）","age":[0,72],"work":null,"nursery":null,"nc":false,"schedule":{"kind":"age_start","start_months":0,"recommended_lead_days":0},"prep":null,"cost":{"amount":"1 日あたり、その他の世帯は 2 歳未満 5,350 円・2 歳以上 2,750 円。市民税非課税世帯は 2 歳未満 1,100 円・2 歳以上 1,000 円。生活保護世帯は 0 円","subsidy":"ひとり親家庭で市民税非課税の場合は生活保護世帯と同じ料金（0 円）。ひとり親家庭で市民税課税の場合は市民税非課税世帯と同じ料金（生活保護世帯を除く）"},"contacts":[{"ward":"中央区","name":"中央区健康・子ども課子ども家庭福祉係（電話 011-205-3354）"},{"ward":"北区","name":"北区健康・子ども課子ども家庭福祉係（電話 011-757-2563）"},{"ward":"東区","name":"東区健康・子ども課子ども家庭福祉係（電話 011-711-3214）"},{"ward":"白石区","name":"白石区健康・子ども課子ども家庭福祉係（電話 011-861-0336）"},{"ward":"厚別区","name":"厚別区健康・子ども課子ども家庭福祉係（電話 011-895-2499）"},{"ward":"豊平区","name":"豊平区健康・子ども課子ども家庭福祉係（電話 011-822-2473）"},{"ward":"清田区","name":"清田区健康・子ども課子ども家庭福祉係（電話 011-889-2051）"},{"ward":"南区","name":"南区健康・子ども課子ども家庭福祉係（電話 011-522-5780）"},{"ward":"西区","name":"西区健康・子ども課子ども家庭福祉係（電話 011-621-4242）"},{"ward":"手稲区","name":"手稲区健康・子ども課子ども家庭福祉係（電話 011-681-1211。1382.html では 011-688-8597 とあり要確認）"},{"name":"札幌市児童相談所（中央・北・東・南・西・手稲区。電話 011-622-8630）／札幌市東部児童相談所（白石・厚別・豊平・清田区。電話 011-863-6290）"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/3196.html","chk":"2026-11-04","ev":"「保護者が、病気・出産・看護・事故・出張・冠婚葬祭などで一時的に子どもを養育できない場合、児童養護施設等で短期間（原則7日以内）お預かりします。」「お申込みにあたり、ご希望の利用期間等をお知らせいただき、所定の申請書及び所得証明書など世帯の課税状況を証明するものをご提出ください。」","check":[],"need":[],"closedRule":null},{"id":"sapporo-childcare-ichiji-azukari","domain":"childcare_registration","muni":"札幌市","name":"保育所・認定こども園・幼稚園の一時預かり（在籍していない就学前の子向け。事前登録の要否や対象年齢は施設ごと）","age":[0,72],"work":null,"nursery":false,"nc":true,"schedule":{"kind":"age_start","start_months":0,"recommended_lead_days":0},"prep":null,"cost":{"amount":"市が示す上限額（1 日）: 就労・通院・冠婚葬祭など 3 歳未満 2,000 円・3 歳以上 1,200 円、リフレッシュ等 3 歳未満 2,700 円・3 歳以上 1,600 円。この上限の範囲で施設が料金を定める。給食を希望する場合は昼食代が別。別途実費徴収の場合あり","subsidy":null},"contacts":[{"name":"札幌市子ども未来局子育て支援部施設運営課運営一係（電話 011-211-2986、FAX 011-231-6221）。利用の申込は各施設へ直接"},{"name":"一時預かり（非在園児向け）事業実施施設の一覧（PDF、2026-07-21 版）","url":"https://kosodate.city.sapporo.jp/material/files/group/1/ippann_20260721.pdf"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/927.html","chk":"2026-11-04","ev":"「保育所、認定こども園、特定地域型保育事業及び幼稚園に在籍していない就学前児童（施設により対象年齢が異なります。）」「事前登録の必要性など利用にあたっての運用等の詳細は、施設によって異なりますので、各施設へ直接お問い合わせください。」","check":[],"need":[],"closedRule":null},{"id":"sapporo-childcare-kyujitsu-hoiku-register","domain":"childcare_registration","muni":"札幌市","name":"休日保育（日曜・祝日）の利用登録（2 号・3 号認定で認可保育所等を利用している子。各実施施設で年度ごとに登録）","age":[5,72],"work":["働いている","自営","復職予定"],"nursery":true,"nc":true,"schedule":{"kind":"age_start","start_months":5,"recommended_lead_days":30},"prep":null,"cost":{"amount":"利用料は保護者の就労状況と平日の保育園の利用状況で区分が異なる。祝日は保育標準時間なら無料、保育短時間は 1 時間 100 円。日曜は平日に休んだ日の代替か平日も利用しているかで区分され、保育標準時間は無料または時間外 1 時間 100 円。給食・おやつ代 1 日 300 円がかかる場合がある（食事を持参する場合はかからない）。詳細は「休日保育のご案内」PDF https://kosodate.city.sapporo.jp/material/files/group/1/annnai3.pdf","subsidy":"生活保護法による被保護世帯または市民税非課税世帯は「生活保護受給証明書」「市・道民税証明書」を持参すると利用料が半額"},"contacts":[{"name":"札幌市子ども未来局子育て支援部施設運営課運営係（電話 011-211-2986、FAX 011-231-6221）"},{"name":"札幌市コールセンター（公立 3 施設の利用申込先。電話 011-222-4894。申込開始日 8:00〜締切日 21:00）"},{"ward":"北区","name":"北区保育・子育て支援センター ちあふる・きた（公立。電話 011-757-5380）"},{"ward":"豊平区","name":"豊平区保育・子育て支援センター ちあふる・とよひら（公立。電話 011-851-3945）／ちびっこ保育ルーム平岸ひまわり園（生後 5 か月〜2 歳児。電話 011-824-5288）"},{"ward":"西区","name":"西区保育・子育て支援センター ちあふる・にし（公立。電話 011-621-1503）"},{"ward":"厚別区","name":"青葉興正こども園（満 1 歳〜就学前。受入 9:00〜17:00。電話 011-891-5202）"},{"ward":"東区","name":"元町にこにこ保育園（電話 011-782-2551）"},{"ward":"中央区","name":"認定こども園北一条すずらん保育園（電話 011-213-1448）／おーるまいてぃ中央保育室（生後 5 か月〜2 歳児。電話 011-200-0072）"},{"ward":"白石区","name":"にこまるえん白石（満 1 歳〜就学前。電話 011-850-9686）／にこまるえん東白石（満 1 歳〜2 歳児。電話 011-799-1565）／にこまるえん南郷（満 1 歳〜2 歳児。電話 011-867-9770）"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/ichiji/848.html","chk":"2026-11-04","ev":"「休日保育を利用される場合は、事前に利用登録をする必要があります。 各実施施設で直接登録の手続きをしてください。」「2号認定または3号認定を受けて認可保育所・認定こども園・地域型保育事業を利用している子どもが対象となります。」","check":[],"need":["必要書類: 休日保育利用登録・変更申請書、休日就労証明書、健康調査票（PDF はページ内）。"],"closedRule":null},{"id":"sapporo-childcare-daredemo-tsuen","domain":"childcare_registration","muni":"札幌市","name":"札幌市こども誰でも通園制度の給付認定申請と事前面談（生後 6 か月〜満 3 歳未満で保育所等に在籍していない子。月 10 時間まで。認定の審査に 1 か月ほど）","age":[6,35],"work":null,"nursery":false,"nc":false,"schedule":{"kind":"age_start","start_months":6,"recommended_lead_days":45},"prep":30,"cost":{"amount":"お子さん 1 人につき 1 時間 300 円（30 分 150 円）。実施施設に直接支払う","subsidy":"生活保護法による被保護世帯は 0 円。市町村民税非課税世帯または市町村民税所得割合算額が 77,101 円未満の世帯は 100 円（30 分 50 円）。受給者証・所得証明書等を施設に提出または提示"},"contacts":[{"name":"札幌市こども誰でも通園制度コールセンター（電話 011-350-7368。9:00〜16:00、土日祝・年末年始を除く）"},{"name":"令和 8 年度実施施設一覧（PDF）","url":"https://kosodate.city.sapporo.jp/material/files/group/1/shisetsuitiran0825.pdf"}],"src":"https://kosodate.city.sapporo.jp/mokuteki/azukeru/13027.html","chk":"2026-11-04","ev":"「利用日時点で下記１及び２のすべてを満たすお子さん（保護者の就労要件は問いません。）」「給付認定申請から決定までは１か月ほど審査のお時間をいただきます。決定後に認定証、利用予約システムのアカウントを発行いたします。」","check":[],"need":[],"closedRule":null}],"events":[{"id":"nursery-sick-absence-age-0","kind":"illness_absence","name":"0 歳児クラスは年およそ 19 日、病気で保育園を休む","age":[0,11],"nursery":true,"months":null,"value":19.3,"unit":"日/年","stat":"average","basis":"東京都内 3 保育園の 5 年間（2011〜2016 年度）、のべ 1,834 名の出席簿・保健記録。園児 1 人当たりのクラス別年間病欠日数","src":"https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja","chk":"2026-11-04","ev":"園児 1 人当たりのクラス別の年間病欠日数では，0 歳児の病欠日数が最も多く平均で 19.3 日であり，年齢が上がるにつれ平均日数が減少し 5 歳児クラスでは 5.4 日となっていた．"},{"id":"nursery-sick-absence-age-1","kind":"illness_absence","name":"1 歳児クラスは年およそ 13 日、病気で保育園を休む","age":[12,23],"nursery":true,"months":null,"value":12.8,"unit":"日/年","stat":"average","basis":"同上。Fig. 1（クラス別の年間病欠日数）の 1-year-old class の値","src":"https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja","chk":"2026-11-04","ev":"Fig. 1 Average annual numbers of days of absence due to illness per person by class: 0-year-old class 19.3 / 1-year-old class 12.8 / 2-year-old class 8.9 / 3-year-old class 7.0 / 4-year-old class 6.5 / 5-year-old class 5.4 (days)"},{"id":"nursery-sick-absence-age-2","kind":"illness_absence","name":"2 歳児クラスは年およそ 9 日、病気で保育園を休む","age":[24,35],"nursery":true,"months":null,"value":8.9,"unit":"日/年","stat":"average","basis":"同上。Fig. 1 の 2-year-old class の値","src":"https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja","chk":"2026-11-04","ev":"Fig. 1 Average annual numbers of days of absence due to illness per person by class: 2-year-old class 8.9 (days)。本文: 年齢が上がるにつれ平均日数が減少し 5 歳児クラスでは 5.4 日となっていた．"},{"id":"nursery-sick-absence-age-3","kind":"illness_absence","name":"3 歳児クラスは年およそ 7 日、病気で保育園を休む","age":[36,47],"nursery":true,"months":null,"value":7,"unit":"日/年","stat":"average","basis":"同上。Fig. 1 の 3-year-old class の値","src":"https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja","chk":"2026-11-04","ev":"Fig. 1 Average annual numbers of days of absence due to illness per person by class: 3-year-old class 7.0 (days)。本文: 3 歳以降では全体に日数も少なく月別の変動も小さかった．"},{"id":"nursery-sick-absence-age-4","kind":"illness_absence","name":"4 歳児クラスは年およそ 6〜7 日、病気で保育園を休む","age":[48,59],"nursery":true,"months":null,"value":6.5,"unit":"日/年","stat":"average","basis":"同上。Fig. 1 の 4-year-old class の値","src":"https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja","chk":"2026-11-04","ev":"Fig. 1 Average annual numbers of days of absence due to illness per person by class: 4-year-old class 6.5 (days)"},{"id":"nursery-sick-absence-age-5","kind":"illness_absence","name":"5 歳児クラスは年およそ 5 日、病気で保育園を休む","age":[60,72],"nursery":true,"months":null,"value":5.4,"unit":"日/年","stat":"average","basis":"同上。本文に明記された 5 歳児クラスの値","src":"https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja","chk":"2026-11-04","ev":"0 歳児の病欠日数が最も多く平均で 19.3 日であった．年齢が上がるにつれ平均日数が減少し 5 歳児クラスでは 5.4 日となっていた．"},{"id":"nursery-sick-absence-april-after-entry","kind":"illness_absence","name":"年度替わりの 4 月は病欠がやや多い（入園直後の環境の変化）","age":null,"nursery":true,"months":[4],"value":1,"unit":"日/月","stat":"average","basis":"同上。Fig. 2（園児 1 人当たりの月別病欠日数）の April の値。年間の月別の幅は 0.7〜1.1 日","src":"https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja","chk":"2026-11-04","ev":"年度替わりの 4 月ではやや欠席人数が多く，これは環境の変化による影響が考えられた．／前回調査と同様に本調査結果からも，入園 1 年目で病欠日数が多いことが明確となった"},{"id":"nursery-sick-absence-peak-july","kind":"illness_absence","name":"病欠は 7 月が最も多く、6 月が最も少ない（0 歳は 7 月と 12 月、1 歳は 7 月）","age":null,"nursery":true,"months":[7],"value":1.1,"unit":"日/月","stat":"average","basis":"同上。Fig. 2 の月別病欠日数。7 月 1.1 日が最多、6 月 0.7 日が最少","src":"https://www.jstage.jst.go.jp/article/jtwmu/87/5/87_146/_article/-char/ja","chk":"2026-11-04","ev":"7 月が最も多く 1.1 日，6 月が最も少なく 0.7 日であった．／0 歳児では 7 月と 12 月の欠席が多く，1 歳児は 7 月が多かった．3 歳以降では全体に日数も少なく月別の変動も小さかった．"},{"id":"parent-leave-days-mother-mode","kind":"parent_leave_days","name":"子の病気で母が仕事を休む日数は、年 6〜10 日の人が最も多い","age":null,"nursery":true,"months":null,"value":"6〜10","unit":"日/年","stat":"mode","basis":"東京都の保護者ニーズ調査（2026 年 7 月実施、6,181 人回答）。この 1 年間に子どもの病気で父親や母親が休んだ日数","src":"https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf","chk":"2026-11-04","ev":"母親が休む日数のボリュームゾーンは６～１０日。父親のボリュームゾーンは、２日と５日となっています。また、母親が休む日数６～１０日、１１～２０日も父親と比較して高い割合となっており、母親により負担が寄っていることが本調査でも明らかになったと思いました。"},{"id":"parent-leave-days-father-mode","kind":"parent_leave_days","name":"子の病気で父が仕事を休む日数は、年 2 日と 5 日の人が最も多い","age":null,"nursery":true,"months":null,"value":"2 と 5","unit":"日/年","stat":"mode","basis":"同上。父親が休んだ日数の最頻値が 2 つ（2 日と 5 日）","src":"https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf","chk":"2026-11-04","ev":"母親が休む日数のボリュームゾーンは６～１０日。父親のボリュームゾーンは、２日と５日となっています。"},{"id":"parent-unable-to-use-nursery-share","kind":"parent_leave_days","name":"この 1 年に、子の病気でいつもの保育所などを使えなかった家庭は 85.1%","age":null,"nursery":true,"months":null,"value":85.1,"unit":"%","stat":"share","basis":"同上。保育所などを利用している回答者のうち、この 1 年間に子どもの病気で普段の保育所などを利用できなかったことが「あった」割合","src":"https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf","chk":"2026-11-04","ev":"この１年間に、子供が病気のため、普段通っている保育所などを利用できなかったことが「あった」という方は、８５．１％となっております。そのときの対応を尋ねますと、下の表のとおりですが「父親や母親が休んだ」が最も多く"},{"id":"parent-used-sick-child-care-share","kind":"parent_leave_days","name":"子の病気で保育所などを使えなかったとき、病児保育を利用した家庭は 18.5%","age":null,"nursery":true,"months":null,"value":18.5,"unit":"%","stat":"share","basis":"同上。保育所などを利用できなかったときに病児保育を利用した割合","src":"https://www.fukushi.metro.tokyo.lg.jp/documents/d/fukushi/02gijiroku-pdf","chk":"2026-11-04","ev":"「子供が病気で保育所等を利用できなかったことがある」が８５．１％。そのときに「病児保育を利用した」のは１８．５％となっております。"},{"id":"epidemic-influenza","kind":"epidemic_season","name":"インフルエンザの流行期","age":null,"nursery":null,"months":[11,12,1,2],"value":"2025 年第 47 週（51.12）と 2026 年第 6 週（43.34）","unit":"ピーク週（定点当たり報告数）","stat":"mode","basis":"IDWR 2026 年第 35 号 注目すべき感染症 インフルエンザ。2022/23〜2025/26 シーズンの全国のピーク週","src":"https://id-info.jihs.go.jp/surveillance/idwr/featured/2026/35/index.html","chk":"2026-11-04","ev":"2025/26 シーズンは 2025 年第 39 週に全国の定点当たり報告数が 1.00 を超え、二峰性の流行を呈し、2025 年第 47 週（51.12）と 2026 年第 6 週（43.34）にピーク。過去のピーク: 2022/23 は 2023 年第 6 週（12.91）、2023/24 は 2023 年第 49 週（33.72）、2024/25 は 2024 年第 52 週（64.39）"},{"id":"epidemic-rsv","kind":"epidemic_season","name":"RS ウイルス感染症の流行期","age":null,"nursery":null,"months":[6,7,8],"value":"2021 年第 28 週（5.99）、2022 年第 30 週（2.35）、2023 年第 27 週（3.38）、2024 年第 28 週（1.84）","unit":"ピーク週（定点当たり報告数）","stat":"mode","basis":"IDWR 2025 年第 9 号 注目すべき感染症 RS ウイルス感染症。2021〜2024 年の全国のピーク週","src":"https://id-info.jihs.go.jp/surveillance/idwr/featured/2025/09/index.html","chk":"2026-11-04","ev":"2021年は第28週（5.99）、2022年は第30週（2.35）、2023年は第27週（3.38）、2024年は第28週（1.84）にピークがみられた／年齢（群）別では3歳以下が全体の88.2%、5歳以下が全体の95.5%を占め、1歳が30.1%（男性：53.2%）と最も多く、次に0歳が29.7%（男性：55.9%）"},{"id":"epidemic-hand-foot-mouth-disease","kind":"epidemic_season","name":"手足口病の流行期","age":null,"nursery":null,"months":[6,7,8],"value":"第 30 週ごろ（定点当たり報告数 10.0 程度）","unit":"ピーク週（定点当たり報告数）","stat":"mode","basis":"IDWR 2026 年第 26 号 注目すべき感染症 手足口病・ヘルパンギーナ。過去 10 年の全国の流行年の動向","src":"https://id-info.jihs.go.jp/surveillance/idwr/featured/2026/26/index.html","chk":"2026-11-04","ev":"第20週から定点当たり報告数0.65（1,477例）と増加しはじめ／第30週ごろに定点当たり報告数10.00程度のピークに達した"},{"id":"epidemic-herpangina","kind":"epidemic_season","name":"ヘルパンギーナの流行期","age":null,"nursery":null,"months":[6,7,8],"value":"第 30 週ごろ（定点当たり報告数 3.0〜4.0 程度）","unit":"ピーク週（定点当たり報告数）","stat":"mode","basis":"IDWR 2026 年第 26 号 注目すべき感染症 手足口病・ヘルパンギーナ。過去 10 年の全国の動向","src":"https://id-info.jihs.go.jp/surveillance/idwr/featured/2026/26/index.html","chk":"2026-11-04","ev":"第20週ごろより増加が確認され、第30週ごろに定点当たり報告数3.0～4.0程度のピークに達した後、比較的速やかに減少し／過去10年において最も高いピーク値は2023年第27週の定点当たり報告数7.32（22,980例）"},{"id":"epidemic-pharyngoconjunctival-fever","kind":"epidemic_season","name":"咽頭結膜熱の流行期","age":null,"nursery":null,"months":[6,7,8],"value":"6 から 8 月","unit":"流行する月","stat":"mode","basis":"JIHS 感染症情報提供サイトの疾患ページ「咽頭結膜熱」（更新 2025-06-26）の疫学の記述","src":"https://id-info.jihs.go.jp/infectious-diseases/adenovirus/index.html","chk":"2026-11-04","ev":"アデノウイルス自体は年間を通じて報告されているが、咽頭結膜熱としては特に夏期（6から8月）に流行がみられ、5歳以下の小児で多く報告されている。"},{"id":"epidemic-infectious-gastroenteritis","kind":"epidemic_season","name":"感染性胃腸炎の流行期","age":null,"nursery":null,"months":[12,1,2],"value":"冬季（ウイルス性）、夏季（細菌性）","unit":"報告が増える季節","stat":"mode","basis":"JIHS 感染症情報提供サイトの疾患ページ「感染性胃腸炎」（更新 2026-03-23）の疫学の記述","src":"https://id-info.jihs.go.jp/infectious-diseases/infectious-diarrhea/index.html","chk":"2026-11-04","ev":"日本国内では、夏季には細菌、冬季にはウイルスによる胃腸炎の報告が増加する傾向にある。"},{"id":"child-allowance-under-3","kind":"money_in","name":"児童手当（3 歳未満）は月 15,000 円。偶数月に 2 か月分が入る","age":[0,35],"nursery":null,"months":[2,4,6,8,10,12],"value":15000,"unit":"円/月","stat":"fixed","basis":"こども家庭庁「児童手当制度のご案内」。3 歳未満（第 1 子・第 2 子）の月額と支給月","src":"https://www.cfa.go.jp/policies/kokoseido/jidouteate/annai","chk":"2026-11-04","ev":"3歳未満 15,000円（第3子以降は30,000円）／児童手当は、毎年2月、4月、6月、8月、10月、12月（偶数月）に、それぞれの前月分まで（2か月分）を支給します。"},{"id":"child-allowance-3-to-preschool","kind":"money_in","name":"児童手当（3 歳以上）は月 10,000 円。偶数月に 2 か月分が入る","age":[36,72],"nursery":null,"months":[2,4,6,8,10,12],"value":10000,"unit":"円/月","stat":"fixed","basis":"こども家庭庁「児童手当制度のご案内」。3 歳〜高校生年代（第 1 子・第 2 子）の月額","src":"https://www.cfa.go.jp/policies/kokoseido/jidouteate/annai","chk":"2026-11-04","ev":"3歳～高校生年代 10,000円（第3子以降は30,000円）／児童手当は、毎年2月、4月、6月、8月、10月、12月（偶数月）に、それぞれの前月分まで（2か月分）を支給します。"},{"id":"child-allowance-third-child","kind":"money_in","name":"第 3 子以降の児童手当は月 30,000 円（年齢にかかわらず）","age":[0,72],"nursery":null,"months":[2,4,6,8,10,12],"value":30000,"unit":"円/月","stat":"fixed","basis":"こども家庭庁「児童手当制度のご案内」と札幌市「児童手当」。第 3 子以降の月額と数え方","src":"https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html","chk":"2026-11-04","ev":"第3子以降 月30,000円／年長者から第1子、第2子・・・と数えます。（22 歳に達する日以降の最初の年度末を迎えるまでの子を数える）"},{"id":"child-allowance-sapporo-payment-day","kind":"money_in","name":"札幌市の児童手当の支給日は偶数月の 13 日（土日祝なら前日）","age":[0,72],"nursery":null,"months":[2,4,6,8,10,12],"value":13,"unit":"日（各偶数月）","stat":"fixed","basis":"札幌市子育てサイト「児童手当」（更新 2026-03-26）の支給日と令和 8 年度の支給予定日","src":"https://kosodate.city.sapporo.jp/mokuteki/money/kodomo/1124.html","chk":"2026-11-04","ev":"原則として、偶数月の13日（当日が土日祝日の場合はその前日）に／令和8年度の支給予定日: 6月12日（4月～5月分）、8月13日（6月～7月分）、10月13日（8月～9月分）、12月11日（10月～11月分）、2月12日（12月～1月分）、4月13日（2月～3月分）"}],"wards":[{"name":"中央区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"中央区役所 戸籍住民課 戸籍係","url":"https://www.city.sapporo.jp/chuo/oriori/oriori_2.html","phone":"011-205-3232","address":"札幌市中央区南3条西11丁目 中央区複合庁舎3階22番窓口"},{"role":"child_allowance_medical","name":"中央区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/chuo/oriori/oriori_2.html","phone":"011-205-3302"},{"role":"nursery_application","name":"中央保健センター 健康・子ども課 子ども家庭福祉係","url":"https://www.city.sapporo.jp/chuo/oriori/oriori_2.html","phone":"011-205-3354","address":"札幌市中央区南3条西11丁目 中央区複合庁舎4階43番窓口"},{"role":"health_center","name":"中央保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/chuo/annai/ku.html","phone":"011-231-2400","address":"札幌市中央区南3条西11丁目 中央区複合庁舎4階"}]},{"name":"北区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"北区役所 戸籍住民課 戸籍係","url":"https://www.city.sapporo.jp/kitaku/shisetsu/kita-tel.html","phone":"011-757-2415","address":"札幌市北区北24条西6丁目1-1"},{"role":"child_allowance_medical","name":"北区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/kitaku/shisetsu/kita-tel.html","phone":"011-757-2462"},{"role":"nursery_application","name":"北保健センター 健康・子ども課 子ども家庭福祉係","url":"https://www.city.sapporo.jp/kitaku/shisetsu/hoken.html","phone":"011-757-2563","address":"札幌市北区北25条西6丁目1-1"},{"role":"health_center","name":"北保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/kitaku/shisetsu/hoken.html","phone":"011-757-1181","address":"札幌市北区北25条西6丁目1-1"}]},{"name":"東区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"東区役所 戸籍住民課 戸籍係","url":"https://www.city.sapporo.jp/higashi/toiawase/koseki.html","phone":"011-741-2439","address":"札幌市東区北11条東7丁目1-1 区役所1階1番窓口"},{"role":"child_allowance_medical","name":"東区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/higashi/annai/g_sosikibetsudennwabanngou.html","phone":"011-741-2461"},{"role":"nursery_application","name":"東保健センター 健康・子ども課 子ども家庭福祉係","url":"https://www.city.sapporo.jp/higashi/annai/hoken.html","phone":"011-711-3214","address":"札幌市東区北10条東7丁目1-20 東保健センター2階"},{"role":"health_center","name":"東保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/higashi/annai/hoken.html","phone":"011-711-3211","address":"札幌市東区北10条東7丁目1-20"}]},{"name":"白石区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"白石区役所 戸籍住民課 戸籍係","url":"https://www.city.sapporo.jp/shiroishi/shisetsu/kuyakusho/dialin.html","phone":"011-861-2425","address":"札幌市白石区南郷通1丁目南8-1"},{"role":"child_allowance_medical","name":"白石区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/shiroishi/shisetsu/kuyakusho/dialin.html","phone":"011-861-2446"},{"role":"nursery_application","name":"白石保健センター 健康・子ども課 子ども家庭福祉係","url":"https://www.city.sapporo.jp/shiroishi/shisetsu/kuyakusho/dialin.html","phone":"011-861-0336","address":"札幌市白石区南郷通1丁目南8-1 白石区複合庁舎4階"},{"role":"health_center","name":"白石保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/shiroishi/life/health/health/infant/index.html","phone":"011-862-1881","address":"札幌市白石区南郷通1丁目南8-1"}]},{"name":"厚別区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"厚別区役所 戸籍住民課 戸籍係","url":"https://www.city.sapporo.jp/atsubetsu/tetsuzuki/kurashi06.html","phone":"011-895-2449","address":"札幌市厚別区厚別中央1条5丁目3-2 区役所1階1番窓口"},{"role":"child_allowance_medical","name":"厚別区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/atsubetsu/tetsuzuki/kurashi06.html","phone":"011-895-2474"},{"role":"nursery_application","name":"厚別保健センター 健康・子ども課 子ども家庭福祉係","url":"https://www.city.sapporo.jp/atsubetsu/tetsuzuki/kurashi06.html","phone":"011-895-2499","address":"札幌市厚別区厚別中央1条5丁目3-2 区役所3階33番窓口"},{"role":"health_center","name":"厚別保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/atsubetsu/hokenfukushi/kenko/kenko.html","phone":"011-895-1881","address":"札幌市厚別区厚別中央1条5丁目3-2 区役所3階"}]},{"name":"豊平区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"豊平区役所 戸籍住民課 戸籍係","url":"https://www.city.sapporo.jp/toyohira/ward_office/05phone.html","phone":"011-822-2436","address":"札幌市豊平区平岸6条10丁目1-1"},{"role":"child_allowance_medical","name":"豊平区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/toyohira/ward_office/05phone.html","phone":"011-822-2453"},{"role":"nursery_application","name":"豊平保健センター 健康・子ども課 子ども家庭福祉係","url":"https://www.city.sapporo.jp/toyohira/ward_office/05phone.html","phone":"011-822-2473","address":"札幌市豊平区平岸6条10丁目1-1（区役所内）"},{"role":"health_center","name":"豊平保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/toyohira/health_center/index.html","phone":"011-822-2400","address":"札幌市豊平区平岸6条10丁目1-1"}]},{"name":"清田区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"清田区役所 戸籍住民課 戸籍係","url":"https://www.city.sapporo.jp/kiyota/facilities/ward-office/telephonenumber_gyohmu.html","phone":"011-889-2027","address":"札幌市清田区平岡1条1丁目2-1"},{"role":"child_allowance_medical","name":"清田区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/kiyota/facilities/ward-office/telephonenumber_gyohmu.html","phone":"011-889-2037"},{"role":"nursery_application","name":"清田保健センター 健康・子ども課 子ども家庭福祉担当","url":"https://www.city.sapporo.jp/kiyota/facilities/ward-office/telephonenumber_gyohmu.html","phone":"011-889-2051","address":"札幌市清田区平岡1条1丁目2-1 清田区総合庁舎2階13番窓口"},{"role":"health_center","name":"清田保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/shisetsuannai/027.html","phone":"011-889-2400","address":"札幌市清田区平岡1条1丁目2-1 清田区総合庁舎2階"}]},{"name":"南区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"南区役所 戸籍住民課 戸籍係","url":"https://www.city.sapporo.jp/minami/annai/denwa.html","phone":"011-582-4724","address":"札幌市南区真駒内幸町2丁目2-1"},{"role":"child_allowance_medical","name":"南区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/minami/fukushi/kodomo.html","phone":"011-582-4741"},{"role":"nursery_application","name":"南保健センター 健康・子ども課 子ども家庭福祉担当係","url":"https://www.city.sapporo.jp/minami/kosodate/index.html","phone":"011-522-5780","address":"札幌市南区真駒内幸町1丁目3-2 南保健センター3階"},{"role":"health_center","name":"南保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/minami/shisetsu/index.html","phone":"011-581-5211","address":"札幌市南区真駒内幸町1丁目3-2"}]},{"name":"西区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"西区役所 戸籍住民課（戸籍の届出 1階2番窓口）","url":"https://www.city.sapporo.jp/nishi/tetuzuki/kodomo.html","phone":"011-641-6928","address":"札幌市西区琴似2条7丁目1-1"},{"role":"child_allowance_medical","name":"西区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/nishi/annai/hoken_fukushi.html","phone":"011-641-6943"},{"role":"nursery_application","name":"西保健センター 健康・子ども課 子ども家庭福祉係","url":"https://www.city.sapporo.jp/nishi/annai/hoken_chiiki.html","phone":"011-621-4242","address":"札幌市西区琴似2条7丁目1-20 西保健センター3階4番窓口"},{"role":"health_center","name":"西保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/nishi/shisetsu/hoken.html","phone":"011-621-4241","address":"札幌市西区琴似2条7丁目1-20"}]},{"name":"手稲区","chk":"2026-11-04","offices":[{"role":"birth_registration","name":"手稲区役所 戸籍住民課 戸籍係","url":"https://www.city.sapporo.jp/teine/todokede/syusshoutodoke.html","phone":"011-681-2448","address":"札幌市手稲区前田1条11丁目1-10 1階9番窓口"},{"role":"child_allowance_medical","name":"手稲区役所 保健福祉課 福祉助成係","url":"https://www.city.sapporo.jp/teine/annai/dennwa.html","phone":"011-681-2487"},{"role":"nursery_application","name":"手稲保健センター 健康・子ども課 子ども家庭福祉担当","url":"https://www.city.sapporo.jp/teine/annai/dennwa.html","phone":"011-688-8597","address":"札幌市手稲区前田1条11丁目1-10（区役所内）"},{"role":"health_center","name":"手稲保健センター（健康・子ども課）","url":"https://www.city.sapporo.jp/teine/hoken/hokencenter/index.html","phone":"011-681-1211","address":"札幌市手稲区前田1条11丁目1-10"}]}]}</script>
+
+<script id="model">
+// 日付・期日の計算と年表の配置。DOM を使わない（テストは docs/prototypes/sapporo-roadmap.test.cjs）。
+// 日付は 1970-01-01 からの日数（整数）で持つ。時差の影響を受けない。
+var DAY_MS = 86400000;
+var WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+var STALE_DAYS = 90;
+var LANE_ORDER = ['milestone', 'procedures', 'vaccines', 'childcare_registration', 'events'];
+var LANE_NAMES = { milestone: 'マイルストーン（重要な日付）', procedures: '手続き', vaccines: '予防接種', childcare_registration: '預け先の事前登録', events: 'イベントと給付' };
+var LANE_SHORT = { milestone: '節目', procedures: '手続き', vaccines: '予防接種', childcare_registration: '預け先', events: '給付など' };
+var MONTH_PX = 40; // 1 か月の幅
+var ROW_H = 22; // 段の高さ
+var GAP = 6; // 同じ段の印どうしのすき間
+var LABEL_MAX = 22; // 年表のラベルの最大文字数（全文は詳細へ）
+
+function dayNum(y, m, d) { return Math.round(Date.UTC(y, m - 1, d) / DAY_MS); }
+function ymd(n) { var t = new Date(n * DAY_MS); return { y: t.getUTCFullYear(), m: t.getUTCMonth() + 1, d: t.getUTCDate(), w: t.getUTCDay() }; }
+function pad2(v) { return (v < 10 ? '0' : '') + v; }
+function iso(n) { var p = ymd(n); return p.y + '-' + pad2(p.m) + '-' + pad2(p.d); }
+function parseDay(s) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s == null ? '' : s));
+  if (!m) return null;
+  var n = dayNum(+m[1], +m[2], +m[3]);
+  var p = ymd(n);
+  return p.y === +m[1] && p.m === +m[2] && p.d === +m[3] ? n : null;
+}
+function parseMonth(s) {
+  var m = /^(\d{4})-(\d{2})$/.exec(String(s == null ? '' : s));
+  if (!m || +m[2] < 1 || +m[2] > 12) return null;
+  return dayNum(+m[1], +m[2], 1);
+}
+function todayJst(ms) { return Math.floor((ms + 9 * 3600000) / DAY_MS); }
+function daysInMonth(y, m) { return ymd(dayNum(y, m + 1, 0)).d; }
+// n 日の k か月後。同じ日が無い月は月末にする（1/31 の 1 か月後は 2/28、うるう年は 2/29）。
+// 生後 N か月は、いつも生年月日から数える（前の節目から足し継がない）。
+function addMonths(n, k) {
+  var p = ymd(n);
+  var t = p.m - 1 + k;
+  var y = p.y + Math.floor(t / 12);
+  var m = t - Math.floor(t / 12) * 12 + 1;
+  return dayNum(y, m, Math.min(p.d, daysInMonth(y, m)));
+}
+// 満の月数（生後何か月か）。生まれる前は -1
+function monthsBetween(birth, n) {
+  if (n < birth) return -1;
+  var a = ymd(birth), b = ymd(n);
+  var k = (b.y - a.y) * 12 + (b.m - a.m);
+  while (k > 0 && addMonths(birth, k) > n) k--;
+  return k;
+}
+function monthsTitle(k) {
+  var y = Math.floor(k / 12), m = k % 12;
+  if (y === 0) return '生後 ' + m + ' か月';
+  return y + ' 歳' + (m ? ' ' + m + ' か月' : '');
+}
+function ageText(birth, n) { var k = monthsBetween(birth, n); return k < 0 ? '生まれる前' : monthsTitle(k); }
+function fmtLong(n) { var p = ymd(n); return p.y + '年' + p.m + '月' + p.d + '日（' + WEEK[p.w] + '）'; }
+function fmtShort(n, today) { var p = ymd(n); var y = today == null || ymd(today).y !== p.y ? p.y + '/' : ''; return y + p.m + '/' + p.d + '（' + WEEK[p.w] + '）'; }
+function mdText(s) { return +s.slice(0, 2) + '/' + +s.slice(3, 5); }
+
+// ---- 祝日と閉庁日 ----
+// 祝日法の決まりから計算する。春分・秋分の日は天文の計算式による見込み（正式には前年 2 月の官報で決まる）。
+// 2022 年より前の特例（オリンピックの移動など）は入れていない。
+function nthMonday(y, m, nth) { var first = dayNum(y, m, 1); return first + ((8 - ymd(first).w) % 7) + (nth - 1) * 7; }
+var HOLIDAY_CACHE = {};
+function holidaysOf(y) {
+  if (HOLIDAY_CACHE[y]) return HOLIDAY_CACHE[y];
+  var h = {}, b = y - 1980, q = Math.floor(b / 4);
+  function put(n, name) { h[n] = name; }
+  put(dayNum(y, 1, 1), '元日');
+  put(nthMonday(y, 1, 2), '成人の日');
+  put(dayNum(y, 2, 11), '建国記念の日');
+  put(dayNum(y, 2, 23), '天皇誕生日');
+  put(dayNum(y, 3, Math.floor(20.8431 + 0.242194 * b - q)), '春分の日');
+  put(dayNum(y, 4, 29), '昭和の日');
+  put(dayNum(y, 5, 3), '憲法記念日');
+  put(dayNum(y, 5, 4), 'みどりの日');
+  put(dayNum(y, 5, 5), 'こどもの日');
+  put(nthMonday(y, 7, 3), '海の日');
+  put(dayNum(y, 8, 11), '山の日');
+  put(nthMonday(y, 9, 3), '敬老の日');
+  put(dayNum(y, 9, Math.floor(23.2488 + 0.242194 * b - q)), '秋分の日');
+  put(nthMonday(y, 10, 2), 'スポーツの日');
+  put(dayNum(y, 11, 3), '文化の日');
+  put(dayNum(y, 11, 23), '勤労感謝の日');
+  var base = Object.keys(h).map(Number).sort(function (a, c) { return a - c; });
+  // 国民の休日: 前日と翌日が祝日の日
+  base.forEach(function (n) { if (base.indexOf(n + 2) >= 0 && !h[n + 1]) h[n + 1] = '国民の休日'; });
+  // 振替休日: 祝日が日曜なら、その後の最初の祝日でない日
+  base.forEach(function (n) { if (ymd(n).w === 0) { var m = n + 1; while (h[m]) m++; h[m] = '振替休日'; } });
+  HOLIDAY_CACHE[y] = h;
+  return h;
+}
+function holidayName(n) { return holidaysOf(ymd(n).y)[n] || null; }
+// 区役所などが閉まる日（土日・祝日・12/29〜1/3）。閉まっていなければ null
+function closedReason(n) {
+  var p = ymd(n), h = holidayName(n);
+  if (h) return h;
+  if (p.w === 0) return '日曜';
+  if (p.w === 6) return '土曜';
+  if ((p.m === 12 && p.d >= 29) || (p.m === 1 && p.d <= 3)) return '年末年始';
+  return null;
+}
+function prevOpen(n) { while (closedReason(n)) n--; return n; }
+function nextOpen(n) { while (closedReason(n)) n++; return n; }
+// 札幌市の児童手当の支給日: 偶数月の 13 日。土日祝ならその前日（出典の決まり）
+function allowancePayDay(y, m, day) {
+  var n = dayNum(y, m, day || 13);
+  while (ymd(n).w === 0 || ymd(n).w === 6 || holidayName(n)) n--;
+  return n;
+}
+// クラス年齢: その年度の 4 月 1 日の時点の満年齢（4 月 1 日生まれは上の学年）
+function classAge(birth, fy) {
+  var apr1 = dayNum(fy, 4, 1);
+  if (birth > apr1) return -1;
+  var a = 0;
+  while (addMonths(birth, 12 * (a + 1)) <= apr1) a++;
+  return a;
+}
+function fiscalYear(n) { var p = ymd(n); return p.m >= 4 ? p.y : p.y - 1; }
+// 小学校入学: 満 6 歳になった日の翌日以後の最初の 4 月 1 日（計算による目安。データに出典は無い）
+function schoolEntry(birth) {
+  var six = addMonths(birth, 72);
+  var apr = dayNum(ymd(six).y, 4, 1);
+  return apr >= six ? apr : dayNum(ymd(six).y + 1, 4, 1);
+}
+
+// ---- 項目ごとの期日 ----
+function scheduleText(it) {
+  var s = it.schedule;
+  switch (s.kind) {
+    case 'birth_offset':
+      return '出生日の ' + (s.start_days || 0) + ' 日後から。' + (s.deadline_days == null ? '締切はデータに無い' : '締切は出生日 + ' + s.deadline_days + ' 日');
+    case 'age_start':
+      return '生後 ' + s.start_months + ' か月から（締切なし）' + (s.recommended_lead_days == null ? '' : '。使える月齢の ' + s.recommended_lead_days + ' 日前に済ませる目安');
+    case 'annual_period':
+      return '毎年 ' + mdText(s.start) + '〜' + mdText(s.end);
+    case 'application_window':
+      return (s.start ? String(s.start).replace('T', ' ') : '受付開始日は要確認') + ' 〜 ' + String(s.deadline).replace('T', ' ');
+    case 'after_previous':
+      return (s.dose - 1) + ' 回目の ' + s.days_after + ' 日後に ' + s.dose + ' 回目';
+    case 'before_milestone':
+      return (s.milestone === 'nursery_start' ? '入園予定月の初日' : '復職予定日') + 'の ' + s.days_before + ' 日前';
+  }
+  return s.kind;
+}
+
+function seasonsOf(s, from, to) {
+  var sm = +s.start.slice(0, 2), sd = +s.start.slice(3, 5), em = +s.end.slice(0, 2), ed = +s.end.slice(3, 5);
+  var wrap = em < sm || (em === sm && ed < sd);
+  var out = [];
+  for (var y = ymd(from).y - 1; y <= ymd(to).y; y++) {
+    var a = dayNum(y, sm, sd), z = dayNum(wrap ? y + 1 : y, em, ed);
+    var a2 = Math.max(a, from), z2 = Math.min(z, to);
+    if (a2 <= z2) out.push({ start: a2, end: z2 });
+  }
+  return out;
+}
+
+function planItem(it, ctx) {
+  var s = it.schedule, b = ctx.birth, t = ctx.today;
+  var p = { id: it.id, lane: it.domain, item: it, start: null, end: null, due: null, effDue: null, dueKind: null, dueTime: null, lead: null, prep: null, seasons: null, noDate: null, noDue: null, closed: null, nurseryNote: null };
+  var ageFrom = addMonths(b, it.age[0]);
+  var ageTo = it.age[1] == null ? null : addMonths(b, it.age[1] + 1) - 1;
+  p.end = ageTo;
+  if (s.kind === 'birth_offset') {
+    p.start = b + (s.start_days || 0);
+    if (s.deadline_days != null) { p.due = b + s.deadline_days; p.dueKind = 'deadline'; }
+    else p.noDue = '締切はデータに無い';
+  } else if (s.kind === 'age_start') {
+    p.start = addMonths(b, s.start_months);
+  } else if (s.kind === 'annual_period') {
+    p.start = ageFrom;
+  } else if (s.kind === 'application_window') {
+    p.start = s.start ? parseDay(String(s.start).slice(0, 10)) : null;
+    p.due = parseDay(String(s.deadline).slice(0, 10));
+    p.dueKind = 'deadline';
+    var tm = /T(\d{2}:\d{2})/.exec(String(s.deadline));
+    p.dueTime = tm ? tm[1] : null;
+  } else if (s.kind === 'after_previous') {
+    p.start = ageFrom;
+    p.noDate = (s.dose - 1) + ' 回目を受けた日から ' + s.days_after + ' 日後が目安（データの値）。このページは接種日を聞かないので、日付は出しません';
+  } else if (s.kind === 'before_milestone') {
+    var md = s.milestone === 'nursery_start' ? ctx.nursery : s.milestone === 'return_to_work' ? ctx.work : null;
+    p.milestone = s.milestone;
+    if (md == null) p.noDate = s.milestone === 'nursery_start' ? '入園予定月を入れると期日が出ます' : '復職予定日を入れると期日が出ます';
+    else { p.due = md - s.days_before; p.dueKind = 'guide'; p.lead = s.days_before; p.start = p.due; p.milestoneDate = md; }
+  }
+  // 保育園に通うかで対象が変わるもの（入園予定月が入っているときだけ絞る）
+  if (ctx.nursery != null && it.nursery === false) {
+    p.end = p.end == null ? ctx.nursery - 1 : Math.min(p.end, ctx.nursery - 1);
+    p.nurseryNote = '入園予定月の前まで（通っていない家庭が対象）';
+  }
+  if (ctx.nursery != null && it.nursery === true && (p.start == null || p.start < ctx.nursery)) {
+    p.start = ctx.nursery;
+    p.nurseryNote = '入園予定月から（通っている家庭が対象）';
+  }
+  if (s.kind === 'age_start' && s.recommended_lead_days != null) {
+    p.lead = s.recommended_lead_days;
+    // 生まれたときから使える項目で目安を引くと生まれる前になる。使う日が分からないので日付は出さない
+    if (p.start - p.lead < b) p.noDue = '使う日の ' + p.lead + ' 日前までに済ませる目安（データの値）。生まれたときから使えるので、使う日はこのページでは分からず、日付は出しません';
+    else { p.due = p.start - p.lead; p.dueKind = 'guide'; }
+  }
+  if (s.kind === 'annual_period') p.seasons = seasonsOf(s, Math.max(p.start, ageFrom), p.end == null ? addMonths(b, 73) : p.end);
+  if (p.due != null && it.prep != null) p.prep = p.due - it.prep;
+  p.effDue = p.due;
+  if (p.dueKind === 'deadline' && p.due != null) {
+    var r = closedReason(p.due);
+    if (r) {
+      p.closed = { reason: r, before: prevOpen(p.due), after: it.closedRule === 'next' ? nextOpen(p.due) : null };
+      if (p.closed.after != null) p.effDue = p.closed.after;
+    }
+  }
+  // 申込の締切の時点で、その子が対象の月齢・期間に入っていなければ、その子には出さない（生まれる前の締切など）
+  p.outOfAge = s.kind === 'application_window' && p.due != null && (p.due < ageFrom || (p.end != null && p.due > p.end));
+  p.empty = p.outOfAge || (p.start != null && p.end != null && p.end < p.start);
+  p.status = statusOf(p, ctx);
+  p.guidePast = p.dueKind === 'guide' && p.due != null && p.due < t;
+  return p;
+}
+
+// 状態。予防接種は「過ぎた」を赤にしない（流行期の終わりは「今季は終わった」）
+function statusOf(p, ctx) {
+  var t = ctx.today;
+  if (ctx.done && ctx.done[p.id]) return { key: 'done', text: '済んだ' };
+  if (p.empty) return { key: 'na', text: p.outOfAge ? '申込の締切の時点で対象の月齢・期間に当たらない' : '入園予定月からみると対象の期間が無い' };
+  if (p.seasons) {
+    var cur = null, next = null, past = false;
+    p.seasons.forEach(function (s) { if (s.start <= t && t <= s.end) cur = s; else if (s.start > t && !next) next = s; else if (s.end < t) past = true; });
+    if (cur) return { key: 'open', text: '受けられる時期（' + fmtShort(cur.end, t) + 'まで）' };
+    if (next && past) return { key: 'season-over', text: '今季は終わった。次は ' + fmtShort(next.start, t) + ' から' };
+    if (next) return { key: 'upcoming', text: fmtShort(next.start, t) + ' から' };
+    return { key: 'ended', text: '対象の月齢を過ぎた' };
+  }
+  var vac = p.lane === 'vaccines';
+  if (!vac && p.dueKind === 'deadline' && p.effDue < t) return { key: 'overdue', text: '締切を ' + (t - p.effDue) + ' 日過ぎた' };
+  if (p.end != null && p.end < t) return { key: 'ended', text: vac ? '対象の月齢を過ぎた' : '対象の期間を過ぎた' };
+  if (p.start != null && p.start > t && !(p.dueKind && p.due != null && p.due <= t)) return { key: 'upcoming', text: fmtShort(p.start, t) + ' から' };
+  if (p.due == null && p.noDate) return { key: 'nodate', text: p.noDate };
+  if (p.dueKind === 'deadline') return { key: 'open', text: p.effDue === t ? '今日が締切' : '締切まであと ' + (p.effDue - t) + ' 日' };
+  if (p.start != null && p.start > t) return { key: 'upcoming', text: fmtShort(p.start, t) + ' から' };
+  return { key: 'open', text: '対象の期間' };
+}
+
+// ---- イベントと給付（events.yaml） ----
+function monthRuns(months) {
+  var set = {}; months.forEach(function (m) { set[m] = true; });
+  var runs = [];
+  months.forEach(function (m) {
+    var prev = m === 1 ? 12 : m - 1;
+    if (set[prev] && months.length < 12) return;
+    var len = 0, k = m;
+    while (set[k] && len < 12) { len++; k = k === 12 ? 1 : k + 1; }
+    runs.push({ start: m, len: len });
+  });
+  return runs;
+}
+function planEvents(events, ctx) {
+  var b = ctx.birth, lim = ctx.school - 1, from = Math.min(b, ctx.today) - 120;
+  var bands = [], undated = [], placed = {};
+  function band(ids, start, end, text, kind) {
+    if (end < from || start > lim) return;
+    bands.push({ ids: ids, id: ids[0], start: start, end: end, text: text, kind: kind });
+    ids.forEach(function (id) { placed[id] = true; });
+  }
+  // 流行期: 同じ月の並びはひとつの帯にまとめる
+  var groups = {}, order = [];
+  events.filter(function (e) { return e.kind === 'epidemic_season' && e.months; }).forEach(function (e) {
+    var k = e.months.join(',');
+    if (!groups[k]) { groups[k] = []; order.push(k); }
+    groups[k].push(e);
+  });
+  order.forEach(function (k) {
+    var g = groups[k];
+    var names = g.map(function (e) { return e.name.replace(/の流行期$/, ''); }).join('・');
+    monthRuns(g[0].months).forEach(function (r) {
+      for (var y = ymd(from).y - 1; y <= ymd(lim).y; y++) {
+        var a = dayNum(y, r.start, 1), z = addMonths(a, r.len) - 1;
+        if (z < from || a > lim) continue;
+        band(g.map(function (e) { return e.id; }), a, z, '流行期: ' + names, 'epidemic');
+      }
+    });
+  });
+  // 給付: 支給日と月額
+  events.filter(function (e) { return e.kind === 'money_in'; }).forEach(function (e) {
+    var dayRule = /^(\d+)\s*日/.exec(String(e.value) + (e.unit ? ' ' + e.unit : ''));
+    if (dayRule && e.months) {
+      var day = +dayRule[1];
+      var bm = ymd(b), first = dayNum(bm.y, bm.m, 1);
+      // 出生の翌月分から支給の対象になり、前月までの 2 か月分が偶数月に入る。最初に入りうるのは出生月の 2 か月後以降の偶数月
+      for (var k = 2; k <= 90; k++) {
+        var mm = ymd(addMonths(first, k));
+        if (e.months.indexOf(mm.m) < 0) continue;
+        var pd = allowancePayDay(mm.y, mm.m, day);
+        if (pd > lim) break;
+        band([e.id], pd, pd, '児童手当の支給予定日', 'pay');
+      }
+      return;
+    }
+    if (/第\s*3\s*子/.test(e.name)) { undated.push({ id: e.id, reason: '第何子かを聞かないので、年表には出しません' }); return; }
+    if (e.age) {
+      var a = addMonths(b, e.age[0]), z = e.age[1] == null ? lim : Math.min(lim, addMonths(b, e.age[1] + 1) - 1);
+      band([e.id], a, z, e.name.split('。')[0], 'money');
+      return;
+    }
+    undated.push({ id: e.id, reason: '月齢の指定が無い' });
+  });
+  // 保育園の病欠: 入園予定月があるときだけ、クラスの年ごとに出す
+  var absence = events.filter(function (e) { return e.kind === 'illness_absence'; });
+  if (ctx.nursery != null) {
+    for (var fy = fiscalYear(ctx.nursery); fy <= fiscalYear(lim); fy++) {
+      var ca = classAge(b, fy);
+      if (ca < 0) continue;
+      var ev = absence.filter(function (e) { return e.age && e.age[0] === ca * 12; })[0];
+      if (!ev) continue;
+      band([ev.id], Math.max(ctx.nursery, dayNum(fy, 4, 1)), dayNum(fy + 1, 3, 31), ev.name, 'absence');
+    }
+    absence.filter(function (e) { return !e.age && e.months; }).forEach(function (e) {
+      for (var y = ymd(ctx.nursery).y; y <= ymd(lim).y; y++) e.months.forEach(function (m) {
+        var a = dayNum(y, m, 1);
+        if (a >= ctx.nursery) band([e.id], a, addMonths(a, 1) - 1, e.name, 'absence');
+      });
+    });
+  }
+  absence.forEach(function (e) { if (!placed[e.id]) undated.push({ id: e.id, reason: ctx.nursery == null ? '入園予定月を入れると、通う年ごとに年表に出ます' : '入園予定月から入学までの期間に当たる年が無い' }); });
+  events.filter(function (e) { return e.kind === 'parent_leave_days'; }).forEach(function (e) { undated.push({ id: e.id, reason: '日付の無い統計（保育園に通う家庭の調査）なので、年表には出しません' }); });
+  events.forEach(function (e) { if (!placed[e.id] && !undated.some(function (u) { return u.id === e.id; })) undated.push({ id: e.id, reason: 'この入力では年表の期間に当たらない' }); });
+  return { bands: bands, undated: undated, placed: placed };
+}
+
+// ---- 節目 ----
+function milestonesOf(data, ctx) {
+  var months = { 1: 1, 12: 1, 24: 1, 36: 1 };
+  data.items.forEach(function (it) {
+    if (it.schedule.kind === 'age_start' && it.schedule.start_months > 0) months[it.schedule.start_months] = 1;
+    if (it.age[0] > 0) months[it.age[0]] = 1;
+  });
+  var b = ctx.birth;
+  var list = [{ key: 'birth', kind: 'birth', date: b, title: b > ctx.today ? '生まれる予定の日' : '誕生', short: b > ctx.today ? '誕生予定' : '誕生' }];
+  Object.keys(months).map(Number).filter(function (k) { return k < 72; }).sort(function (a, c) { return a - c; }).forEach(function (k) {
+    list.push({ key: 'm' + k, kind: 'age', months: k, date: addMonths(b, k), title: monthsTitle(k), short: k < 12 ? k + 'か月' : k % 12 ? Math.floor(k / 12) + '歳' + (k % 12) + 'か月' : (k / 12) + '歳' });
+  });
+  if (ctx.nursery != null) list.push({ key: 'nursery', kind: 'nursery', date: ctx.nursery, title: '入園予定月（' + ymd(ctx.nursery).y + '年' + ymd(ctx.nursery).m + '月）', short: '入園予定' });
+  if (ctx.work != null) list.push({ key: 'work', kind: 'work', date: ctx.work, title: '復職予定日', short: '復職予定' });
+  list.push({ key: 'school', kind: 'school', date: ctx.school, title: '小学校入学（' + ymd(ctx.school).y + '年4月）', short: '小学校入学' });
+  var rank = { birth: 0, age: 1, nursery: 2, work: 3, school: 4 };
+  list.sort(function (a, c) { return a.date - c.date || rank[a.kind] - rank[c.kind]; });
+  list.forEach(function (m) { m.finish = []; m.begin = []; m.related = []; });
+  return list;
+}
+// 期日をその日以後の最初の節目に入れる
+function milestoneFor(list, date) {
+  for (var i = 0; i < list.length; i++) if (list[i].date >= date) return list[i];
+  return null;
+}
+function assignMilestones(items, list, ctx) {
+  items.forEach(function (p) {
+    if (p.empty) return;
+    if (p.due != null) { var mf = milestoneFor(list, p.effDue); if (mf) mf.finish.push({ id: p.id, date: p.effDue, kind: p.dueKind }); }
+    var st = p.seasons ? (p.seasons[0] ? p.seasons[0].start : null) : p.start;
+    if (st != null && st !== ctx.birth && p.item.schedule.kind !== 'before_milestone') { var mb = milestoneFor(list, st); if (mb) mb.begin.push({ id: p.id, date: st }); }
+    list.forEach(function (m) {
+      if (m.kind === 'nursery' && p.item.nursery !== null) m.related.push({ id: p.id, text: p.item.nursery ? '入園後に対象' : '入園までが対象' });
+      if (m.kind === 'work' && p.item.work && p.item.work.indexOf('復職予定') >= 0) m.related.push({ id: p.id, text: '復職予定の人が対象になりうる' });
+    });
+  });
+}
+
+function planAll(data, input, today) {
+  var birth = parseDay(input.birth);
+  if (birth == null) throw new Error('生年月日を読めません');
+  var ctx = {
+    birth: birth,
+    today: today,
+    nursery: input.nursery ? parseMonth(input.nursery) : null,
+    work: input.work ? parseDay(input.work) : null,
+    done: input.done || {},
+    school: schoolEntry(birth)
+  };
+  var items = data.items.map(function (it) { return planItem(it, ctx); });
+  var ev = planEvents(data.events, ctx);
+  var milestones = milestonesOf(data, ctx);
+  assignMilestones(items, milestones, ctx);
+  var chk = data.items.concat(data.events).concat(data.wards).map(function (x) { return x.chk; }).sort();
+  return {
+    ctx: ctx, items: items, events: ev, milestones: milestones,
+    checkedOldest: chk[0], checkedNewest: chk[chk.length - 1],
+    checkedDays: today - parseDay(chk[0])
+  };
+}
+
+// ---- 設定と家族（子ども 2 人まで） ----
+// 初期値はすべて架空。下の子の出産予定日の「日」は仮の値
+var DEFAULT_SETTINGS = { elderBirth: '2025-11-07', elderNursery: '2027-04', youngerDue: '2027-03-15', youngerNursery: '', ward: '北区', work: '2028-04-03' };
+var SETTING_KEYS = ['elderBirth', 'elderNursery', 'youngerDue', 'youngerNursery', 'ward', 'work'];
+function normalizeSettings(raw) {
+  var out = {};
+  SETTING_KEYS.forEach(function (k) { out[k] = raw && typeof raw[k] === 'string' ? raw[k].trim() : DEFAULT_SETTINGS[k]; });
+  return out;
+}
+function isDefaultSettings(st) { return SETTING_KEYS.every(function (k) { return st[k] === DEFAULT_SETTINGS[k]; }); }
+function inYears(s, y0, y1) { var n = parseDay(s); return n != null && n >= dayNum(y0, 1, 1) && n <= dayNum(y1, 12, 31); }
+function settingsErrors(st, wardNames) {
+  var e = [];
+  if (!st.elderBirth && !st.youngerDue) e.push('上の子の生年月日か、下の子の出産予定日を入れてください。');
+  if (st.elderBirth && !inYears(st.elderBirth, 2015, 2035)) e.push('上の子の生年月日は 2015〜2035 年の日付にしてください。');
+  if (st.youngerDue && !inYears(st.youngerDue, 2015, 2036)) e.push('下の子の出産予定日は 2015〜2036 年の日付にしてください。');
+  if (st.elderNursery && parseMonth(st.elderNursery) == null) e.push('上の子の入園予定月は「2027-04」の形で入れてください。');
+  if (st.youngerNursery && parseMonth(st.youngerNursery) == null) e.push('下の子の入園予定月は「2027-04」の形で入れてください。');
+  if (st.work && parseDay(st.work) == null) e.push('復職予定日を読めません。');
+  if (st.ward && wardNames && wardNames.indexOf(st.ward) < 0) e.push('区の名前を読めません。');
+  return e;
+}
+function childrenOf(st) {
+  var out = [];
+  if (inYears(st.elderBirth, 2015, 2035)) out.push({ key: 'a', label: '上の子', mark: '上', birth: st.elderBirth, nursery: parseMonth(st.elderNursery) != null ? st.elderNursery : '' });
+  if (inYears(st.youngerDue, 2015, 2036)) out.push({ key: 'b', label: '下の子', mark: '下', birth: st.youngerDue, nursery: parseMonth(st.youngerNursery) != null ? st.youngerNursery : '' });
+  return out;
+}
+// 「済んだ」は子どもごとに「a:項目 id」「b:項目 id」で持つ
+function doneKey(childKey, id) { return childKey + ':' + id; }
+function planFamily(data, settings, today, done) {
+  var st = normalizeSettings(settings);
+  var work = parseDay(st.work) != null ? st.work : '';
+  var kids = childrenOf(st);
+  kids.forEach(function (k) {
+    var d = {};
+    Object.keys(done || {}).forEach(function (key) { if (done[key] === true && key.indexOf(k.key + ':') === 0) d[key.slice(k.key.length + 1)] = true; });
+    k.plan = planAll(data, { birth: k.birth, nursery: k.nursery, work: work, done: d }, today);
+  });
+  return { children: kids, settings: st, today: today, work: work ? parseDay(work) : null };
+}
+function ageYM(birth, n) { var k = monthsBetween(birth, n); return Math.floor(k / 12) + ' 歳 ' + (k % 12) + ' か月'; }
+// 今の条件を 1 行で（例: 上の子 1 歳 0 か月・下の子 2027 年 3 月 15 日予定（日は仮）・北区・架空の例）
+function conditionText(fam) {
+  var t = fam.today, parts = [];
+  fam.children.forEach(function (k) {
+    var b = k.plan.ctx.birth, p = ymd(b);
+    if (b <= t) parts.push(k.label + ' ' + ageYM(b, t));
+    else parts.push(k.label + ' ' + p.y + ' 年 ' + p.m + ' 月 ' + p.d + ' 日予定' + (k.key === 'b' && fam.settings.youngerDue === DEFAULT_SETTINGS.youngerDue ? '（日は仮）' : ''));
+  });
+  if (fam.settings.ward) parts.push(fam.settings.ward);
+  if (fam.work != null) parts.push('復職予定 ' + fmtShort(fam.work));
+  parts.push(isDefaultSettings(fam.settings) ? '架空の例' : 'あなたの設定');
+  return parts.join('・');
+}
+
+// ---- 年表の配置 ----
+// 年表のラベル: 括弧の中を外し、長ければ省く（全文は詳細へ）
+function roadmapLabel(s, keepParens) {
+  var out = '', depth = 0;
+  Array.from(String(s)).forEach(function (c) {
+    if (!keepParens && c === '（') { depth++; return; }
+    if (!keepParens && c === '）') { depth = Math.max(0, depth - 1); return; }
+    if (!depth) out += c;
+  });
+  var chars = Array.from(out.replace(/\s+/g, ' ').trim());
+  return chars.length > LABEL_MAX ? chars.slice(0, LABEL_MAX - 1).join('') + '…' : chars.join('');
+}
+// 12px の文字の幅の見積もり（多めに見る）。全角は 1 文字 12.5px、半角は 7.5px、空白は 4px
+function textWidth(s) {
+  var w = 0;
+  Array.from(String(s)).forEach(function (c) {
+    var code = c.codePointAt(0);
+    w += c === ' ' ? 4 : code < 0x2000 ? 7.5 : 12.5;
+  });
+  return Math.ceil(w) + 2;
+}
+var WHO_W = 17; // 「上」「下」の印の幅
+// 段に詰める: 前の段の右端 + GAP より右から始まる最初の段に入れる
+function packRow(rowEnds, x0, x1) {
+  for (var r = 0; r < rowEnds.length; r++) if (rowEnds[r] + GAP <= x0) { rowEnds[r] = x1; return r; }
+  rowEnds.push(x1);
+  return rowEnds.length - 1;
+}
+// 1 人分の年表の要素。child があれば id の頭に「a-」「b-」を付け、「上」「下」の印を付ける
+function roadmapElements(plan, child) {
+  var ctx = plan.ctx, t = ctx.today;
+  var pre = child && child.key ? child.key + '-' : '', who = child && child.mark ? child.mark : null;
+  var out = { milestone: [], procedures: [], vaccines: [], childcare_registration: [], events: [] }, skipped = [];
+  plan.milestones.forEach(function (m) {
+    var shared = m.kind === 'work'; // 復職予定日は家庭で 1 つ
+    out.milestone.push({ lane: 'milestone', id: (shared ? '' : pre) + 'ms-' + m.key, who: shared ? null : who, kind: m.kind === 'age' ? 'ms' : 'star', a: m.date, z: m.date, label: m.short, title: (shared || !who ? '' : who + 'の子 ') + m.title + ' ' + fmtLong(m.date), past: m.date < t });
+  });
+  plan.items.forEach(function (p) {
+    var it = p.item, k = it.schedule.kind, id = pre + it.id;
+    if (p.empty) { skipped.push({ id: id, item: it.id, reason: p.outOfAge ? '申込の締切の時点で対象の月齢に当たらない' : '入園予定月からみると対象の期間が無い' }); return; }
+    if (k === 'after_previous' || (k === 'before_milestone' && p.due == null)) { skipped.push({ id: id, item: it.id, reason: p.noDate, milestone: p.milestone || null }); return; }
+    var label = roadmapLabel(it.name);
+    var head = who ? who + 'の子 ' : '';
+    var base = { lane: p.lane, id: id, item: it.id, who: who, label: label, nc: it.nc, done: p.status.key === 'done', over: p.status.key === 'overdue' };
+    var ended = p.end != null && p.end < t;
+    function push(o) { var e = Object.assign({}, base, o); e.past = e.done || (o.mark === 'st' && o.kind === 'point' ? ended : e.z < t); out[p.lane].push(e); }
+    if (p.seasons) {
+      p.seasons.forEach(function (s) { push({ kind: 'bar', mark: null, a: s.start, z: s.end, title: head + label + '：受けられる時期 ' + fmtShort(s.start) + '〜' + fmtShort(s.end) }); });
+      if (!p.seasons.length) skipped.push({ id: id, item: it.id, reason: '入学までに受けられる時期が無い' });
+      return;
+    }
+    var end = p.dueKind === 'deadline' ? p.effDue : k === 'before_milestone' ? p.milestoneDate : p.dueKind === 'guide' ? p.due : null;
+    var begin = p.prep != null ? p.prep : k === 'before_milestone' ? p.due : p.dueKind === 'deadline' ? p.start : null;
+    var mark = p.lane === 'vaccines' ? 'st' : p.dueKind === 'deadline' ? 'dl' : p.dueKind === 'guide' ? 'gd' : 'st';
+    var what = p.dueKind === 'deadline' ? '公式の締切' : p.dueKind === 'guide' ? '目安' : '始まる日';
+    if (end == null) {
+      if (p.start == null) { skipped.push({ id: id, item: it.id, reason: '日付が無い' }); return; }
+      push({ kind: 'point', mark: 'st', a: p.start, z: p.start, title: head + label + '：' + fmtShort(p.start) + ' から' });
+    } else if (begin == null || begin >= end) {
+      push({ kind: 'point', mark: mark, a: end, z: end, title: head + label + '：' + fmtShort(end) + '（' + what + '）' });
+    } else {
+      push({ kind: 'bar', mark: mark, a: begin, z: end, title: head + label + '：' + fmtShort(begin) + '〜' + fmtShort(end) + '（' + what + '）' });
+    }
+  });
+  plan.events.bands.forEach(function (bd) {
+    var e = { lane: 'events', id: bd.id, item: bd.id, a: bd.start, z: bd.end, past: bd.end < t, nc: false, personal: bd.kind === 'money' || bd.kind === 'absence', who: who };
+    if (bd.kind === 'pay') { e.kind = 'dot'; e.label = ''; e.title = fmtShort(bd.start) + ' 児童手当の支給予定日（認定されていれば）'; }
+    else { e.kind = 'bar'; e.mark = null; e.label = roadmapLabel(bd.text, true); e.title = (e.personal && who ? who + 'の子 ' : '') + bd.text + ' ' + fmtShort(bd.start) + '〜' + fmtShort(bd.end); }
+    out.events.push(e);
+  });
+  return { lanes: out, skipped: skipped };
+}
+// 家族の年表全体の配置（px）。view は 'all'・'a'・'b'。ラベルの幅は textWidth で見積もり、同じ段で重ならないように段を分ける
+function layoutFamily(fam, view) {
+  var kids = fam.children.filter(function (k) { return !view || view === 'all' || k.key === view; });
+  if (!kids.length) kids = fam.children;
+  var today = fam.today;
+  var r0 = Math.min.apply(null, kids.map(function (k) { return k.plan.ctx.birth; }).concat([today])) - 15;
+  var r1 = Math.max.apply(null, kids.map(function (k) { return k.plan.ctx.school + 75; }).concat([today + 30]));
+  var ppd = MONTH_PX * 12 / 365.25;
+  function x(d) { return Math.round((d - r0) * ppd); }
+  var all = { milestone: [], procedures: [], vaccines: [], childcare_registration: [], events: [] }, skipped = [], evSeen = {}, workSeen = false;
+  kids.forEach(function (k) {
+    var built = roadmapElements(k.plan, k);
+    LANE_ORDER.forEach(function (lane) {
+      built.lanes[lane].forEach(function (e) {
+        if (lane === 'milestone' && e.id === 'ms-work') { if (workSeen) return; workSeen = true; }
+        if (lane === 'events') {
+          // 流行期や支給予定日など 2 人で同じ帯・点は 1 つにまとめ、印を付けない
+          var key = e.id + '|' + e.a + '|' + e.z + '|' + e.kind;
+          if (evSeen[key]) { evSeen[key].whos.push(k.mark); evSeen[key].who = null; return; }
+          e.whos = [k.mark];
+          if (!e.personal) e.who = null;
+          evSeen[key] = e;
+        }
+        all[lane].push(e);
+      });
+    });
+    built.skipped.forEach(function (sk) { skipped.push(Object.assign({ child: k.key || null, who: k.mark || null }, sk)); });
+  });
+  var lanes = LANE_ORDER.map(function (key) {
+    var geo = all[key].filter(function (e) { return e.z >= r0 && e.a <= r1; }).map(function (e) {
+      var g = Object.assign({}, e);
+      g.labelW = e.label ? textWidth(e.label) + (e.nc ? 16 : 0) + (e.who ? WHO_W : 0) : 0;
+      if (e.kind === 'bar') {
+        g.xa = x(Math.max(e.a, r0));
+        g.xz = Math.max(x(Math.min(e.z, r1) + 1), g.xa + 6);
+        g.inside = g.labelW > 0 && g.xz - g.xa >= g.labelW + 10;
+        g.labelX = g.inside ? g.xa + 5 : g.xz + 5;
+        g.x0 = g.xa;
+        g.x1 = g.labelW === 0 || g.inside ? g.xz : g.labelX + g.labelW;
+      } else {
+        var rad = e.kind === 'dot' ? 4 : 7;
+        g.xa = g.xz = x(e.a);
+        g.labelX = g.xa + rad + 4;
+        g.x0 = g.xa - rad;
+        g.x1 = g.labelW ? g.labelX + g.labelW : g.xa + rad;
+      }
+      return g;
+    });
+    geo.sort(function (p, q) { return p.x0 - q.x0 || p.x1 - q.x1; });
+    var ends = [], dotEnds = [];
+    geo.filter(function (g) { return g.kind !== 'dot'; }).forEach(function (g) { g.row = packRow(ends, g.x0, g.x1); });
+    // 支給予定日の点は、帯の段の下にまとめる
+    geo.filter(function (g) { return g.kind === 'dot'; }).forEach(function (g) { g.row = ends.length + packRow(dotEnds, g.x0, g.x1); });
+    return { key: key, name: LANE_NAMES[key], short: LANE_SHORT[key], rows: Math.max(1, ends.length + dotEnds.length), els: geo };
+  });
+  // 軸: 年、子ごとの年齢、月
+  var years = [], months = [], ages = [];
+  for (var m = dayNum(ymd(r0).y, ymd(r0).m, 1); m <= r1; m = addMonths(m, 1)) {
+    if (m < r0) continue;
+    var pm = ymd(m);
+    months.push({ x: x(m), text: String(pm.m), jan: pm.m === 1 });
+    if (pm.m === 1) years.push({ x: x(m), text: pm.y + '年' });
+  }
+  kids.forEach(function (k, row) {
+    for (var yy = 0; yy <= 7; yy++) {
+      var bd = addMonths(k.plan.ctx.birth, 12 * yy);
+      if (bd >= r0 && bd <= r1) ages.push({ x: x(bd), text: yy + '歳', who: k.mark || null, row: row });
+    }
+  });
+  return {
+    r0: r0, r1: r1, ppd: ppd, width: x(r1) + 1, today: x(today), x: x, lanes: lanes, skipped: skipped,
+    kids: kids.map(function (k) { return { key: k.key || null, mark: k.mark || null, label: k.label || null, birth: k.plan.ctx.birth }; }),
+    axis: { years: years, ages: ages, months: months }
+  };
+}
+// 1 人分（子の印なし）の配置。テストと 1 人の表示に使う
+function layoutRoadmap(plan) {
+  return layoutFamily({ children: [{ key: null, mark: null, plan: plan }], today: plan.ctx.today }, 'all');
+}
+// 同じ段の印・棒・ラベルが重なっていないか（重なりの組を返す。空なら重なりなし）
+function overlaps(lane) {
+  var bad = [], byRow = {};
+  lane.els.forEach(function (g) { (byRow[g.row] = byRow[g.row] || []).push(g); });
+  Object.keys(byRow).forEach(function (r) {
+    var row = byRow[r].slice().sort(function (p, q) { return p.x0 - q.x0; });
+    for (var i = 1; i < row.length; i++) if (row[i - 1].x1 + GAP > row[i].x0) bad.push([row[i - 1].id, row[i].id]);
+  });
+  return bad;
+}
+</script>
+
+<script>
+// 年表の画面を動かす。止める関数を返す（さきよみの /roadmap は、ページを離れるときに止める。ADR 0015）。
+function startRoadmap() {
+  'use strict';
+  var DATA = JSON.parse(document.getElementById('data').textContent);
+  var KEY = 'sapporo-roadmap:v2';
+  var WARDS = DATA.wards.map(function (w) { return w.name; });
+  var state = { settings: normalizeSettings(DEFAULT_SETTINGS), done: {}, view: 'all' };
+  var canStore = false;
+  var ITEM_IDS = {}; DATA.items.forEach(function (it) { ITEM_IDS[it.id] = it; });
+  var q = /[?&]today=(\d{4}-\d{2}-\d{2})/.exec(location.search);
+  var TODAY = q && parseDay(q[1]) != null ? parseDay(q[1]) : todayJst(Date.now());
+  var TODAY_FIXED = !!(q && parseDay(q[1]) != null);
+  var current = { fam: null, layout: null, openId: null };
+
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      var v = attrs[k];
+      if (v == null || v === false) return;
+      if (k === 'class') e.className = v;
+      else if (k === 'text') e.textContent = v;
+      else if (k === 'style') e.style.cssText = v;
+      else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v === true ? '' : v);
+    });
+    (kids || []).forEach(function (c) { if (c == null || c === false) return; e.append(c.nodeType ? c : String(c)); });
+    return e;
+  }
+  function tag(text, cls) { return el('span', { class: 'tag ' + (cls || ''), text: text }); }
+  function whoMark(mark) { return mark ? el('i', { class: 'who ' + (mark === '上' ? 'a' : 'b'), text: mark, title: mark + 'の子' }) : null; }
+  function link(url, text) { return el('a', { href: url, target: '_blank', rel: 'noopener noreferrer', text: text || url }); }
+  function telLink(phone) { return el('a', { href: 'tel:' + String(phone).replace(/[^\d+]/g, ''), text: phone }); }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); return node; }
+  function $(id) { return document.getElementById(id); }
+  function relDays(n, t) { var d = n - t; return d === 0 ? '今日' : d > 0 ? 'あと ' + d + ' 日' : (-d) + ' 日前'; }
+
+  // ---- 保存（使えなくても動く。外へは送らない） ----
+  function load() {
+    try {
+      var raw = window.localStorage.getItem(KEY);
+      canStore = true;
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      if (s && typeof s === 'object') {
+        if (s.settings && typeof s.settings === 'object') state.settings = normalizeSettings(s.settings);
+        if (s.done && typeof s.done === 'object') Object.keys(s.done).forEach(function (k) { var m = /^([ab]):(.+)$/.exec(k); if (m && ITEM_IDS[m[2]] && s.done[k] === true) state.done[k] = true; });
+        if (['all', 'a', 'b'].indexOf(s.view) >= 0) state.view = s.view;
+      }
+    } catch (e) { canStore = false; }
+  }
+  function save() {
+    if (!canStore) return;
+    try { window.localStorage.setItem(KEY, JSON.stringify({ settings: state.settings, done: state.done, view: state.view })); }
+    catch (e) { canStore = false; storageNote(); }
+  }
+  function storageNote() {
+    $('storage-note').textContent = canStore ? '' : 'このブラウザでは保存できないので、閉じると設定とチェックは初期値に戻ります。';
+  }
+  function wardOf() { return DATA.wards.filter(function (w) { return w.name === state.settings.ward; })[0] || null; }
+
+  // ---- 画面の切り替え（#settings で設定画面） ----
+  function route() {
+    var inSettings = location.hash === '#settings';
+    $('main-view').hidden = inSettings;
+    $('settings-view').hidden = !inSettings;
+    var nav = $('nav-link');
+    nav.textContent = inSettings ? '年表に戻る' : '設定';
+    nav.setAttribute('href', inSettings ? '#roadmap' : '#settings');
+    if (inSettings) { writeForm(); showSettingsMsg(); window.scrollTo(0, 0); return; }
+    render();
+    if (/^#item-/.test(location.hash)) fromHash(true);
+    else if (location.hash === '#roadmap') window.scrollTo(0, 0);
+  }
+
+  // ---- 設定画面 ----
+  var FIELDS = { elderBirth: 's-elderBirth', elderNursery: 's-elderNursery', youngerDue: 's-youngerDue', youngerNursery: 's-youngerNursery', ward: 's-ward', work: 's-work' };
+  function writeForm() { Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).value = state.settings[k] || ''; }); }
+  function readForm() { var s = {}; Object.keys(FIELDS).forEach(function (k) { s[k] = $(FIELDS[k]).value.trim(); }); return normalizeSettings(s); }
+  function showSettingsMsg(extra) {
+    var errs = settingsErrors(state.settings, WARDS);
+    var m = $('settings-msg');
+    m.className = 'small' + (errs.length ? ' error' : '');
+    m.textContent = errs.length ? errs.join(' ') : (extra || '') + (isDefaultSettings(state.settings) ? 'いまは初期値（架空の例）です。' : '');
+  }
+  function onSettingsChange() {
+    state.settings = readForm();
+    save();
+    showSettingsMsg(canStore ? '保存しました（このブラウザの中だけ）。' : '');
+  }
+
+  // ---- 描画 ----
+  function render() {
+    var errs = settingsErrors(state.settings, WARDS);
+    var fam = planFamily(DATA, state.settings, TODAY, state.done);
+    current.fam = fam;
+    ['rm', 'rm-note', 'detail-list', 'about-body', 'today-text', 'views', 'meta'].forEach(function (id) { clear($(id)); });
+    $('cond').textContent = fam.children.length ? conditionText(fam) : '子どもの日付が設定されていません';
+    var ferr = $('family-error');
+    ferr.hidden = !errs.length;
+    clear(ferr);
+    if (errs.length) { ferr.appendChild(document.createTextNode(errs.join(' ') + ' ')); ferr.appendChild(el('a', { href: '#settings', text: '設定を開く' })); }
+    if (!fam.children.length) { current.layout = null; return; }
+    if (fam.children.length < 2) state.view = 'all';
+    renderViews(fam);
+    var layout = layoutFamily(fam, state.view);
+    current.layout = layout;
+    $('today-text').textContent = '今日 ' + fmtLong(TODAY);
+    renderRoadmap(fam, layout);
+    renderMeta();
+    renderDetails(fam, layout);
+    renderAbout(fam, layout);
+  }
+  function renderViews(fam) {
+    var box = $('views');
+    if (fam.children.length < 2) return;
+    box.appendChild(document.createTextNode('表示: '));
+    [['all', 'すべて']].concat(fam.children.map(function (k) { return [k.key, k.label]; })).forEach(function (o, i) {
+      if (i) box.appendChild(document.createTextNode('・'));
+      box.appendChild(el('button', { type: 'button', class: 'linkish', 'aria-pressed': String(state.view === o[0]), onclick: function () { state.view = o[0]; save(); current.openId = null; render(); } }, [o[1]]));
+    });
+  }
+  function renderMeta() {
+    var oldest = DATA.items.concat(DATA.events).map(function (x) { return x.chk; }).sort()[0];
+    var days = TODAY - parseDay(oldest);
+    var m = $('meta');
+    m.className = 'meta' + (days > STALE_DAYS ? ' stale' : '');
+    m.textContent = '制度のデータは ' + fmtLong(parseDay(oldest)) + ' に公式ページで確認したもので、今日で ' + days + ' 日たっています' + (days > STALE_DAYS ? '（' + STALE_DAYS + ' 日を過ぎて古くなっています）' : '') + '。制度は変わることがあるので、手続きの前に出典で確かめてください。' + (TODAY_FIXED ? ' ※ 基準日を URL の today= で ' + fmtLong(TODAY) + ' にしています。' : '');
+  }
+
+  // ---- 年表 ----
+  function renderRoadmap(fam, L) {
+    var nAge = Math.max(1, L.kids.length);
+    var Y_TOP = 22, A_TOP = 42, M_TOP = 42 + 18 * nAge;
+    var AXIS_H = M_TOP + 20;
+    var canvas = el('div', { class: 'rm-canvas' });
+    var axis = el('div', { class: 'ax-row', style: 'top:0;height:' + AXIS_H + 'px' });
+    L.axis.years.forEach(function (y) { axis.appendChild(el('span', { class: 'ax year', style: 'left:' + y.x + 'px;top:' + Y_TOP + 'px', text: y.text })); });
+    L.axis.ages.forEach(function (a) { axis.appendChild(el('span', { class: 'ax age', style: 'left:' + a.x + 'px;top:' + (A_TOP + 18 * a.row) + 'px' }, [whoMark(a.who), a.text])); });
+    L.axis.months.forEach(function (m) { axis.appendChild(el('span', { class: 'ax mon', style: 'left:' + m.x + 'px;top:' + M_TOP + 'px', text: m.text })); });
+    canvas.appendChild(axis);
+    var hdYear = el('span', { id: 'hd-year', text: '年' });
+    var hdAges = L.kids.map(function (k) { return el('span', { class: 'hd-age' }, [whoMark(k.mark), el('span', { text: '年齢' })]); });
+    var labels = [el('div', { style: 'height:' + AXIS_H + 'px' }, [hdYear].concat(hdAges).concat([el('span', { text: '月' })]))];
+    var top = AXIS_H;
+    L.lanes.forEach(function (lane) {
+      var h = lane.rows * ROW_H + 8;
+      var node = el('div', { class: 'lane', 'data-lane': lane.key, style: 'top:' + top + 'px;height:' + h + 'px' });
+      lane.els.forEach(function (g) { node.appendChild(elementNode(g)); });
+      canvas.appendChild(node);
+      labels.push(el('div', { 'data-lane': lane.key, style: 'height:' + h + 'px' }, [el('span', { class: 'l', text: lane.name }), el('span', { class: 's', text: lane.short })]));
+      top += h;
+    });
+    var H = top;
+    L.axis.months.forEach(function (m) { canvas.insertBefore(el('span', { class: 'gl' + (m.jan ? ' year' : ''), style: 'left:' + m.x + 'px;top:' + (m.jan ? Y_TOP : M_TOP) + 'px;height:' + (H - (m.jan ? Y_TOP : M_TOP)) + 'px' }), canvas.firstChild); });
+    L.axis.ages.forEach(function (a) { canvas.insertBefore(el('span', { class: 'gl age ' + (a.who === '下' ? 'b' : 'a'), style: 'left:' + a.x + 'px;top:' + (A_TOP + 18 * a.row) + 'px;height:' + (H - A_TOP - 18 * a.row) + 'px' }), canvas.firstChild); });
+    canvas.appendChild(el('span', { class: 'today-line', style: 'left:' + L.today + 'px;top:2px;height:' + (H - 2) + 'px' }));
+    canvas.appendChild(el('span', { class: 'today-chip', style: 'left:' + L.today + 'px;top:2px', text: '今日 ' + fmtShort(TODAY, TODAY) }));
+    canvas.style.width = L.width + 'px';
+    canvas.style.height = H + 'px';
+    var scroll = el('div', { class: 'rm-scroll', id: 'rm-scroll', tabindex: '0', role: 'region', 'aria-label': '年表（横に動かせます）' }, [canvas]);
+    // 見えている左端の年と、子ごとの年齢を、左の固定列に出す
+    var pending = false;
+    function edge() {
+      pending = false;
+      var d = Math.round(L.r0 + scroll.scrollLeft / L.ppd);
+      hdYear.textContent = ymd(d).y + '年';
+      L.kids.forEach(function (k, i) {
+        var dd = d < k.birth && k.birth - d <= 20 ? k.birth : d; // 誕生直前の余白は 0 歳として出す
+        var m = monthsBetween(k.birth, dd);
+        hdAges[i].lastChild.textContent = m < 0 ? '誕生前' : Math.floor(m / 12) + '歳';
+      });
+    }
+    scroll.addEventListener('scroll', function () { if (!pending) { pending = true; requestAnimationFrame(edge); } }, { passive: true });
+    $('rm').appendChild(el('div', { class: 'rm' }, [el('div', { class: 'rm-labels', 'aria-hidden': 'true' }, labels), scroll]));
+    renderNote(fam, L);
+    requestAnimationFrame(function () {
+      if (!(current.openId && scrollToElement(current.openId, false))) scroll.scrollLeft = Math.max(0, L.today - scroll.clientWidth * 0.28);
+      edge();
+    });
+  }
+  // 年表に置いていないもの
+  function renderNote(fam, L) {
+    var note = $('rm-note');
+    var parts = [];
+    L.kids.forEach(function (k) {
+      var pre = L.kids.length > 1 ? k.label + 'の' : '';
+      var needN = L.skipped.filter(function (s) { return s.child === k.key && s.milestone === 'nursery_start'; });
+      var needW = L.skipped.filter(function (s) { return s.child === k.key && s.milestone === 'return_to_work'; });
+      if (needN.length) parts.push([pre + '入園予定月を設定すると ' + needN.length + ' 件出ます（', needN, '）']);
+      if (needW.length) parts.push(['復職予定日を設定すると ' + needW.length + ' 件出ます（', needW, '）']);
+    });
+    note.appendChild(document.createTextNode('年表に置いていないもの: '));
+    parts.forEach(function (p) { note.appendChild(document.createTextNode(p[0])); linkList(note, p[1]); note.appendChild(document.createTextNode(p[2] + '。')); });
+    // 同じ理由の項目は、子をまとめて 1 回だけ書く
+    var others = {}, order = [];
+    L.skipped.filter(function (s) { return !s.milestone; }).forEach(function (s) {
+      var key = s.item + '|' + shortReason(s.reason);
+      if (!others[key]) { others[key] = []; order.push(key); }
+      others[key].push(s);
+    });
+    order.forEach(function (key) {
+      var list = others[key];
+      linkList(note, [list[0]]);
+      if (list.length > 1) list.slice(1).forEach(function (s) { note.appendChild(document.createTextNode('・')); note.appendChild(el('a', { href: '#item-' + s.id, onclick: function (ev) { ev.preventDefault(); go(s.id); }, text: s.who + 'の子' })); });
+      note.appendChild(document.createTextNode('（' + shortReason(list[0].reason) + '）。'));
+    });
+    var undated = {};
+    fam.children.forEach(function (k) { k.plan.events.undated.forEach(function (u) { undated[u.id] = true; }); });
+    var placed = {};
+    L.lanes.forEach(function (lane) { lane.els.forEach(function (g) { placed[g.id] = true; }); });
+    var n = Object.keys(undated).filter(function (id) { return !placed[id]; }).length;
+    if (n) {
+      note.appendChild(document.createTextNode('日付の無い統計など ' + n + ' 件は、'));
+      note.appendChild(el('a', { href: '#group-events', text: '詳細の「イベントと給付」' }));
+      note.appendChild(document.createTextNode('だけに出します。'));
+    }
+  }
+  function shortReason(s) { return String(s).replace(/（データの値）。.*$/, '').replace(/。.*$/, ''); }
+  function linkList(node, list) {
+    list.forEach(function (s, i) {
+      if (i) node.appendChild(document.createTextNode('、'));
+      var it = ITEM_IDS[s.item];
+      node.appendChild(el('a', { href: '#item-' + s.id, onclick: function (ev) { ev.preventDefault(); go(s.id); } }, [whoMark(s.who), it ? roadmapLabel(it.name) : s.id]));
+    });
+  }
+  function elementNode(g) {
+    var cls = 'el ' + g.kind + (g.past ? ' past' : '') + (g.over ? ' over' : '') + (g.done ? ' done' : '');
+    var a = el('a', { href: '#item-' + g.id, class: cls, 'data-id': g.id, title: g.title, 'aria-label': g.title + (g.nc ? '（対象か要確認）' : ''), style: 'left:' + g.x0 + 'px;top:' + (4 + g.row * ROW_H) + 'px;width:' + (g.x1 - g.x0) + 'px', onclick: function (ev) { ev.preventDefault(); go(g.id); } });
+    if (g.kind === 'bar') {
+      a.appendChild(el('span', { class: 'body', style: 'left:0;width:' + (g.xz - g.xa) + 'px' }));
+      if (g.mark) a.appendChild(el('span', { class: 'mk ' + g.mark, style: 'left:' + (g.xz - g.x0 - 6) + 'px' }));
+    } else if (g.kind === 'star') {
+      a.appendChild(el('span', { class: 'mk star', style: 'left:' + (g.xa - g.x0 - 7) + 'px', text: '★' }));
+    } else {
+      var cl = g.kind === 'dot' ? 'dot' : g.kind === 'ms' ? 'ms' : g.mark;
+      var r = g.kind === 'dot' ? 4 : 5;
+      a.appendChild(el('span', { class: 'mk ' + cl, style: 'left:' + (g.xa - g.x0 - r) + 'px' }));
+    }
+    if (g.label) a.appendChild(el('span', { class: 'lbl', style: 'left:' + (g.labelX - g.x0) + 'px' }, [whoMark(g.who), g.nc ? el('i', { class: 'nc', text: '!' }) : null, g.label]));
+    return a;
+  }
+
+  // ---- 移動 ----
+  function go(id, opts) {
+    opts = opts || {};
+    var target = $('item-' + id);
+    if (!target) return;
+    if (!opts.noHistory) { try { history.pushState(null, '', '#item-' + id); } catch (e) { /* file: などで使えなくても動く */ } }
+    document.querySelectorAll('details.item.cur').forEach(function (d) { d.classList.remove('cur'); });
+    document.querySelectorAll('.el.cur').forEach(function (d) { d.classList.remove('cur'); });
+    target.open = true;
+    target.classList.add('cur');
+    target.classList.remove('flash'); void target.offsetWidth; target.classList.add('flash');
+    current.openId = id;
+    target.scrollIntoView({ behavior: opts.instant ? 'auto' : 'smooth', block: 'start' });
+    var s = target.querySelector('summary');
+    if (s) s.focus({ preventScroll: true });
+  }
+  function cssEsc(s) { return String(s).replace(/["\\]/g, '\\$&'); }
+  function scrollToElement(id, focus) {
+    var sc = $('rm-scroll');
+    var node = sc && sc.querySelector('.el[data-id="' + cssEsc(id) + '"]');
+    if (!node) return false;
+    sc.scrollLeft = Math.max(0, node.offsetLeft - sc.clientWidth * 0.3);
+    if (focus) {
+      node.classList.add('cur');
+      node.focus({ preventScroll: true });
+      var r = node.getBoundingClientRect();
+      window.scrollTo({ top: Math.max(0, window.scrollY + r.top - window.innerHeight * 0.4), behavior: 'smooth' });
+    }
+    return true;
+  }
+  function backToRoadmap(id) {
+    try { history.pushState(null, '', '#roadmap'); } catch (e) { /* 使えなくても動く */ }
+    if (id != null && scrollToElement(id, true)) return;
+    $('roadmap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if ($('rm-scroll')) $('rm-scroll').focus({ preventScroll: true });
+  }
+  function fromHash(instant) {
+    var m = /^#item-(.+)$/.exec(decodeURIComponent(location.hash || ''));
+    if (!m) return;
+    // 絞り込みで隠れている子の項目なら、すべてに戻して開く
+    if (!$('item-' + m[1]) && state.view !== 'all') { state.view = 'all'; render(); }
+    if ($('item-' + m[1])) go(m[1], { noHistory: true, instant: instant });
+  }
+
+  // ---- 詳細 ----
+  var ROLE_WORDS = [['戸籍住民課', 'birth_registration'], ['福祉助成係', 'child_allowance_medical'], ['子ども家庭福祉', 'nursery_application'], ['保健センター', 'health_center']];
+  var ROLE_NAMES = { birth_registration: '出生届', child_allowance_medical: '児童手当・子ども医療費', nursery_application: '保育所の申込', health_center: '保健センター' };
+  function dl(pairs) {
+    var d = el('dl', { class: 'kv' });
+    pairs.forEach(function (pr) { if (!pr) return; d.appendChild(el('dt', { text: pr[0] })); d.appendChild(el('dd', null, Array.isArray(pr[1]) ? pr[1] : [pr[1]])); });
+    return d;
+  }
+  function backButton(id, placed) {
+    return placed ? el('button', { type: 'button', onclick: function () { backToRoadmap(id); } }, ['年表に戻る']) : el('a', { href: '#roadmap', onclick: function (ev) { ev.preventDefault(); backToRoadmap(null); } }, ['年表に戻る']);
+  }
+  function shownKids(fam) { return fam.children.filter(function (k) { return state.view === 'all' || k.key === state.view; }); }
+  function renderDetails(fam, L) {
+    var box = $('detail-list');
+    var placed = {};
+    L.lanes.forEach(function (lane) { lane.els.forEach(function (g) { placed[g.id] = true; }); });
+    var kids = shownKids(fam);
+    var multi = fam.children.length > 1;
+    LANE_ORDER.forEach(function (lane) {
+      var list = el('div', { class: 'list' });
+      if (lane === 'milestone') {
+        var ms = [];
+        kids.forEach(function (k) { k.plan.milestones.forEach(function (m) { if (m.kind === 'work') return; ms.push({ m: m, k: k }); }); });
+        if (fam.work != null) { var w0 = kids[0].plan.milestones.filter(function (m) { return m.kind === 'work'; })[0]; if (w0) ms.push({ m: w0, k: null }); }
+        ms.sort(function (a, c) { return a.m.date - c.m.date; });
+        ms.forEach(function (o) { list.appendChild(milestoneDetail(o.m, o.k, multi, placed)); });
+        var w = wardOf();
+        if (w) list.appendChild(wardDetail(w));
+      } else if (lane === 'events') {
+        DATA.events.forEach(function (e) { list.appendChild(eventDetail(e, fam, placed)); });
+      } else {
+        var ps = [];
+        kids.forEach(function (k) { k.plan.items.forEach(function (p) { if (p.lane === lane) ps.push({ p: p, k: k }); }); });
+        ps.sort(function (a, c) { return sortKey(a.p) - sortKey(c.p) || (a.k.key < c.k.key ? -1 : 1); });
+        ps.forEach(function (o) { list.appendChild(itemDetail(o.p, o.k, multi, placed)); });
+      }
+      box.appendChild(el('div', { class: 'group', id: 'group-' + lane, 'data-lane': lane }, [el('h3', { text: LANE_NAMES[lane] }), list]));
+    });
+  }
+  function sortKey(p) { var v = p.prep != null ? p.prep : p.effDue != null ? p.effDue : p.seasons && p.seasons[0] ? p.seasons[0].start : p.start; return v == null ? Infinity : v; }
+  function whenText(p, t) {
+    if (p.empty) return '対象外';
+    if (p.seasons) { var s = p.seasons.filter(function (x) { return x.end >= t; })[0] || p.seasons[p.seasons.length - 1]; return s ? '受けられる時期 ' + fmtShort(s.start, t) + '〜' + fmtShort(s.end, t) : '受けられる時期なし'; }
+    if (p.dueKind === 'deadline') return '締切 ' + fmtShort(p.effDue, t) + (p.dueTime ? ' ' + p.dueTime : '');
+    if (p.dueKind === 'guide') return '目安 ' + fmtShort(p.due, t);
+    if (p.start != null && !p.noDate) return fmtShort(p.start, t) + ' から';
+    return '日付なし';
+  }
+  function itemDetail(p, k, multi, placed) {
+    var it = p.item, b = k.plan.ctx.birth, t = TODAY, id = k.key + '-' + it.id;
+    var past = ['done', 'ended', 'na', 'season-over', 'overdue'].indexOf(p.status.key) >= 0;
+    var stCls = { overdue: 'danger', open: 'ok', upcoming: 'accent', nodate: 'warn', done: 'ok' }[p.status.key] || '';
+    var summary = el('summary', null, [
+      el('span', { class: 'nm' }, [multi ? whoMark(k.mark) : null, roadmapLabel(it.name)]),
+      el('span', { class: 'when', text: whenText(p, t) }),
+      el('span', { class: 'tags' }, [tag(p.status.key === 'overdue' ? '期限切れ' : p.status.key === 'nodate' ? '日付なし' : p.status.text, stCls), it.nc ? tag('要確認', 'warn') : null, p.closed ? tag('締切が閉庁日', 'warn') : null])
+    ]);
+    var rows = [['何を', el('span', { class: 'big', text: it.name })]];
+    if (multi) rows.push(['どの子', k.label + '（' + (b > t ? fmtLong(b) + ' 生まれる予定' : fmtLong(b) + ' 生まれ') + '）']);
+    if (p.empty) {
+      rows.push(['いつまでに', p.status.text]);
+    } else if (p.seasons) {
+      var ns = p.seasons.filter(function (s) { return s.end >= t; })[0];
+      rows.push(['受けられる時期', ns ? fmtLong(ns.start) + ' 〜 ' + fmtLong(ns.end) + (ns.start <= t ? '（いま受けられる時期）' : '（' + relDays(ns.start, t) + '）') + '。毎年 ' + mdText(it.schedule.start) + '〜' + mdText(it.schedule.end) + '、' + ageText(b, p.start) + 'から' : '入学までに受けられる時期は過ぎました']);
+    } else if (p.dueKind === 'deadline') {
+      var dv = [el('span', { class: 'big', text: fmtLong(p.effDue) + (p.dueTime ? ' ' + p.dueTime : '') }), ' 公式の締切・' + relDays(p.effDue, t)];
+      if (p.closed) dv.push(el('div', { class: 'small', text: p.closed.after != null
+        ? 'データの締切 ' + fmtLong(p.due) + ' は閉庁日（' + p.closed.reason + '）。出典に「閉庁日の場合、翌開庁日まで」とあるので、翌開庁日を締切にしています。早く出すなら前の開庁日 ' + fmtLong(p.closed.before) + '。'
+        : '締切の日は閉庁日（' + p.closed.reason + '）です。前の開庁日 ' + fmtLong(p.closed.before) + ' までに出すと確実です。閉庁日の扱いは出典に無いので窓口で確かめてください。' }));
+      if (p.status.key === 'overdue') dv.push(el('div', { class: 'small', text: '締切を過ぎています。済んでいれば下でチェックしてください。済んでいなければ、遅れたときの扱いを窓口で確かめてください。' }));
+      rows.push(['いつまでに', dv]);
+    } else if (p.dueKind === 'guide') {
+      rows.push(['いつまでに', [el('span', { class: 'big', text: fmtLong(p.due) }), ' ' + relDays(p.due, t) + '・目安（公式の数字ではない）', el('div', { class: 'small muted', text: it.schedule.kind === 'before_milestone' ? (p.milestone === 'nursery_start' ? '入園予定月の初日' : '復職予定日') + 'の ' + p.lead + ' 日前（データの days_before）。' : '使える月齢（' + fmtLong(p.start) + '）の ' + p.lead + ' 日前（データの recommended_lead_days）。' })]]);
+    } else if (p.noDate) {
+      rows.push(['いつまでに', el('span', { class: 'big', text: p.noDate.replace('入園予定月を入れると', (multi ? k.label + 'の' : '') + '入園予定月を設定すると').replace('復職予定日を入れると', '復職予定日を設定すると') })]);
+    } else if (p.noDue) {
+      rows.push(['いつまでに', p.noDue]);
+    } else {
+      rows.push(['いつまでに', '締切はデータに無い（期限なし、または出典に記載なし）']);
+    }
+    if (!p.empty) {
+      if (p.prep != null) rows.push(['準備', [el('span', { class: 'big', text: fmtLong(p.prep) + ' から' }), ' ' + relDays(p.prep, t) + '・目安（公式の数字ではない）', el('div', { class: 'small muted', text: '期日の ' + it.prep + ' 日前（データの prep_days）' })]]);
+      else if (p.due != null && (p.status.key === 'open' || p.status.key === 'upcoming')) rows.push(['準備', '準備に要る日数はデータに無いので、期日より前の余裕のある日に']);
+      if (p.start != null && !p.seasons && it.schedule.kind !== 'before_milestone') rows.push(['始まり', fmtLong(p.start) + '（' + ageText(b, p.start) + '）' + (p.nurseryNote ? '。' + p.nurseryNote : '')]);
+      if (p.end != null && !p.seasons) rows.push(['対象の終わり', fmtLong(p.end) + 'まで（' + ageText(b, p.end) + '）' + (it.ageNote ? '。制度の本来の上限: ' + it.ageNote : '')]);
+    }
+    rows.push(['対象', '生後 ' + it.age[0] + '〜' + (it.age[1] == null ? '上限なし' : it.age[1] + ' か月') + '・働き方: ' + (it.work ? it.work.join('・') : '問わない') + '・保育園: ' + (it.nursery === null ? '問わない' : it.nursery ? '通っている家庭' : '通っていない家庭')]);
+    if (it.need.length) rows.push(['必要な物', it.need.map(function (s) { return el('div', { text: s }); })]);
+    var w = wardOf();
+    rows.push(['窓口', it.contacts.length ? it.contacts.map(function (c) {
+      var line = [link(c.url || it.src, c.name)];
+      if (c.phone) line.push(' ', telLink(c.phone));
+      if (w && /各区|区役所|保健センター/.test(c.name)) ROLE_WORDS.forEach(function (rw) {
+        if (c.name.indexOf(rw[0]) < 0) return;
+        w.offices.filter(function (o) { return o.role === rw[1]; }).forEach(function (o) { line.push(el('div', { class: 'small' }, [w.name + 'では: ', link(o.url, o.name), o.phone ? ' ' : null, o.phone ? telLink(o.phone) : null])); });
+      });
+      return el('div', null, line);
+    }) : 'データに無い']);
+    if (it.cost.amount || it.cost.subsidy) rows.push(['費用・助成', [it.cost.amount ? el('div', { text: '費用: ' + it.cost.amount }) : null, it.cost.subsidy ? el('div', { text: '助成・給付: ' + it.cost.subsidy }) : null]]);
+    var days = t - parseDay(it.chk);
+    rows.push(['出典', link(it.src)]);
+    rows.push(['確認日', [it.chk + '（' + days + ' 日前）', days > STALE_DAYS ? ' ' : null, days > STALE_DAYS ? tag('確認が古い', 'warn') : null]]);
+    rows.push(['根拠の抜粋', el('blockquote', { text: it.ev })]);
+    rows.push(['期日の決まり方', scheduleText(it) + '（データの値）']);
+    if (it.schedule.recommended_lead_days != null) rows.push(['目安の値', 'recommended_lead_days: ' + it.schedule.recommended_lead_days + ' 日 — 目安（公式の数字ではない）']);
+    if (it.prep != null) rows.push(['目安の値', 'prep_days: ' + it.prep + ' 日 — 目安（公式の数字ではない）']);
+    if (it.schedule.kind === 'before_milestone') rows.push(['目安の値', 'days_before: ' + it.schedule.days_before + ' 日 — 目安（公式の数字ではない）']);
+    if (it.check.length) rows.push(['データの注記', it.check.map(function (s) { return el('div', { text: s }); })]);
+    var inner = el('div', { class: 'inner' }, [dl(rows)]);
+    if (it.nc) inner.appendChild(el('p', { class: 'note warn', text: '入力だけでは対象か判定できない条件があります。対象か窓口で確かめてください。' }));
+    if (it.work) inner.appendChild(el('p', { class: 'note', text: 'この項目は働き方（' + it.work.join('・') + '）で対象が変わります。このページは働き方を聞かないので、対象か確かめてください。' }));
+    if (p.lane === 'vaccines') inner.appendChild(el('p', { class: 'note med', text: '任意接種の公開情報から計算した「受けられる時期」です。受けるか、いつ受けるかは医師と相談してください。このページは接種をすすめません。' }));
+    if (p.lane === 'procedures' && it.cost.subsidy) inner.appendChild(el('p', { class: 'note', text: '受け取れるか、額、時期は申請先の判断で決まります。ここに書いた額は公表の値で、あなたが受け取る額ではありません。' }));
+    var dk = doneKey(k.key, it.id);
+    var cb = el('input', { type: 'checkbox', id: 'done-' + id, onchange: function (ev) {
+      if (ev.target.checked) state.done[dk] = true; else delete state.done[dk];
+      save(); current.openId = id; render();
+      var d = $('item-' + id); if (d) { d.open = true; d.classList.add('cur'); }
+      var c = $('done-' + id); if (c) c.focus({ preventScroll: true });
+    } });
+    cb.checked = !!state.done[dk];
+    inner.appendChild(el('div', { class: 'row-act' }, [el('label', null, [cb, (multi ? k.label + 'の分は' : '') + '済んだ']), backButton(id, placed[id])]));
+    return el('details', { class: 'item' + (past ? ' is-past' : ''), id: 'item-' + id, 'data-lane': p.lane, open: current.openId === id }, [summary, inner]);
+  }
+  function eventDetail(e, fam, placed) {
+    var t = TODAY, days = t - parseDay(e.chk);
+    var reasons = [];
+    fam.children.forEach(function (k) { k.plan.events.undated.forEach(function (u) { if (u.id === e.id && reasons.indexOf(u.reason) < 0) reasons.push(u.reason); }); });
+    var val = e.value == null ? '' : (typeof e.value === 'number' ? e.value.toLocaleString('ja-JP') : e.value) + (e.unit ? ' ' + e.unit : '') + (e.stat ? '（' + ({ average: '平均', mode: '最も多い値', range: '幅', share: '割合', fixed: '定額', rate: '率' }[e.stat] || e.stat) + '）' : '');
+    var summary = el('summary', null, [el('span', { class: 'nm', text: roadmapLabel(e.name.split('。')[0], true) }), el('span', { class: 'when', text: placed[e.id] ? '年表に表示' : '詳細だけ' })]);
+    var rows = [
+      ['何を', el('span', { class: 'big', text: e.name })],
+      ['値', val],
+      e.months ? ['月', e.months.join('・') + ' 月'] : null,
+      e.age ? ['対象', '生後 ' + e.age[0] + '〜' + (e.age[1] == null ? '' : e.age[1]) + ' か月' + (e.nursery ? '・保育園に通う子' : '')] : e.nursery ? ['対象', '保育園に通う子'] : null,
+      ['年表では', placed[e.id] ? (e.kind === 'money_in' && /^\d+/.test(String(e.value)) ? '札幌市の決まり（偶数月の 13 日、土日祝なら前日）から計算した支給予定日の点。2 人とも同じ日なので 1 つにまとめています。受け取れるか・いつの分からかは認定で決まります' : '帯で表示') : reasons.length ? reasons.join('。') : '出していない'],
+      ['出典', link(e.src)],
+      ['確認日', [e.chk + '（' + days + ' 日前）', days > STALE_DAYS ? ' ' : null, days > STALE_DAYS ? tag('確認が古い', 'warn') : null]],
+      e.basis ? ['調べ方', e.basis] : null,
+      ['根拠の抜粋', el('blockquote', { text: e.ev })]
+    ];
+    var inner = el('div', { class: 'inner' }, [dl(rows)]);
+    if (e.kind === 'money_in') inner.appendChild(el('p', { class: 'note', text: '公表の額と日付です。受け取れるか、額、時期は認定で決まり、あなたが受け取る額ではありません。' }));
+    if (e.kind === 'illness_absence' || e.kind === 'parent_leave_days') inner.appendChild(el('p', { class: 'note', text: '研究や調査の値で、あなたの家庭に当てはまるとは限りません。' }));
+    inner.appendChild(el('div', { class: 'row-act' }, [backButton(e.id, placed[e.id])]));
+    return el('details', { class: 'item', id: 'item-' + e.id, 'data-lane': 'events', open: current.openId === e.id }, [summary, inner]);
+  }
+  function milestoneDetail(m, k, multi, placed) {
+    var t = TODAY, id = (k ? k.key + '-' : '') + 'ms-' + m.key;
+    var plan = k ? k.plan : current.fam.children[0].plan;
+    function li(o) {
+      var p = plan.items.filter(function (x) { return x.id === o.id; })[0];
+      var target = (k ? k.key : current.fam.children[0].key) + '-' + o.id;
+      return el('li', null, [el('a', { href: '#item-' + target, onclick: function (ev) { ev.preventDefault(); go(target); }, text: roadmapLabel(p.item.name) }), ' ', el('span', { class: 'small muted', text: (o.date != null ? fmtShort(o.date, t) : '') + (o.kind === 'deadline' ? '・公式の締切' : o.kind === 'guide' ? '・目安' : '') + (o.text || '') })]);
+    }
+    var title = (k && multi ? k.label + ' ' : '') + m.title;
+    var body = [dl([
+      ['日付', fmtLong(m.date) + '・' + relDays(m.date, t) + (k && m.kind !== 'age' && m.kind !== 'birth' ? '・' + ageText(k.plan.ctx.birth, m.date) : '')],
+      ['決まり方', m.kind === 'age' ? '生年月日の ' + m.months + ' か月後の同じ日（その日が無い月は月末）' + (k && k.plan.ctx.birth > t ? '。出産予定日から数えています' : '') : m.kind === 'school' ? '満 6 歳になった日の翌日以後の最初の 4 月 1 日として計算した目安です（データに出典はありません）。入学の時期は区・学校からの案内で確かめてください。' : m.kind === 'nursery' ? '設定した入園予定月の初日' : m.kind === 'work' ? '設定した復職予定日（家庭で 1 つ）' : k && k.plan.ctx.birth > t ? '設定した出産予定日' + (k.key === 'b' && state.settings.youngerDue === DEFAULT_SETTINGS.youngerDue ? '（日は仮）' : '') : '設定した生年月日']
+    ])];
+    if (m.finish.length) body.push(el('div', { class: 'small', style: 'margin-top:8px;font-weight:700', text: 'この日までに期限・目安があるもの（前の節目の後）' }), el('ul', { class: 'ms-list small' }, m.finish.map(li)));
+    if (m.begin.length) body.push(el('div', { class: 'small', style: 'margin-top:8px;font-weight:700', text: 'このころ始まるもの' }), el('ul', { class: 'ms-list small' }, m.begin.map(li)));
+    if (m.related.length) body.push(el('div', { class: 'small', style: 'margin-top:8px;font-weight:700', text: m.kind === 'nursery' ? '入園で対象が変わるもの' : '復職に関わりうるもの' + (multi ? '（' + (k ? k.label : current.fam.children[0].label) + 'の項目）' : '') }), el('ul', { class: 'ms-list small' }, m.related.map(li)));
+    body.push(el('div', { class: 'row-act' }, [backButton(id, placed[id])]));
+    return el('details', { class: 'item' + (m.date < t ? ' is-past' : ''), id: 'item-' + id, 'data-lane': 'milestone', open: current.openId === id }, [
+      el('summary', null, [el('span', { class: 'nm' }, [k && multi ? whoMark(k.mark) : null, title]), el('span', { class: 'when', text: fmtShort(m.date, t) + '・' + relDays(m.date, t) })]),
+      el('div', { class: 'inner' }, body)
+    ]);
+  }
+  function wardDetail(w) {
+    var t = TODAY, days = t - parseDay(w.chk);
+    return el('details', { class: 'item', id: 'item-ward', 'data-lane': 'milestone', open: current.openId === 'ward' }, [
+      el('summary', null, [el('span', { class: 'nm', text: w.name + 'の窓口' }), el('span', { class: 'when', text: '設定した区' })]),
+      el('div', { class: 'inner' }, [dl(w.offices.map(function (o) {
+        return [ROLE_NAMES[o.role] || o.role, [link(o.url, o.name), o.phone ? ' ' : null, o.phone ? telLink(o.phone) : null, o.address ? el('div', { class: 'small muted', text: o.address }) : null]];
+      }).concat([['確認日', w.chk + '（' + days + ' 日前）。電話と場所は出典のページで確かめてから出かけてください。']]))])
+    ]);
+  }
+
+  function renderAbout(fam, L) {
+    var counts = {};
+    DATA.items.forEach(function (it) { counts[it.domain] = (counts[it.domain] || 0) + 1; });
+    var onMap = {};
+    L.lanes.forEach(function (lane) { lane.els.forEach(function (g) { onMap[g.item] = true; }); });
+    var itemsOn = DATA.items.filter(function (it) { return onMap[it.id]; }).length;
+    var eventsOn = DATA.events.filter(function (e) { return onMap[e.id]; }).length;
+    var p0 = fam.children[0].plan;
+    $('about-body').appendChild(el('ul', null, [
+      el('li', { text: '使ったデータ: リポジトリの data/items/ にある、人が確かめた項目だけです（data/candidates/ は使いません）。手続き ' + (counts.procedures || 0) + ' 件・予防接種 ' + (counts.vaccines || 0) + ' 件・預け先の事前登録 ' + (counts.childcare_registration || 0) + ' 件・起きうること ' + DATA.events.length + ' 件・区 ' + DATA.wards.length + ' 区。' }),
+      el('li', { text: 'このページに出している数: 詳細に ' + DATA.items.length + ' 項目（子ごと）と起きうること ' + DATA.events.length + ' 件をすべて出します。年表に置いているのは ' + itemsOn + ' 項目と ' + eventsOn + ' 件で、置いていないものは年表の下に理由を書いています。区は設定の選択肢に ' + DATA.wards.length + ' 区。' }),
+      el('li', { text: '子ども 2 人: どちらの子にも同じデータから期日を計算します。データに無い項目や数字は足しません。第 2 子以降に関わる制度（保育料の多子軽減など）は、データの「要確認」のまま出し、対象かどうかは決めません。生まれる前の子は出産予定日から数えます。申込の締切がその子の対象の月齢より前に来る項目は、その子には出しません。' }),
+      el('li', { text: '確認日: ' + p0.checkedOldest + (p0.checkedNewest !== p0.checkedOldest ? '〜' + p0.checkedNewest : '') + '（今日で ' + p0.checkedDays + ' 日前）。確認から ' + STALE_DAYS + ' 日を過ぎた項目には「確認が古い」と出します。' }),
+      el('li', { text: '年表の棒: 準備を始める日（データに prep_days があればその日、無ければ受付が始まる日）から期限（公式の締切、または目安の日）まで。1 日だけのものは点。予防接種は毎年の受けられる時期の帯か、受けられる月齢になる日の点です。' }),
+      el('li', { text: '生後 N か月の日: 生年月日の N か月後の同じ日。その日が無い月は月末（例: 1/31 生まれの 1 か月後は 2/28、うるう年は 2/29）。いつも生年月日から数えます。' }),
+      el('li', { text: '締切: 出生日 + データの日数。出生届のように初日から数える制度は、データの側で 1 を引いてあります。申込の締切（年つき）はデータの日時のままです。' }),
+      el('li', { text: '閉庁日: 土曜・日曜・祝日・12/29〜1/3。締切が閉庁日なら「前の開庁日」を添えます。出典に「閉庁日なら翌開庁日まで」とある項目（児童手当の認定請求）だけ、締切を翌開庁日にずらします。' }),
+      el('li', { text: '祝日: 祝日法の決まり（振替休日・国民の休日を含む）から計算します。春分・秋分の日は計算式による見込みで、正式には前年の官報で決まります。2022 年より前の特例は入れていません。' }),
+      el('li', { text: '児童手当の支給予定日: 出典の「偶数月の 13 日（土日祝日ならその前日）」から計算します。受け取れるか、いつの分からかは認定で決まります。' }),
+      el('li', { text: '小学校入学: 満 6 歳になった日の翌日以後の最初の 4 月 1 日として計算した目安です。データに出典はありません。' }),
+      el('li', { text: '目安（公式の数字ではない）: recommended_lead_days・prep_days・days_before はデータに置いた目安です。公式の締切とは分けて書きます。' }),
+      el('li', { text: 'しないこと: 医療の助言（接種の時期は医師と相談）、給付の可否・額・時期の断定、保険や金融商品のすすめ、連絡や申請の代行。' })
+    ]));
+  }
+
+  // ---- 始める ----
+  function init() {
+    load();
+    storageNote();
+    var sel = $('s-ward');
+    DATA.wards.forEach(function (w) { sel.appendChild(el('option', { value: w.name, text: w.name })); });
+    Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).addEventListener('change', onSettingsChange); });
+    $('s-elderNursery').addEventListener('input', function () { if (/^\d{4}-\d{2}$/.test(this.value.trim()) || this.value === '') onSettingsChange(); });
+    $('s-youngerNursery').addEventListener('input', function () { if (/^\d{4}-\d{2}$/.test(this.value.trim()) || this.value === '') onSettingsChange(); });
+    $('b-reset').addEventListener('click', function () {
+      state.settings = normalizeSettings(DEFAULT_SETTINGS);
+      state.view = 'all';
+      save(); writeForm(); showSettingsMsg('初期値に戻しました。');
+    });
+    if (window.innerWidth > 760) $('legend').open = true;
+    function onPopState() { if (location.hash !== '#settings' && !$('settings-view').hidden) route(); else if (/^#item-/.test(location.hash)) fromHash(false); else if (location.hash === '#roadmap' || !location.hash) $('roadmap').scrollIntoView({ block: 'start' }); }
+    window.addEventListener('hashchange', route);
+    window.addEventListener('popstate', onPopState);
+    route();
+    return function stop() {
+      window.removeEventListener('hashchange', route);
+      window.removeEventListener('popstate', onPopState);
+    };
+  }
+  return init();
+}
+// この HTML を単独で開いたときは、すぐに始める。さきよみの /roadmap は、ページに入るたびに自分で呼ぶ。
+if (!window.SAKIYOMI_ROADMAP) startRoadmap();
+</script>
+</body>
+</html>

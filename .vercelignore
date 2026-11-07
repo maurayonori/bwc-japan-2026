@@ -2,7 +2,10 @@
 .git
 .next
 node_modules
-docs
+docs/*
+!docs/prototypes
+docs/prototypes/*
+!docs/prototypes/sapporo-roadmap.html
 data
 tests
 *.tsbuildinfo

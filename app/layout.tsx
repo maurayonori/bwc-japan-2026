@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { HistorySync } from "./history-sync";
 
 export const metadata: Metadata = {
   title: "さきよみ — 家族のために、今できることから",
@@ -14,7 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        {children}
+        <HistorySync />
+      </body>
     </html>
   );
 }
