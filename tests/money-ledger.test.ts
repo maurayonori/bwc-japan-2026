@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { simulateCashflow as typedSimulateCashflow } from "../lib/money/ledger";
 import { InputError } from "../lib/money/validate";
 
@@ -221,4 +223,41 @@ test('凍結した入力でも計算でき、入力の並びを書き換えな�
   assert.doesNotThrow(() => simulateCashflow(frozen));
   simulateCashflow(input);
   assert.equal(JSON.stringify(list), before);
+});
+
+// 試作は公開の配置物に入らないので、無いときは飛ばす。
+const PROTOTYPE_LEDGER = new URL('../docs/prototypes/hospital-conversation/src/ledger.mjs', import.meta.url);
+const noPrototype = !existsSync(fileURLToPath(PROTOTYPE_LEDGER));
+
+test('戻り値は、既存の項目のあとに what_to_confirm を足しただけ', () => {
+  const result = simulateCashflow({
+    start_date: '2026-11-05',
+    cash_on_hand: 300_000,
+    scenarios: [{ name: '試算', events: events({ windowCap: true, benefitDate: '2026-12-09', extraCount: 1 }) }],
+  });
+  assert.deepEqual(Object.keys(result), [
+    'start_date', 'cash_on_hand', 'scenarios', 'comparison_with_first', 'reading_guide', 'what_to_confirm',
+  ]);
+  assert.match(result.reading_guide[0], /^low_case は/);
+});
+
+test('順位を同梱しても、既存の項目は同梱前（試作）と同じ値のまま', { skip: noPrototype }, async () => {
+  const prototype = await import(PROTOTYPE_LEDGER.href);
+  const inputs = [
+    { start_date: '2026-11-05', cash_on_hand: 300_000, scenarios: [{ name: '試算', events: events({ windowCap: true, benefitDate: '2026-12-09', extraCount: 1 }) }] },
+    { start_date: '2026-11-05', cash_on_hand: null, scenarios: [{ name: '試算', events: events({ windowCap: false, benefitDate: null, extraCount: 3 }) }] },
+    {
+      start_date: '2026-11-05',
+      cash_on_hand: 300_000,
+      scenarios: [
+        { name: '窓口で上限が適用される', events: events({ windowCap: true, benefitDate: '2026-12-23', extraCount: 2 }) },
+        { name: '適用されず、後から払い戻し', events: events({ windowCap: false, benefitDate: '2026-12-23', extraCount: 2 }) },
+      ],
+    },
+  ];
+  for (const input of inputs) {
+    const { what_to_confirm: ranking, ...existing } = simulateCashflow(input);
+    assert.ok(ranking);
+    assert.deepEqual(existing, prototype.simulateCashflow(input));
+  }
 });

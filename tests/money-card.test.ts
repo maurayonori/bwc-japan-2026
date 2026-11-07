@@ -398,3 +398,102 @@ test("壊れた表のカードは、保存データとして読まない（画�
   };
   assert.throws(() => parseStoredWorkspace(JSON.stringify(broken)));
 });
+
+test("順位（what_to_confirm）は、スキーマと保存を通しても落ちない", () => {
+  const { output } = outputOf(moneyCard(), "simulate_cashflow");
+  assert.ok(output.what_to_confirm);
+  assert.deepEqual(
+    calculationSchema.parse({ name: "simulate_cashflow", input: {}, output })
+      .output,
+    output,
+  );
+  const workspace = { ...exampleWorkspace(), mode: "live" as const };
+  const stored = parseStoredWorkspace(JSON.stringify(workspace));
+  const card = stored.cards.find((item) => item.kind === "money");
+  assert.ok(card);
+  assert.deepEqual(
+    outputOf(card, "simulate_cashflow").output.what_to_confirm,
+    output.what_to_confirm,
+  );
+  assert.deepEqual(stored.messages.at(-1)?.tools, workspace.messages.at(-1)?.tools);
+});
+
+test("順位と呼んだ計算の記録が無い、前の保存データも読める", () => {
+  const workspace = { ...exampleWorkspace(), mode: "live" as const };
+  const old = JSON.parse(JSON.stringify(workspace));
+  for (const card of old.cards)
+    for (const calculation of card.money?.calculations ?? [])
+      delete calculation.output.what_to_confirm;
+  for (const message of old.messages) delete message.tools;
+  const parsed = parseStoredWorkspace(JSON.stringify(old));
+  const card = parsed.cards.find((item) => item.kind === "money");
+  assert.ok(card);
+  assert.equal(
+    outputOf(card, "simulate_cashflow").output.what_to_confirm,
+    undefined,
+  );
+  assert.equal(parsed.messages.at(-1)?.tools, undefined);
+  assert.ok(exportMemo([{ ...card, included: true }]).includes("お金の出入りの見通し"));
+});
+
+test("体験例の「まず確かめる 1 つ」の 209,060 円と 60,000 円は、計算結果にあり、検査を通る", () => {
+  const workspace = exampleWorkspace();
+  const card = moneyCard();
+  const { output } = outputOf(card, "simulate_cashflow");
+  assert.equal(output.what_to_confirm?.width, 209_060);
+  assert.equal(output.what_to_confirm?.factors[0].width_if_resolved, 60_000);
+  const reply = workspace.messages.find((message) => message.role === "assistant");
+  assert.ok(reply);
+  assert.ok(
+    reply.text.includes(
+      "まず確かめる 1 つは、窓口で上限が適用されるかです。病院の会計に聞くと、要る額の幅は 209,060 円から 60,000 円に縮みます。",
+    ),
+  );
+  assert.deepEqual(reply.tools, [
+    "kougaku_gendo",
+    "meal_cost",
+    "calc_date",
+    "simulate_cashflow",
+  ]);
+  assert.deepEqual(
+    checkReply({
+      reply: reply.text,
+      toolEvents: card.money?.calculations ?? [],
+      userTexts: [],
+      today: "2026-11-06",
+    }),
+    [],
+  );
+});
+
+test("持ち出しには、表より先に「まず確かめる 1 つ」が入る", () => {
+  const text = exportMemo([{ ...moneyCard(), included: true }]);
+  assert.ok(text.startsWith("さきよみ — 渡すもの\n"));
+  assert.doesNotMatch(text, /家族のしおり/);
+  for (const expected of [
+    "■ まず確かめる 1 つ",
+    "どの筋書きになるか",
+    "（幅 209,060 円）",
+    "- 確かめると残る幅: 60,000 円",
+  ])
+    assert.ok(text.includes(expected), expected);
+  assert.ok(
+    text.indexOf("■ まず確かめる 1 つ") < text.indexOf("■ お金の出入りの見通し"),
+  );
+});
+
+test("病院の会計に聞く質問文は、発言の原文と完全一致する引用を持ち、お金のカードの後ろに置く", () => {
+  const workspace = exampleWorkspace();
+  const card = workspace.cards.find((item) => item.id === "hospital-desk");
+  assert.ok(card);
+  assert.equal(card.kind, "contact");
+  assert.equal(card.title, "病院の会計に、このまま聞く");
+  assert.deepEqual(card.evidence, [
+    { messageId: "example-4", quote: "病院からは3割負担で24万〜30万円と聞いた。" },
+  ]);
+  const source = workspace.messages.find((message) => message.id === "example-4");
+  assert.equal(source?.role, "user");
+  assert.ok(source?.text.includes(card.evidence[0].quote));
+  assert.equal(workspace.cards[3].kind, "money");
+  assert.equal(workspace.cards.at(-1)?.id, "hospital-desk");
+});
