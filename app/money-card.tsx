@@ -16,6 +16,7 @@ import {
   moneySources,
   monthText,
   needDifferenceText,
+  paydayGapText,
   readingGuide,
   REFUND_NOTE,
   showDate,
@@ -107,9 +108,11 @@ export function FactText({
 }) {
   return (
     <>
-      {text.split(CITATION).map((part, index) =>
+      {text.split(CITATION).map((part, index, parts) =>
         CITATION.test(part) ? (
           <span key={index}>
+            {/* [F02][F07] のように続けて書かれた番号が、F02F07 とくっついて見えないようにする */}
+            {index >= 2 && parts[index - 1] === "" && " "}
             {(part.match(/F\d{2}/g) ?? []).map((id, position) => (
               <span key={id}>
                 {position > 0 && " "}
@@ -552,15 +555,7 @@ export function PayDayBlock({
         rows={rows}
       />
       {output.comparison_with_first.length > 0 && (
-        <p className="money-muted payday-gap">
-          {output.comparison_with_first
-            .map(
-              (item) =>
-                `「${output.scenarios[0].name}」との差 ${needDifferenceText(item)}`,
-            )
-            .join("。")}
-          。
-        </p>
+        <p className="money-muted payday-gap">{paydayGapText(output)}</p>
       )}
       {refundNote && output.scenarios.length >= 2 && (
         <p className="payday-note">

@@ -207,6 +207,17 @@ export function needDifferenceText(
     : `少なめの場合 ${signedYen(item.need_low_difference)}、多めの場合 ${signedYen(item.need_high_difference)}`;
 }
 
+// 支払日の表の下に置く、一番上の筋書きと比べた差の文。筋書きが 3 つ以上でも、どの筋書きの差かが分かるように名前を付ける。
+// 少なめ・多めで差が違う筋書きがあるときは「、」が重なるので、筋書きの区切りを「。」にする。
+export function paydayGapText(output: CashflowOutput): string {
+  const items = output.comparison_with_first;
+  if (items.length === 0) return "";
+  const differences = items.map((item) => needDifferenceText(item));
+  const separator = differences.some((text) => text.includes("、")) ? "。" : "、";
+  const parts = items.map((item, index) => `「${item.name}」は ${differences[index]}`);
+  return `「${output.scenarios[0].name}」と比べると、${parts.join(separator)}。`;
+}
+
 const uniqueSources = (sources: readonly Source[]): Source[] => [
   ...new Map(sources.map((source) => [source.url, source])).values(),
 ];
