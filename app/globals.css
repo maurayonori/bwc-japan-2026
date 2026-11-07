@@ -739,9 +739,23 @@ dialog::backdrop {
 .brand small {
   margin-top: 1px;
 }
+/* アプリ全体の 1 つのメニュー（#52、ADR 0015）。会話の画面の 3 つと、ほかの道具のあいだに細い区切りを置く。 */
 .view-nav {
   display: flex;
   gap: 4px;
+}
+.view-nav ul {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.view-nav li.tools-start {
+  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
 }
 .view-nav a {
   display: inline-flex;
@@ -974,11 +988,24 @@ main.page {
   .view-nav {
     order: 3;
     width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .view-nav ul {
+    flex: 1;
+    gap: 2px;
+  }
+  .view-nav li {
+    flex: 1 0 auto;
+  }
+  .view-nav li.tools-start {
+    margin-left: 2px;
+    padding-left: 4px;
   }
   .view-nav a {
-    flex: 1;
+    width: 100%;
     justify-content: center;
-    padding: 4px 6px;
+    padding: 5px 6px;
   }
   main.page {
     padding: 12px 16px 0;
