@@ -104,6 +104,34 @@ const ledgerPathSchema = z.object({
   rows: z.array(ledgerRowSchema),
 });
 
+// 「まず確かめる 1 つ」の順位。値は lib/money/confirm.ts が入力の幅だけから計算する。
+export const whatToConfirmSchema = z.object({
+  need_low: z.number(),
+  need_high: z.number(),
+  width: z.number(),
+  shortfall_low: z.number().nullable(),
+  shortfall_high: z.number().nullable(),
+  combinations: z.number(),
+  omitted_factors: z.number(),
+  factors: z.array(
+    z.object({
+      kind: z.enum(["scenario", "amount", "income"]),
+      name: z.string(),
+      label: z.string().nullable(),
+      branches: z.array(
+        z.object({
+          name: z.string(),
+          need_low: z.number(),
+          need_high: z.number(),
+        }),
+      ),
+      width_if_resolved: z.number(),
+      shrink: z.number(),
+    }),
+  ),
+  reading_guide: z.array(z.string()),
+});
+
 export const cashflowOutputSchema = z.object({
   start_date: z.string(),
   cash_on_hand: z.number().nullable(),
@@ -130,6 +158,8 @@ export const cashflowOutputSchema = z.object({
     }),
   ),
   reading_guide: z.array(z.string()),
+  // 順位を足す前に保存したデータにも無いので、無くても読む。
+  what_to_confirm: whatToConfirmSchema.optional(),
 });
 
 export const TOOL_NAMES = [
@@ -190,6 +220,7 @@ export type KougakuOutput = z.infer<typeof kougakuOutputSchema>;
 export type MealOutput = z.infer<typeof mealOutputSchema>;
 export type CalcDateOutput = z.infer<typeof calcDateOutputSchema>;
 export type CashflowOutput = z.infer<typeof cashflowOutputSchema>;
+export type WhatToConfirm = z.infer<typeof whatToConfirmSchema>;
 export type ToolName = (typeof TOOL_NAMES)[number];
 export type Calculation = z.infer<typeof calculationSchema>;
 export type Money = z.infer<typeof moneySchema>;
