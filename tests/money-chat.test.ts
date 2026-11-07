@@ -805,3 +805,56 @@ test("画面へ返すのは reply・cards・warnings・tools だけ", async () =
   assert.equal(many.tools.length, MAX_RESPONSE_TOOLS);
   assert.equal(replySchema.safeParse(many).success, true);
 });
+
+// #46: 先頭の確認で幅が縮まないのに「縮みます」と書いた返答は、数字の不一致と同じく注意として返す。カードは止めない。
+const NO_SHRINK = {
+  start_date: "2026-11-07",
+  cash_on_hand: null,
+  scenarios: [
+    {
+      name: "窓口で上限が適用される場合（区分が不明なので幅）",
+      events: [
+        { date: "2026-12-23", label: "入院費（保険診療分）", direction: "out", amount_low: 36_900, amount_high: 240_000, certainty: "assumption" },
+        { date: "2026-12-23", label: "入院中の食事代", direction: "out", amount_low: 23_100, amount_high: 23_100, certainty: "estimate" },
+      ],
+    },
+    {
+      name: "いったん 3 割を払う場合",
+      events: [
+        { date: "2026-12-23", label: "入院費（保険診療分）", direction: "out", amount_low: 240_000, amount_high: 240_000, certainty: "estimate" },
+        { date: "2026-12-23", label: "入院中の食事代", direction: "out", amount_low: 23_100, amount_high: 23_100, certainty: "estimate" },
+      ],
+    },
+  ],
+};
+
+test("幅が縮まない確認を「縮みます」と書いた返答には、数字の不一致と同じく注意を出し、カードはそのまま付ける", async () => {
+  const wrong = await runChat({
+    model: mock(
+      toolStep({ name: "simulate_cashflow", input: NO_SHRINK }),
+      replyStep("病院の会計に聞くと、要る額の幅は 203,100 円に縮みます。", [proposal()]),
+    ),
+    input: INPUT,
+  });
+  assert.deepEqual(
+    wrong.warnings.map((warning) => [warning.kind, warning.shown]),
+    [["amount", "病院の会計に聞くと、要る額の幅は 203,100 円に縮みます"]],
+  );
+  assert.equal(
+    cashflowOf(wrong.cards[0]).output.what_to_confirm?.factors[0].shrink,
+    0,
+  );
+  assert.deepEqual(toResponse(wrong).warnings, wrong.warnings);
+
+  const right = await runChat({
+    model: mock(
+      toolStep({ name: "simulate_cashflow", input: NO_SHRINK }),
+      replyStep(
+        "まず確かめる 1 つは、窓口で上限が適用されるかです。適用されないなら 263,100 円に決まります。適用されるなら、所得の区分によって 60,000〜263,100 円の幅が残ります。",
+        [proposal()],
+      ),
+    ),
+    input: INPUT,
+  });
+  assert.deepEqual(right.warnings, []);
+});
