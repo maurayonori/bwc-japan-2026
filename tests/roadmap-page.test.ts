@@ -61,26 +61,11 @@ test("年表の CSS は .rmp の中に閉じ、ヘッダーとメニューに漏
   const { css } = readRoadmapParts();
   const all = selectors(css);
   assert.ok(all.length > 100);
-  const allowed = [
-    /^\.rmp(?=[\s.#:[]|$)/,
-    /^:root\[data-theme="dark"\](?: \.rmp\b.*)?$/,
-    /^:root:not\(\[data-theme="light"\]\)(?: \.rmp\b.*)?$/,
-    /^html$/,
-    /^body$/,
-  ];
-  // 暗い表示のときだけ、ヘッダーのメニューの白い地を暗くする
-  const header = [
-    ':root[data-theme="dark"] .view-nav a[aria-current="page"]',
-    ':root[data-theme="dark"] .view-nav .count',
-    ':root:not([data-theme="light"]) .view-nav a[aria-current="page"]',
-    ':root:not([data-theme="light"]) .view-nav .count',
-  ];
-  const leaks = all.filter(
-    (s) => !header.includes(s) && !allowed.some((re) => re.test(s)),
-  );
+  const allowed = [/^\.rmp(?=[\s.#:[]|$)/, /^html$/, /^body$/];
+  const leaks = all.filter((s) => !allowed.some((re) => re.test(s)));
   assert.deepEqual(leaks, []);
-  // 明るい表示の :root を書き換えない（さきよみのトークンは globals.css だけが決める）
-  assert.ok(!all.includes(":root"));
+  // :root を書き換えない（さきよみのトークンは globals.css だけが決める）
+  assert.ok(!all.some((s) => s.includes(":root")));
   // body に書くのは横のはみ出しを止めることだけ
   assert.match(css, /\nbody \{ overflow-x: hidden; \}\n/);
 });
@@ -107,4 +92,11 @@ test("年表は iframe を使わずページで出す。X-Frame-Options: DENY �
     assert.ok(!/<iframe/i.test(source), file);
   }
   assert.ok(!/<iframe/i.test(html));
+});
+
+test("年表に暗い表示を持たない。端末の設定にかかわらず、さきよみの明るいトークンで出す", () => {
+  const { css, markup, code } = readRoadmapParts();
+  assert.ok(!/prefers-color-scheme|data-theme|color-scheme/.test(css));
+  assert.ok(!/data-theme|表示の明るさ/.test(markup));
+  assert.ok(!/data-theme|applyTheme|state\.theme/.test(code));
 });
