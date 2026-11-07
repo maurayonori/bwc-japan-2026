@@ -142,10 +142,10 @@ Codex には、仕様への批判レビューと 11/5 の課題の比較も任�
 ## テスト
 
 ```sh
-npm test               # 本体（368 件。Node 24）
+npm test               # 本体（369 件。Node 24）
 npm run typecheck
 npm run build
-npm run test:e2e       # ブラウザの通し（Playwright、Chromium。ビルドしてから 6 件。Claude には送らない）
+npm run test:e2e       # ブラウザの通し（Playwright、Chromium。ビルドしてから 28 件。Claude には送らない）
 npm run test:roadmap   # 年表
 npm run check:public   # 公開前の検査（鍵の形、.env、.vercel など）
 ```
