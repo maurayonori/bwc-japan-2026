@@ -89,7 +89,12 @@ function extendedStay() {
   };
   const output = simulateCashflow(input);
   const [skewed, half, withoutCap] = output.scenarios;
-  return { days, meals, skewed, half, withoutCap };
+  // 窓口で上限が使えると確かめたあとの、月またぎの見通し（デモの 3 回目と同じ 2 つの筋書き）。
+  const capConfirm = simulateCashflow({
+    ...input,
+    scenarios: input.scenarios.slice(0, 2),
+  }).what_to_confirm;
+  return { days, meals, skewed, half, withoutCap, capConfirm };
 }
 
 const needText = (scenario: { low_case: { need: number }; high_case: { need: number } }) => {
@@ -214,4 +219,17 @@ test("README の体験例の条件は、計算関数の入力と一致する", (
   const readme = read("README.md");
   const { total, cash } = exampleConditions();
   assert.ok(readme.includes(`協会けんぽ・区分ウ・${total}・${cash}`));
+});
+
+test("月またぎの「まず確かめる 1 つ」は、12 月と 1 月の内訳で、幅 82,940 円が 0 円になる", () => {
+  const { skewed, half, capConfirm } = extendedStay();
+  assert.ok(capConfirm);
+  assert.equal(capConfirm.need_low, skewed.low_case.need);
+  assert.equal(capConfirm.need_high, half.low_case.need);
+  assert.equal(capConfirm.width, 82_940);
+  const [top] = capConfirm.factors;
+  assert.equal(top.kind, "scenario");
+  assert.equal(top.name, "『費用が 12 月に寄る』か『費用が半々』か");
+  assert.equal(top.width_if_resolved, 0);
+  assert.equal(top.shrink, 82_940);
 });

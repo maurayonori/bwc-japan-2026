@@ -295,7 +295,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
   const focusOnTalk = useRef(false);
   const example = workspace.mode === "example";
   const selected = workspace.cards.filter((c) => c.included).length;
-  const memo = exportMemo(workspace.cards);
+  const memo = exportMemo(workspace.cards, workspace.messages);
   const moneyCards = workspace.cards.filter((c) => !isHandCard(c));
   const handCards = workspace.cards.filter(isHandCard);
   const shownCards = handCards.filter(

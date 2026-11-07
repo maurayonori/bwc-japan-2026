@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { todayInJapan } from "./money/dates";
 import { citationsToText, moneyToText } from "./money/format";
+import { maskProblems } from "./money/guard";
 import {
   MAX_WARNINGS,
   moneyRequestSchema,
@@ -28,13 +30,21 @@ export const messageSchema = z.object({
   // この返答で作ったり直したりしたカードの id。返答の下の「見る」リンクに使う。前の保存データには無い。
   cardIds: z.array(id).max(5).optional(),
 });
+// 返答とカードの欄の字数の上限。サーバーの後処理（伏字・案内の置き換え）のあとも、この中に収める。
+export const TEXT_LIMITS = {
+  reply: 1800,
+  title: 80,
+  body: 2000,
+  nextStep: 200,
+  uncertainty: 400,
+} as const;
 export const proposalSchema = z.object({
   id,
   kind: z.enum(["daily", "contact", "memory", "money"]),
-  title: z.string().min(1).max(80),
-  body: z.string().min(1).max(2000),
-  nextStep: z.string().min(1).max(200),
-  uncertainty: z.string().max(400),
+  title: z.string().min(1).max(TEXT_LIMITS.title),
+  body: z.string().min(1).max(TEXT_LIMITS.body),
+  nextStep: z.string().min(1).max(TEXT_LIMITS.nextStep),
+  uncertainty: z.string().max(TEXT_LIMITS.uncertainty),
   evidence: z
     .array(z.object({ messageId: id, quote: z.string().min(1).max(2000) }))
     .min(1)
@@ -48,12 +58,12 @@ export const cardSchema = proposalSchema.extend({
 });
 // Claude に出してもらう形。表の項目を持たせない（表はサーバーが道具の結果から作る）。
 export const modelReplySchema = z.object({
-  reply: z.string().min(1).max(1800),
+  reply: z.string().min(1).max(TEXT_LIMITS.reply),
   cards: z.array(proposalSchema.omit({ money: true })).max(4),
 });
 // 合成カードを足すことがあるので、モデルの上限より 1 枚多く受ける。
 export const replySchema = z.object({
-  reply: z.string().min(1).max(1800),
+  reply: z.string().min(1).max(TEXT_LIMITS.reply),
   cards: z.array(proposalSchema).max(5),
   warnings: z.array(warningSchema).max(MAX_WARNINGS).optional(),
   tools: z.array(z.string()).max(40).optional(),
@@ -124,9 +134,19 @@ const storedWorkspaceSchema = workspaceSchema.extend({
   version: z.union([z.literal(1), z.literal(2)]),
 });
 
+// #59 より前の版で保存した「残しておく言葉」は、Claude が作った見出しと次の行動を持っている。
+// 次の行動が決まった文でないもの（前の版の形）は、本人が直したもの以外、読み込むときに原文の見出しと決まった文にそろえる（#61 の指摘 11）。
+// 体験例の見出し（作者が書いた架空の文）は、今の形で保存されているので、そのまま読む。
+function normalizeStoredMemory(card: Card): Card {
+  if (card.kind !== "memory" || card.edited) return card;
+  if (card.nextStep === MEMORY_NEXT_STEP && card.uncertainty === "") return card;
+  return memoryForExport(card);
+}
+
 // version 1（お金のカードが無かった頃）の保存データも、そのまま読む。読めないときは投げる。
 export function parseStoredWorkspace(raw: string): Workspace {
-  return { ...storedWorkspaceSchema.parse(JSON.parse(raw)), version: 2 };
+  const stored = storedWorkspaceSchema.parse(JSON.parse(raw));
+  return { ...stored, version: 2, cards: stored.cards.map(normalizeStoredMemory) };
 }
 
 type WorkspaceStorage = Pick<Storage, "getItem" | "setItem">;
@@ -188,8 +208,81 @@ export function mergeCards(current: Card[], proposals: Proposal[]): Card[] {
   return cards;
 }
 
-export function exportMemo(cards: Card[]): string {
-  const selected = cards.filter((card) => card.included);
+// 「残しておく言葉」は本人の発言の原文だけにする（#59 の指摘 2）。
+// 見出しと次の行動も作らせない。見出しは原文の最初の一文、次の行動は固定の文にする。
+export const MEMORY_NEXT_STEP = "この言葉を残しておくか、自分で選ぶ。";
+const MAX_MEMORY_TITLE = 40;
+
+export function memoryTitle(body: string): string {
+  const firstLine = body.split("\n").find((line) => line.trim()) ?? "";
+  const sentence = /^[^。！？]*[。！？]?/.exec(firstLine.trim())?.[0] ?? "";
+  return sentence.slice(0, MAX_MEMORY_TITLE) || "残しておく言葉";
+}
+
+export function asMemory<
+  T extends { title: string; body: string; nextStep: string; uncertainty: string },
+>(card: T): T {
+  return {
+    ...card,
+    title: memoryTitle(card.body),
+    nextStep: MEMORY_NEXT_STEP,
+    uncertainty: "",
+  };
+}
+
+// 読み込むときと持ち出すときの「残しておく言葉」。本人が直したものはそのまま、それ以外は原文にない見出しと次の行動を書かない。
+function memoryForExport(card: Card): Card {
+  if (card.kind !== "memory" || card.edited) return card;
+  const fixed = asMemory(card);
+  return card.body.includes(card.title) ? { ...fixed, title: card.title } : fixed;
+}
+
+// 持ち出す直前にも、カードの文の金額と日付を、カードの計算・会話・出典と照らし、照らせない部分を伏せる
+// （3 回目の指摘 6）。前の版で保存したカードや、検査より前に作られたカードが、そのまま家族や窓口へ渡らないように。
+// 本人が直したカードは本人の文なので触らない。残しておく言葉は原文なので触らない。
+function verifiedForExport(
+  card: Card,
+  cards: readonly Card[],
+  messages: readonly Message[],
+): Card {
+  if (card.edited || card.kind === "memory") return card;
+  const args = {
+    // 要る額の範囲は「最新の計算」と照らすので、そのカード自身の計算を最後に置く（4 回目の指摘④）。
+    // 選んだあとに条件を変えた、別のカードの計算で照らさないため。
+    toolEvents: [
+      ...cards
+        .filter((item) => item.id !== card.id)
+        .flatMap((item) => item.money?.calculations ?? []),
+      ...(card.money?.calculations ?? []),
+    ],
+    // 会話が渡されないときも、カードの根拠の引用（本人の発言の原文）は使う。
+    userTexts: [
+      ...messages.filter((message) => message.role === "user").map((message) => message.text),
+      ...cards.flatMap((item) => item.evidence.map((evidence) => evidence.quote)),
+    ],
+    earlierReplies: messages
+      .filter((message) => message.role === "assistant")
+      .map((message) => message.text),
+    today: todayInJapan(),
+  };
+  const mask = (text: string) => maskProblems({ ...args, text }).text;
+  return {
+    ...card,
+    title: mask(card.title),
+    body: mask(card.body),
+    nextStep: mask(card.nextStep),
+    uncertainty: mask(card.uncertainty),
+  };
+}
+
+export function exportMemo(
+  cards: Card[],
+  messages: readonly Message[] = [],
+): string {
+  const selected = cards
+    .filter((card) => card.included)
+    .map(memoryForExport)
+    .map((card) => verifiedForExport(card, cards, messages));
   if (selected.length === 0) return "";
   return [
     "さきよみ — 渡すもの",

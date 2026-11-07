@@ -163,6 +163,15 @@ test("固定シードの架空入力で、4 つの道具の結果が試作と一
   }
 });
 
+// 移植は、年のある日付を年月日で、曜日を計算した曜日と照らす（#59）。試作は月日だけを照らすので、
+// 試作に無い指摘（年だけが違う日付、曜日の食い違い）は除いて比べる。
+function withoutYearChecks(warnings: ReturnType<typeof checkReply>) {
+  return warnings.filter(
+    (warning) =>
+      !(warning.kind === "date" && /^\d{4}-\d{2}-\d{2}|（.）$/.test(warning.shown)),
+  );
+}
+
 test("固定シードの文章で、数字の検査の結果が試作と一致する", { skip }, async () => {
   const guard = await load("guard.mjs");
   const r = random(8);
@@ -192,6 +201,6 @@ test("固定シードの文章で、数字の検査の結果が試作と一致�
       userTexts: ["手元には 30 万円くらい。入院は 11/9 から。"],
       today: "2026-11-06",
     };
-    assert.deepEqual(checkReply(args), guard.checkReply(args));
+    assert.deepEqual(withoutYearChecks(checkReply(args)), guard.checkReply(args));
   }
 });
