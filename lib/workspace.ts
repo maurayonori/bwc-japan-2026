@@ -247,7 +247,14 @@ function verifiedForExport(
 ): Card {
   if (card.edited || card.kind === "memory") return card;
   const args = {
-    toolEvents: cards.flatMap((item) => item.money?.calculations ?? []),
+    // 要る額の範囲は「最新の計算」と照らすので、そのカード自身の計算を最後に置く（4 回目の指摘④）。
+    // 選んだあとに条件を変えた、別のカードの計算で照らさないため。
+    toolEvents: [
+      ...cards
+        .filter((item) => item.id !== card.id)
+        .flatMap((item) => item.money?.calculations ?? []),
+      ...(card.money?.calculations ?? []),
+    ],
     // 会話が渡されないときも、カードの根拠の引用（本人の発言の原文）は使う。
     userTexts: [
       ...messages.filter((message) => message.role === "user").map((message) => message.text),

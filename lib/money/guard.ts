@@ -489,6 +489,26 @@ const RANGE_JOINER = /^\s*(?:[〜～~]|から)\s*$/;
 const SHRINK_AFTER = /^\s*(?:に|へ|まで)\s*(?:縮|狭)/;
 // 前の値を言う語。範囲と同じ節（読点で区切った部分）の、範囲より前にあるときだけ照らさない。
 const PAST_MARKER = /前は|前の|以前|これまで|もともと|元の|最初の/;
+// 前の値の語と範囲のあいだに、今の値を言い始める語があれば、範囲は今の値（4 回目の指摘③）。
+const PRESENT_AFTER_PAST = /でしたが|ですが|けれど|けど|一方|今の|今は|いまの|いまは|現在|新しい/;
+
+// 範囲が前の値を言っているか。文の中で範囲より前に前の値の語があり、そのあいだに別の額も、
+// 今の値を言い始める語も無いときだけ、前の値とみなす。読点の位置には頼らない。
+function pastRange(
+  before: string,
+  amounts: readonly Found[],
+  sentenceStart: number,
+  rangeStart: number,
+): boolean {
+  const markers = [...before.matchAll(new RegExp(PAST_MARKER.source, "g"))];
+  const marker = markers.at(-1);
+  if (!marker) return false;
+  const markerEnd = sentenceStart + marker.index + marker[0].length;
+  if (amounts.some((amount) => amount.start >= markerEnd && amount.start < rangeStart))
+    return false;
+  return !PRESENT_AFTER_PAST.test(before.slice(marker.index + marker[0].length));
+}
+
 // 条件を言う語（「〜場合」「〜なら」「〜とき」）。
 const CONDITION_MARKER = /(?:の)?場合|なら(?:ば)?|とき/g;
 const CLAUSE_BREAK = /[、,]/;
@@ -564,16 +584,20 @@ function latestScenarios(toolEvents: readonly GuardToolEvent[]): {
 function scenariosFor(condition: string, scenarios: readonly ScenarioRange[]): ScenarioRange[] | null {
   const said = canon(condition);
   if (said.length < 3) return null;
-  const matched = scenarios.filter((scenario) =>
-    scenario.keys.some(
-      (key) =>
-        containsAffirmed(key, said) ||
-        key
-          .split(/[・、,／/（）()]/)
-          .some((part) => part.length >= 4 && containsAffirmed(said, part)),
+  // 条件全体が名前に入っている筋書きを先に使う（4 回目の指摘①）。複合した条件の一部だけで、
+  // 別の筋書きまで混ぜて範囲を広げないため。無ければ、名前の一部（「・」などで区切った部分）で結び付ける。
+  const whole = scenarios.filter((scenario) =>
+    scenario.keys.some((key) => containsAffirmed(key, said)),
+  );
+  if (whole.length > 0) return whole;
+  const partial = scenarios.filter((scenario) =>
+    scenario.keys.some((key) =>
+      key
+        .split(/[・、,／/（）()]/)
+        .some((part) => part.length >= 4 && containsAffirmed(said, part)),
     ),
   );
-  return matched.length > 0 ? matched : null;
+  return partial.length > 0 ? partial : null;
 }
 
 // 返答が書いた「要る額」の範囲が、最新の計算の範囲（what_to_confirm の need_low〜need_high）と合うかを照らす（#61 の指摘 8）。
@@ -599,11 +623,7 @@ function rangeMismatches(
     if (!sentence.includes("要る額")) return [];
     if (SHRINK_AFTER.test(normalized.slice(high.end))) return [];
     const before = normalized.slice(sentenceStart, low.start);
-    const clauseStart = Math.max(
-      ...[...before.matchAll(new RegExp(CLAUSE_BREAK, "g"))].map((match) => match.index + 1),
-      0,
-    );
-    if (PAST_MARKER.test(before.slice(clauseStart))) return [];
+    if (pastRange(before, amounts, sentenceStart, low.start)) return [];
     const conditions = [...before.matchAll(CONDITION_MARKER)];
     const condition = conditions.at(-1);
     let expected: { need_low: number; need_high: number; name: string | null };
@@ -784,9 +804,10 @@ const ACTION_GROUP: Record<string, string> = {
   予約: "reserve",
 };
 
-// 文の中で、済ませた人を読む。書かれていなければ、返答ではアプリ、本人の文では本人。
-function actorOf(sentence: string, voice: "reply" | "card"): string {
-  const found = ACTOR_AT.exec(sentence);
+// 文の中で、済ませた人を読む。完了した行為（at の位置）のすぐ前の主語を使う（4 回目の指摘②）。
+// 書かれていなければ、返答ではアプリ、本人の文では本人。
+function actorOf(sentence: string, voice: "reply" | "card", at: number): string {
+  const found = [...sentence.slice(0, at).matchAll(new RegExp(ACTOR_AT.source, "g"))].at(-1);
   if (!found) return voice === "reply" ? "app" : "self";
   const word = found[0].replace(/(?:は|が|も|から)$/, "");
   if (word === "あなた") return voice === "reply" ? "self" : "other";
@@ -799,7 +820,8 @@ function reportsIn(userTexts: readonly string[]): Set<string> {
   const reports = new Set<string>();
   for (const sentence of userTexts.flatMap((text) => text.match(/[^。！？\n]+[。！？]?/g) ?? [])) {
     const done = DONE_CLAIM.exec(sentence);
-    if (done) reports.add(`${actorOf(sentence, "card")}:${ACTION_GROUP[done[1]]}`);
+    if (done)
+      reports.add(`${actorOf(sentence, "card", done.index)}:${ACTION_GROUP[done[1]]}`);
   }
   return reports;
 }
@@ -827,7 +849,7 @@ function overclaims(
   if (trimmed && userTexts.some((text) => text.includes(trimmed))) return false;
   if (appAction || !done) return true;
   // 本人や家族の完了の報告は、本人が同じこと（同じ人が、同じ手続きを）を話していれば残す。
-  const actor = actorOf(sentence, voice);
+  const actor = actorOf(sentence, voice, done.index);
   if (actor === "app" || actor === "other") return true;
   return !reportsIn(userTexts).has(`${actor}:${ACTION_GROUP[done[1]]}`);
 }

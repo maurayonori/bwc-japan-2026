@@ -5,6 +5,7 @@ import { runChat, toResponse } from "../lib/chat";
 import { checkReply, fitLength, maskUnverified } from "../lib/money/guard";
 import { simulateCashflow, type LedgerEvent } from "../lib/money/ledger";
 import { executeTool } from "../lib/money/tools";
+import { exampleMoneyTurns } from "../lib/example";
 import { buildSystem } from "../lib/prompt";
 import {
   MEMORY_NEXT_STEP,
@@ -442,4 +443,65 @@ test("3回目 指摘6: 持ち出しの直前にも検査し、照らせない数
   // 本人が話した額は伏せない。
   const said = exportMemo([{ ...base, body: "窓口の支払いは12万で足りますか。" }], [{ id: "u1", role: "user", text: "窓口で12万と言われた。" }]);
   assert.match(said, /12万/);
+});
+
+// ===== 4 回目: 3 回目への外部レビュー（Codex）で見つかった誤り =====
+
+test("4回目 指摘④: 持ち出しの範囲の検査は、そのカード自身の計算で行う（あとの計算のカードがあっても伏せない）", () => {
+  const { first, second } = exampleMoneyTurns();
+  const body = "手元に要る額は115,690円〜264,750円です。";
+  const card = (id: string, calculations: typeof first.calculations, included: boolean): Card => ({
+    ...proposal({ id, kind: "money", title: "支払日までに、手元に要る額", body }),
+    ...flags,
+    included,
+    money: { calculations },
+  });
+  const chosen = card("m1", first.calculations, true);
+  const later = card("m2", second.calculations, false);
+  for (const cards of [[chosen], [chosen, later], [later, chosen]]) {
+    const text = exportMemo(cards, []);
+    assert.match(text, /115,690円〜264,750円/, JSON.stringify(cards.map((item) => item.id)));
+    assert.doesNotMatch(text, /照合できない/);
+  }
+  // 自分の計算と合わない範囲は、これまでどおり伏せる。
+  const wrong = { ...chosen, body: "手元に要る額は115,690円〜300,000円です。" };
+  assert.doesNotMatch(exportMemo([wrong, later], []), /115,690円〜300,000円/);
+});
+
+const rangeOf = (name: string, low: number, high: number) => ({
+  name,
+  events: [{ ...pay(low), amount_high: high, certainty: "assumption" as const }],
+});
+
+test("4回目 指摘①: 複合した条件は、条件全体が一致する筋書きを先に使う", () => {
+  const calc = okEvent("simulate_cashflow", {
+    start_date: today,
+    cash_on_hand: null,
+    scenarios: [
+      rangeOf("窓口で上限が使える・費用が12月に寄る", 127_240, 150_000),
+      rangeOf("窓口で上限が使える・費用が半々", 210_180, 230_000),
+    ],
+  });
+  assert.deepEqual(check("窓口で上限が使える・費用が半々の場合、手元に要る額は210,180円から230,000円です。", [calc]), []);
+  // 条件の一部（窓口で上限が使える）だけなら、当たる筋書きをすべて合わせた範囲と照らす。
+  assert.deepEqual(check("窓口で上限が使える場合、手元に要る額は127,240円から230,000円です。", [calc]), []);
+});
+
+test("4回目 指摘②: 完了の報告は、完了した行為のすぐ前の主語と結び付ける", async () => {
+  const run = (reply: string, userText: string) =>
+    runChat({ model: mock(replyStep(reply)), input: { messages: [{ id: "u1", role: "user", text: userText }], cards: [] } });
+  assert.match((await run("ご主人が保険会社に連絡しました。", "私は入院中で、夫が保険会社に連絡しました。")).reply, /ご主人が保険会社に連絡しました。/);
+  assert.doesNotMatch((await run("あなたは入院中で、私が保険会社に連絡しました。", "私は保険会社に連絡しました。")).reply, /私が保険会社に連絡しました/);
+});
+
+test("4回目 指摘③: 前の値の例外は、読点の位置でなく、前の値と範囲のあいだで決める", () => {
+  const withOld = okEvent("simulate_cashflow", {
+    start_date: today,
+    cash_on_hand: 200_000,
+    scenarios: [scenario("窓口で上限が使える（1 回目の条件）", 115_690), scenario("費用が 12 月に寄る", 127_240), scenario("費用が半々", 210_180)],
+  });
+  const mixed = "前は115690円でしたが今の要る額は127,240円〜210,180円です。";
+  assert.equal(check(mixed, [withOld]).length, 1);
+  assert.ok(maskUnverified({ reply: mixed, toolEvents: [withOld] as never, userTexts: [], today }).masked > 0);
+  assert.deepEqual(check("前の要る額は、127,240円から210,180円でした。", [withOld]), []);
 });
