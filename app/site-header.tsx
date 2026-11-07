@@ -70,6 +70,7 @@ function MenuLink({
 }
 
 // 全ページで同じ 1 つのメニュー（#52、ADR 0015）。会話の画面では件数を、ほかのページではメモリに残っている件数を出す。
+// ペルソナとかがみは、ビルドのときに URL があるときだけ出す外部リンク。
 // children はヘッダーの右に置くもの（会話の画面の「保存とプライバシー」など）。
 export function SiteHeader({
   current,
@@ -83,10 +84,16 @@ export function SiteHeader({
   // ほかのページでは、会話の画面から移ってきたときだけ件数がある。最初の描画で一度だけ読む。
   const [shown] = useState<Counts | null>(() => counts ?? keptCounts());
   const shownCounts = counts ?? shown;
-  const items = menuItems(process.env.NEXT_PUBLIC_PERSONA_URL);
+  // NEXT_PUBLIC_ の値はビルドのときに埋め込まれる。名前をそのまま書く（まとめて読むと埋め込まれない）。
+  const items = menuItems({
+    persona: process.env.NEXT_PUBLIC_PERSONA_URL,
+    kagami: process.env.NEXT_PUBLIC_KAGAMI_URL,
+  });
   const home = isHomeKey(current);
+  // 外部リンクの数。中くらいの幅でヘッダーをどこまで詰めるかを、CSS がこれで決める。
+  const links = items.filter((item) => item.external).length;
   return (
-    <header className="site-header">
+    <header className="site-header" data-links={links}>
       {home ? (
         <a className="brand" href={VIEW_HASH.talk} aria-label="さきよみ（話す）">
           <Mark />
