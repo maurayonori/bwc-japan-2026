@@ -743,6 +743,8 @@ dialog::backdrop {
 .view-nav {
   display: flex;
   gap: 4px;
+  /* 横に送るときに、読み上げ用の文字（.sr-only）がメニューの外へはみ出さないよう、ここを基準にする。 */
+  position: relative;
 }
 .view-nav ul {
   display: flex;
@@ -1143,7 +1145,46 @@ main.page {
     font-size: 9px;
   }
 }
-/* 320px 前後の幅でも、メニューの 5 つを 1 行に収める（ペルソナを足したときは横に送る）。 */
+/* ヘッダーの文字は途中で折り返さない（#52）。1280px 以上の見た目は変えず、狭くなったら次の順で詰める。
+   1079px 以下: 副題と「公開の試用版」を隠す。
+   それでも収まらない幅（外部リンクがあれば 959px 以下、無ければ 799px 以下）: メニューを 2 行目に送る。
+   740px 以下はスマホの並び（上の @media (max-width: 740px)）。 */
+.brand > span,
+.header-actions .connection,
+.header-actions .text-button {
+  white-space: nowrap;
+}
+@media (min-width: 741px) and (max-width: 1079px) {
+  .site-header .brand small,
+  .site-header .header-actions .connection {
+    display: none;
+  }
+}
+@media (min-width: 741px) and (max-width: 799px) {
+  .site-header {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .site-header .view-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+@media (min-width: 800px) and (max-width: 959px) {
+  .site-header:not([data-links="0"]) {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .site-header:not([data-links="0"]) .view-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+/* 320px 前後の幅でも、メニューの 5 つを 1 行に収める（ペルソナやかがみを足したときは、メニューの中で横に送る）。 */
 @media (max-width: 360px) {
   .view-nav a {
     font-size: 11px;
