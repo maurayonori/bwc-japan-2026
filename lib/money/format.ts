@@ -229,6 +229,13 @@ export function paydayTable(output: CashflowOutput): {
     // 確かめていない入金がある筋書きは、すぐ下に、その入金が入らない場合を並べる（CLAUDE.md、#77）。
     if (scenario.totals.unconfirmed_in_high <= 0) return [counted];
     const without = scenario.high_case_without_unconfirmed_income;
+    // 入金が支払日より後などで、要る額もいつも多めの場合と同じなら、同じ額の行を重ねない
+    // （手元のお金との差も要る額から決まるので同じになる。統括の判断、PR #80）。
+    if (
+      without.need === scenario.high_case.need &&
+      without.need_date === scenario.high_case.need_date
+    )
+      return [counted];
     return [
       counted,
       row(`${scenario.name}・${WITHOUT_UNCONFIRMED_INCOME}`, without, without),

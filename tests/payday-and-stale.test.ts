@@ -92,6 +92,73 @@ test("確かめていない入金が無い筋書きには、行を足さない",
   assert.equal(paydayTable(output).rows.length, 1);
 });
 
+// 統括の判断（PR #80、11/8 04:10）: 確かめていない入金を数えない場合の行は、要る額・いつ・手元のお金との差の
+// どれかが多めの場合と違うときだけ足す。入金が支払日より後で要る額に効かないときは、同じ額の行を重ねない。
+function laterIncomeOutput(incomeDate: string, incomeAmount: number, cash: number, payment: number) {
+  return simulateCashflow({
+    start_date: "2026-11-07",
+    cash_on_hand: cash,
+    scenarios: [
+      {
+        name: "いったん3割を払う場合",
+        events: [
+          {
+            date: "2026-12-28",
+            label: "入院費（3割）",
+            direction: "out",
+            amount_low: payment,
+            amount_high: payment,
+            certainty: "estimate",
+          },
+          {
+            date: incomeDate,
+            label: "高額療養費の払い戻し",
+            direction: "in",
+            amount_low: incomeAmount,
+            amount_high: incomeAmount,
+            certainty: "assumption",
+          },
+        ],
+      },
+    ],
+  });
+}
+
+test("確かめていない入金が支払日より後で要る額に効かないときは、数えない場合の行を足さない", () => {
+  // 体験例の 1 回目で Claude が置いた形: 払い戻し 149,060 円を、支払日（12/28）より後の未確認の入金にした。
+  const output = laterIncomeOutput("2027-03-31", 149_060, 200_000, 264_750);
+  const [scenario] = output.scenarios;
+  assert.ok(scenario.totals.unconfirmed_in_high > 0);
+  assert.equal(scenario.high_case_without_unconfirmed_income.need, scenario.high_case.need);
+  assert.equal(
+    scenario.high_case_without_unconfirmed_income.need_date,
+    scenario.high_case.need_date,
+  );
+  const { rows } = paydayTable(output);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0][0], "いったん3割を払う場合");
+  assert.equal(rows[0][1], yen(264_750));
+  assert.equal(rows[0][3], cashGapText(200_000, 264_750, 264_750));
+});
+
+test("確かめていない入金が要る額を変えるときは、数えない場合の行を足す（傷病手当金の例）", () => {
+  // 手元 5 万円、傷病手当金 10 万円（12/20 ごろ、確かめていない）、12/28 に 115,690 円を払う。
+  const output = laterIncomeOutput("2026-12-20", 100_000, 50_000, 115_690);
+  const [scenario] = output.scenarios;
+  assert.equal(scenario.high_case.need, 15_690);
+  assert.equal(scenario.high_case_without_unconfirmed_income.need, 115_690);
+  const { rows } = paydayTable(output);
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map((row) => [row[0], row[1], row[3]]), [
+    ["いったん3割を払う場合", yen(15_690), cashGapText(50_000, 15_690, 15_690)],
+    [
+      "いったん3割を払う場合・確かめていない入金を数えない場合",
+      yen(115_690),
+      cashGapText(50_000, 115_690, 115_690),
+    ],
+  ]);
+});
+
 // 再現 2: 区分ウ・総額 80 万円・食事代 24,750 円で見通しを作り、総額を 160 万円に変える。
 // 新しい kougaku_gendo が成功したあと、simulate_cashflow の前に時間切れになった（chat.ts の catch で forceTable）。
 const KOUGAKU_INPUT = (total: number) => ({
