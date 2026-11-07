@@ -104,6 +104,43 @@ function combine(
   );
 }
 
+// 金額の内訳を出す道具。これが成功したあとに見通しが成功していなければ、残っている見通しは前の条件での計算になる。
+const BREAKDOWN_TOOLS = new Set(["kougaku_gendo", "meal_cost"]);
+
+// 見通しが前の条件での計算か（#77）。
+// - その回で、内訳の計算が成功したあとに simulate_cashflow が無いか失敗した（時間切れを含む）なら、印を付ける
+// - その回で、最後の内訳のあとに simulate_cashflow が成功したなら、印を外す
+// - その回に内訳も見通しも成功しなければ、前の回の印をそのまま引き継ぐ（日付だけの計算では外さない）
+// どの場合も、表に見通しが残っていなければ印は要らない。
+export function cashflowIsStale(
+  events: readonly ToolEvent[],
+  calculations: readonly Calculation[],
+  inherited = false,
+): boolean {
+  if (!calculations.some((calculation) => calculation.name === "simulate_cashflow"))
+    return false;
+  const lastOk = (match: (name: string) => boolean) =>
+    events.findLastIndex((event) => event.ok && match(event.name));
+  const breakdown = lastOk((name) => BREAKDOWN_TOOLS.has(name));
+  const cashflow = lastOk((name) => name === "simulate_cashflow");
+  if (breakdown > cashflow) return true;
+  if (cashflow > breakdown) return false;
+  return inherited;
+}
+
+function moneyOf(
+  calculations: Calculation[],
+  events: readonly ToolEvent[],
+  inherited: boolean,
+): { calculations: Calculation[]; stale_cashflow?: true } {
+  return cashflowIsStale(events, calculations, inherited)
+    ? { calculations, stale_cashflow: true }
+    : { calculations };
+}
+
+export const STALE_CASHFLOW_WARNING =
+  "内訳は新しい条件で計算し直しましたが、支払日に要るお金と要る額の幅は、前の条件での計算のままです。今の額として使わず、「計算し直して」と送ってください。";
+
 function unusedId(used: ReadonlySet<string>): string {
   for (let n = 1; ; n += 1) {
     const id = `money-${n}`;
@@ -135,6 +172,7 @@ export function attachMoney({
   events,
   existing,
   prior,
+  priorStale = new Set<string>(),
   messages,
   forceTable = false,
 }: {
@@ -142,6 +180,8 @@ export function attachMoney({
   events: readonly ToolEvent[];
   existing: readonly ExistingCard[];
   prior: ReadonlyMap<string, readonly Calculation[]>;
+  // 前の回に「前の条件での計算」の印が付いていたお金のカードの id（#77）。
+  priorStale?: ReadonlySet<string>;
   messages: readonly Message[];
   forceTable?: boolean;
 }): { cards: Proposal[]; warnings: MoneyWarning[] } {
@@ -188,9 +228,11 @@ export function attachMoney({
       cards.push({
         ...repaired,
         id,
-        money: {
-          calculations: combine(fresh, prior.get(proposal.id) ?? []),
-        },
+        money: moneyOf(
+          combine(fresh, prior.get(proposal.id) ?? []),
+          events,
+          priorStale.has(proposal.id),
+        ),
       });
     } else if (base) {
       // money の項目を付けない。mergeCards が前の表を残す。
@@ -207,9 +249,11 @@ export function attachMoney({
   if (!attached && fresh.length > 0 && wantsTable) {
     const base = existing.findLast((card) => card.kind === "money");
     const id = base && !isProtected(base) ? base.id : unusedId(usedIds);
-    const money = {
-      calculations: combine(fresh, base ? (prior.get(base.id) ?? []) : []),
-    };
+    const money = moneyOf(
+      combine(fresh, base ? (prior.get(base.id) ?? []) : []),
+      events,
+      base ? priorStale.has(base.id) : false,
+    );
     cards.push({
       id,
       kind: "money",
@@ -222,6 +266,16 @@ export function attachMoney({
     });
   }
 
+  // 付け直したカードに印があるか、前の回の印が付いたカードを今回は付け直さなかった（画面に印が残る）なら、頼み続ける。
+  const staleNow =
+    cards.some((card) => card.money?.stale_cashflow) ||
+    [...priorStale].some((id) => !cards.some((card) => card.id === id));
+  if (staleNow)
+    warnings.push({
+      kind: "calc",
+      shown: "前の条件での計算",
+      message: STALE_CASHFLOW_WARNING,
+    });
   for (const event of events) {
     if (event.crashed)
       warnings.push({

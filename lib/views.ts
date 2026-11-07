@@ -26,6 +26,8 @@ export interface ResultLink {
 
 // お金のカードにある、一番あとに計算した見通しの「要る額の幅」。順位の無い前の保存データでは null。
 export function needRangeOf(card: Card): { low: number; high: number } | null {
+  // 前の条件での計算の額は、今の額としてリンクに書かない（#77）。
+  if (card.money?.stale_cashflow) return null;
   const cashflow = card.money?.calculations.findLast(
     (calculation) => calculation.name === "simulate_cashflow",
   );

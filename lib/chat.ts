@@ -136,16 +136,22 @@ function aiTools(record: (event: ToolEvent) => void, precheck: Precheck): ToolSe
 function recalculate(cards: ChatRequest["cards"]): {
   events: ToolEvent[];
   byCard: Map<string, Calculation[]>;
+  stale: Set<string>;
 } {
   const events: ToolEvent[] = [];
   const byCard = new Map<string, Calculation[]>();
+  const stale = new Set<string>();
   for (const card of cards) {
     const calculations: Calculation[] = [];
+    // 前の条件での計算の見通しは、表には残すが、今の額の照合の根拠にはしない（#77）。
+    const staleCard = card.money?.stale_cashflow === true;
+    if (staleCard) stale.add(card.id);
     for (const { name, input } of card.money?.calculations ?? []) {
       try {
         const result = executeTool(name, input);
         if (!result.ok) continue;
-        events.push({ name, input, ok: true, output: result.output });
+        if (!(staleCard && name === "simulate_cashflow"))
+          events.push({ name, input, ok: true, output: result.output });
         calculations.push(
           calculationSchema.parse({ name, input, output: result.output }),
         );
@@ -155,7 +161,7 @@ function recalculate(cards: ChatRequest["cards"]): {
     }
     if (calculations.length > 0) byCard.set(card.id, calculations);
   }
-  return { events, byCard };
+  return { events, byCard, stale };
 }
 
 function proseOf(reply: string, cards: readonly Proposal[]): string {
@@ -253,6 +259,7 @@ export async function runChat({
   const context = {
     existing: input.cards,
     prior: prior.byCard,
+    priorStale: prior.stale,
     messages: input.messages,
     events,
   };
