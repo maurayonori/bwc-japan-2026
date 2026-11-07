@@ -29,5 +29,6 @@
 | [0008](0008-build-family-preparation-workspace.md)                  | 会話から家族のための文章を作り、選んで持ち出せる初版を実装する                       | 一部置き換え（0011） | 2026-11-06 |
 | [0009](0009-conversational-hospital-cost-prototype.md)              | 入院前のお金の見通しを会話で試す検証用の試作を、計算の道具つきで、アプリと分けて置く | 置き換え（0011）     | 2026-11-06 |
 | [0010](0010-host-on-vercel-with-authentication.md)                  | Vercelへ配置し、全URLを認証で保護してMacの起動なしで使えるようにする                 | 置き換え（0012）     | 2026-11-06 |
-| [0011](0011-confirm-sakiyomi-and-include-money.md)                  | 発表する製品を「さきよみ」に確定し、入院前のお金の計算を本体に入れる                 | 採用                 | 2026-11-06 |
+| [0011](0011-confirm-sakiyomi-and-include-money.md)                  | 発表する製品を「さきよみ」に確定し、入院前のお金の計算を本体に入れる                 | 一部置き換え（0013） | 2026-11-06 |
 | [0012](0012-open-production-with-usage-limits.md)                    | 本番 URL を利用上限つきで公開し、Vercel ログインを外す                               | 採用                 | 2026-11-06 |
+| [0013](0013-decision-first-range-and-one-check.md)                  | 主役を「退院の日に要る額の幅」と「まず確かめる 1 つ」にし、メモは渡すものとして下に置く | 提案                 | 2026-11-07 |
