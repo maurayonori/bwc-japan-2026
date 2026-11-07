@@ -111,6 +111,18 @@ function randomCashflow(r: Random) {
   };
 }
 
+// 移植は試作に無い順位（what_to_confirm）を足した。試作と比べるのは、それ以外の項目。
+function withoutRanking(
+  name: string,
+  result: ReturnType<typeof executeTool>,
+): ReturnType<typeof executeTool> {
+  if (name !== "simulate_cashflow" || !result.ok) return result;
+  const { what_to_confirm: _ranking, ...output } = result.output as {
+    what_to_confirm?: unknown;
+  };
+  return { ...result, output } as ReturnType<typeof executeTool>;
+}
+
 test("限度額の表・食事代・祝日は試作と同じ", { skip }, async () => {
   const rules = await load("rules.mjs");
   assert.deepEqual(KOUGAKU_UNDER_70, rules.KOUGAKU_UNDER_70);
@@ -142,7 +154,7 @@ test("固定シードの架空入力で、4 つの道具の結果が試作と一
     let accepted = 0;
     for (let index = 0; index < 1000; index += 1) {
       const input = generate(r);
-      const ported = executeTool(name, input);
+      const ported = withoutRanking(name, executeTool(name, input));
       assert.deepEqual(ported, tools.executeTool(name, input), name);
       if (ported.ok) accepted += 1;
     }
