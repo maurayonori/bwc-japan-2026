@@ -163,7 +163,8 @@ test("提出文の架空の例の金額は、計算関数の結果と一致す�
     `上限が使えなければ ${yen(extended.withoutCap.low_case.need)}`,
   ];
   for (const text of expected) assert.ok(form.includes(text), text);
-  assert.equal(confirmed.high_case.rows[0].certainty, "confirmed");
+  // 確かめたのは条件（窓口で上限が使える）だけなので、額は見積もりのまま（#68）。
+  assert.equal(confirmed.high_case.rows[0].certainty, "estimate");
 });
 
 // 体験例の条件（日付・区分・総額・手元）を、exampleMoneyTurns の計算の入力から作る（#62）。
