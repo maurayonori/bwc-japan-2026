@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import {
   EXAMPLE_ANSWER,
   EXAMPLE_FIRST,
+  EXAMPLE_SITUATION,
   EXAMPLE_TODAY,
   answerExample,
   exampleAfterCalculations,
@@ -154,7 +155,9 @@ test("体験例の根拠の引用は、発言と完全一致する。発言は�
   assert.equal(after.messages[0].text, EXAMPLE_FIRST);
   assert.equal(after.messages[2].text, EXAMPLE_ANSWER);
   const script = readFileSync("docs/submission/demo-script.md", "utf8");
+  assert.ok(script.includes(EXAMPLE_SITUATION), "台本の 1 つ目の発言");
   assert.ok(script.includes(EXAMPLE_ANSWER), "台本の 2 つ目の発言");
+  assert.ok(script.includes("入院が1週間延びて、退院が1月4日になったら？"), "台本の 3 つ目の発言");
 });
 
 test("支払日に要るお金: 病院に聞く前は、上限を使う場合と使わない場合を並べ、差と手元との差を計算の出力から出す", () => {

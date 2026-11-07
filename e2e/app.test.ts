@@ -183,7 +183,9 @@ test("架空の体験例: 支払日に要るお金を 2 つ並べ、病院の答
     await route.abort();
   });
   await page.goto(`${base}/`);
-  await page.getByText("入院の予定や医療費の見込みを、そのまま話してください。").waitFor();
+  const first = await page.locator(".first-line").innerText();
+  for (const text of ["入院の予定や医療費の見込みを、そのまま話してください。", "プログラムが計算", "医療や給付の判断はしません。"])
+    assert.ok(first.includes(text), text);
   assert.equal(await page.locator(".brand small").innerText(), "使える制度を、支払日に間に合う準備へ");
   await page.getByRole("button", { name: "まず、架空の体験例を見る" }).click();
 
