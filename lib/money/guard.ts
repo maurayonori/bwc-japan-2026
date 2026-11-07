@@ -1,5 +1,10 @@
 import { FACTS } from "./facts";
-import type { MoneyWarning } from "./schema";
+import { yen } from "./format";
+import {
+  whatToConfirmSchema,
+  type MoneyWarning,
+  type WhatToConfirm,
+} from "./schema";
 
 // 返答に書かれた金額と日付が、プログラムの計算結果・利用者の発言・持っている事実のどれかにあるかを照らす。
 // 「金額と日付は、プログラムが計算したものだけを見せる」という約束を、目で確かめられるようにするため。
@@ -13,6 +18,10 @@ const AMOUNT_PATTERN = new RegExp(
 const ISO_DATE_PATTERN = /(\d{4})-(\d{2})-(\d{2})/g;
 const SLASH_DATE_PATTERN = /(?<![\d/])(\d{1,2})\/(\d{1,2})(?![\d/])/g;
 const KANJI_DATE_PATTERN = /(\d{1,2})\s*月\s*(\d{1,2})\s*日/g;
+// 「縮みません」「縮まない」「縮むとは限らない」など、縮まないことを言う書き方。
+const NO_SHRINK_PATTERN =
+  /縮(?:みません|まない|まず|まなかっ|まりません|まらない|まらず|まらなかっ|むとは限[らり]|まるとは限[らり])/g;
+const SENTENCE_END = /[。！？!?\n]/;
 
 export interface GuardToolEvent {
   input: unknown;
@@ -140,6 +149,50 @@ function allowedValues({
   };
 }
 
+// 道具の結果にある「まず確かめる 1 つ」の順位（what_to_confirm）を、出てきた順に集める。最後のものが今の見通し。
+function confirmsIn(toolEvents: readonly GuardToolEvent[]): WhatToConfirm[] {
+  return toolEvents.flatMap((event) => {
+    const output = event.output;
+    if (output === null || typeof output !== "object") return [];
+    if (!("what_to_confirm" in output)) return [];
+    const parsed = whatToConfirmSchema.safeParse(output.what_to_confirm);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
+
+// 「まず確かめる 1 つ」を確かめても幅が縮まない（shrink が 0）のに、「縮む」と書いた文を拾う。
+// 数字は計算結果にあっても、意味が逆になるため。前の計算から今の幅まで縮んだ、という報告は正しいので通す。
+function misleadingShrink(
+  reply: string,
+  toolEvents: readonly GuardToolEvent[],
+): MoneyWarning[] {
+  const confirms = confirmsIn(toolEvents);
+  const current = confirms.at(-1);
+  const top = current?.factors[0];
+  if (!current || !top || top.shrink !== 0) return [];
+  const earlierWidths = new Set(
+    confirms
+      .slice(0, -1)
+      .map((confirm) => confirm.width)
+      .filter((width) => width > current.width),
+  );
+  return normalize(reply)
+    .split(SENTENCE_END)
+    .flatMap((sentence): MoneyWarning[] => {
+      if (!sentence.replace(NO_SHRINK_PATTERN, "").includes("縮")) return [];
+      if (amountsIn(sentence).some((amount) => earlierWidths.has(amount.value)))
+        return [];
+      const shown = sentence.trim().slice(0, 120);
+      return [
+        {
+          kind: "amount",
+          shown,
+          message: `「${shown}」とありますが、計算では「${top.name}」を確かめても、答えによっては要る額の幅が縮みません（いまの幅 ${yen(current.width)}、確かめると残る幅 ${yen(top.width_if_resolved)}）。見通しで答えごとの要る額を確かめるか、書き直すように頼んでください。`,
+        },
+      ];
+    });
+}
+
 export function checkReply({
   reply,
   toolEvents,
@@ -175,7 +228,11 @@ export function checkReply({
     );
 
   const seen = new Set<string>();
-  return [...unknownAmounts, ...unknownDates].filter((warning) => {
+  return [
+    ...unknownAmounts,
+    ...unknownDates,
+    ...misleadingShrink(reply, toolEvents),
+  ].filter((warning) => {
     const key = `${warning.kind}:${warning.shown}`;
     if (seen.has(key)) return false;
     seen.add(key);
