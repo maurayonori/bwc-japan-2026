@@ -452,8 +452,8 @@ function OtherFactors({ confirm }: { confirm: WhatToConfirm }) {
   return (
     <details>
       <summary>ほかの不明点</summary>
-      {others.map((factor) => (
-        <div key={factor.name} className="money-confirm-other">
+      {others.map((factor, index) => (
+        <div key={`${factor.kind}-${index}`} className="money-confirm-other">
           <p>{factor.name}</p>
           <Bar
             label="確かめると残る幅"
@@ -572,7 +572,7 @@ export function ConfirmBlock({
                   className="secondary money-copy"
                   disabled={disabled}
                   onClick={() =>
-                    onAsk(`『${top.name}』を確かめる質問文を作って`)
+                    onAsk(`「${top.name}」を確かめる質問文を作って`)
                   }
                 >
                   質問文を作ってもらう
