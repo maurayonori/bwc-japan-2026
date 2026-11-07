@@ -25,6 +25,7 @@ import {
   viewFromHash,
   type View,
 } from "@/lib/views";
+import { appendTranscript } from "@/lib/voice";
 import {
   FactText,
   MoneyDetails,
@@ -33,6 +34,7 @@ import {
   WarningList,
   type AskQuestion,
 } from "./money-card";
+import { VoiceButton } from "./voice-button";
 
 function Mark({ small = false }: { small?: boolean }) {
   return (
@@ -276,6 +278,8 @@ const FIRST_LINE =
   "入院のことや家族に頼みたいことを、思いついた順にそのまま話してください。";
 const PLACEHOLDER =
   "例: 来月から 2 週間入院します。手元にいくら要るか知りたい。";
+// 入力欄に入る文字数の上限。マイクで足す文字も、この中に収める。
+const DRAFT_LIMIT = 4000;
 
 function errorMessageOf(data: unknown, status: number): string {
   if (
@@ -732,7 +736,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 rows={2}
-                maxLength={4000}
+                maxLength={DRAFT_LIMIT}
                 disabled={busy || example}
                 placeholder={
                   example
@@ -741,8 +745,18 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                 }
               />
               <div className="composer-bottom">
-                {/* 入力欄のそばに置く道具。音声入力などを足すときも、ここに並べる（下書きは draft に入れる）。 */}
+                {/* 入力欄のそばに置く道具。マイクは確定した文字を下書きの末尾に足すだけで、送信はしない（#45）。 */}
                 <div className="composer-tools">
+                  {!example && (
+                    <VoiceButton
+                      disabled={busy || !hydrated}
+                      append={(text) =>
+                        setDraft((prev) =>
+                          appendTranscript(prev, text, DRAFT_LIMIT),
+                        )
+                      }
+                    />
+                  )}
                   {!example && (
                     <button
                       type="button"
@@ -903,6 +917,10 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                 Anthropicのプライバシーポリシー
               </a>
               をご確認ください。
+            </p>
+            <h3>マイクで話すとき</h3>
+            <p>
+              パソコンのChromeなどでは、入力欄の下の「話して入力」から話せます。音声は、文字にするためにブラウザの音声認識サービス（ChromeではGoogle）へ送られます。アプリのサーバーは音声を受け取りません。文字は入力欄に入るだけで、送信は「ここから整理する」を押したときです。実名や病名は話さず、架空の内容で試してください。スマートフォンでは、キーボードの音声入力を使えます。
             </p>
             <h3>公開の試用版です</h3>
             <p>

@@ -814,7 +814,7 @@ main.talk {
   font-size: 12px;
   text-decoration: none;
 }
-/* 入力欄のそばの道具（いまは体験例へのリンク）。道具が無いときも、送るボタンは右に置く。 */
+/* 入力欄のそばの道具（マイクと体験例へのリンク）。道具が無いときも、送るボタンは右に置く。 */
 .composer-tools {
   display: flex;
   flex-wrap: wrap;
@@ -834,6 +834,60 @@ main.talk {
   text-decoration: underline;
   text-decoration-color: #bcc8bb;
   text-underline-offset: 4px;
+}
+/* 入力欄の横のマイク（#45）。PC の対応するブラウザだけに出る。録音中は塗りと点で分かるようにする。 */
+.voice-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px 5px 8px;
+  border: 1px solid #c7d3bc;
+  border-radius: 16px;
+  background: white;
+  color: var(--green);
+  font-size: 11px;
+}
+.voice-button svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.voice-button[aria-pressed="true"] {
+  background: var(--deep);
+  border-color: var(--deep);
+  color: white;
+}
+.voice-dot {
+  width: 9px;
+  height: 9px;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: #f0b9a6;
+  animation: voice-pulse 1.2s ease-in-out infinite;
+}
+@keyframes voice-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+/* 録音中の案内、話している途中の文字、エラー、初めて押したときの一言。道具の下に 1 行ずつ並べる。 */
+.voice-status {
+  order: 1;
+  flex-basis: 100%;
+  display: grid;
+  gap: 2px;
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.voice-interim {
+  color: #9aa498;
+}
+.voice-interim::after {
+  content: " …";
+}
+.voice-error {
+  color: #7c603d;
 }
 main.page {
   width: 100%;
