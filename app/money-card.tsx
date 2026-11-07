@@ -9,6 +9,7 @@ import {
   cashGapText,
   cashflowPaths,
   cashflowRows,
+  citedFacts,
   copayText,
   formulaText,
   inDisplayOrder,
@@ -65,8 +66,10 @@ function Citation({ id }: { id: string }) {
   );
 }
 
-// 文章の [F03] を、出典へのリンクにする。
+// 文章の [F03] を、出典へのリンクにする。文章のあとに、引いた事実ごとの出典すべて（名前と URL）と確認日を、
+// ホバーにせず見える形で並べる（#68）。
 export function FactText({ text }: { text: string }) {
+  const facts = citedFacts(text);
   return (
     <>
       {text.split(CITATION).map((part, index) =>
@@ -82,6 +85,29 @@ export function FactText({ text }: { text: string }) {
         ) : (
           part
         ),
+      )}
+      {facts.length > 0 && (
+        <span className="fact-sources">
+          {facts.map((fact) => (
+            <span key={fact.id} className="fact-source">
+              <span className="fact-source-head">
+                {fact.id}: {fact.topic}（確認 {fact.checked_on}）
+              </span>
+              {fact.sources.map((source) => (
+                <span key={source.url} className="fact-source-item">
+                  {source.name}{" "}
+                  {source.url.startsWith("https://") ? (
+                    <a href={source.url} target="_blank" rel="noopener noreferrer">
+                      {source.url}
+                    </a>
+                  ) : (
+                    source.url
+                  )}
+                </span>
+              ))}
+            </span>
+          ))}
+        </span>
       )}
     </>
   );
