@@ -1,7 +1,8 @@
 import { isDateString, weekdayOf } from "./dates";
 import { FACTS } from "./facts";
-import { yen } from "./format";
+import { cashGapText, yen } from "./format";
 import {
+  cashflowOutputSchema,
   whatToConfirmSchema,
   type MoneyWarning,
   type WhatToConfirm,
@@ -492,20 +493,12 @@ const PAST_MARKER = /前は|前の|以前|これまで|もともと|元の|最�
 // 前の値の語と範囲のあいだに、今の値を言い始める語があれば、範囲は今の値（4 回目の指摘③）。
 const PRESENT_AFTER_PAST = /でしたが|ですが|けれど|けど|一方|今の|今は|いまの|いまは|現在|新しい/;
 
-// 範囲が前の値を言っているか。文の中で範囲より前に前の値の語があり、そのあいだに別の額も、
-// 今の値を言い始める語も無いときだけ、前の値とみなす。読点の位置には頼らない。
-function pastRange(
-  before: string,
-  amounts: readonly Found[],
-  sentenceStart: number,
-  rangeStart: number,
-): boolean {
-  const markers = [...before.matchAll(new RegExp(PAST_MARKER.source, "g"))];
-  const marker = markers.at(-1);
+// 範囲が前の値を言っているか。文の中で範囲より前に前の値の語があり、そのあいだに今の値を言い始める語
+// （「今の」「でしたが」など）が無ければ、前の値とみなして照らさない。読点の位置や、あいだにある別の額
+// （「前の試算では総額が80万円で…」）には頼らない（#66 の A-2③）。
+function pastRange(before: string): boolean {
+  const marker = [...before.matchAll(new RegExp(PAST_MARKER.source, "g"))].at(-1);
   if (!marker) return false;
-  const markerEnd = sentenceStart + marker.index + marker[0].length;
-  if (amounts.some((amount) => amount.start >= markerEnd && amount.start < rangeStart))
-    return false;
   return !PRESENT_AFTER_PAST.test(before.slice(marker.index + marker[0].length));
 }
 
@@ -590,14 +583,16 @@ function scenariosFor(condition: string, scenarios: readonly ScenarioRange[]): S
     scenario.keys.some((key) => containsAffirmed(key, said)),
   );
   if (whole.length > 0) return whole;
-  const partial = scenarios.filter((scenario) =>
-    scenario.keys.some((key) =>
-      key
-        .split(/[・、,／/（）()]/)
-        .some((part) => part.length >= 4 && containsAffirmed(said, part)),
-    ),
+  // 名前の部分（「・」などで区切った部分）が、すべて条件に入っている筋書きだけを使う（#66 の A-2①）。
+  // 「窓口で上限が使える前提で費用が半々」は「窓口で上限が使える・費用が半々」に当たり、共通の部分しか入っていない
+  // 「窓口で上限が使える・費用が12月に寄る」は混ぜない。どれも当たらなければ照らさない。
+  const full = scenarios.filter((scenario) =>
+    scenario.keys.some((key) => {
+      const parts = key.split(/[・、,／/（）()]/).filter((part) => part.length >= 4);
+      return parts.length > 0 && parts.every((part) => containsAffirmed(said, part));
+    }),
   );
-  return partial.length > 0 ? partial : null;
+  return full.length > 0 ? full : null;
 }
 
 // 返答が書いた「要る額」の範囲が、最新の計算の範囲（what_to_confirm の need_low〜need_high）と合うかを照らす（#61 の指摘 8）。
@@ -623,7 +618,7 @@ function rangeMismatches(
     if (!sentence.includes("要る額")) return [];
     if (SHRINK_AFTER.test(normalized.slice(high.end))) return [];
     const before = normalized.slice(sentenceStart, low.start);
-    if (pastRange(before, amounts, sentenceStart, low.start)) return [];
+    if (pastRange(before)) return [];
     const conditions = [...before.matchAll(CONDITION_MARKER)];
     const condition = conditions.at(-1);
     let expected: { need_low: number; need_high: number; name: string | null };
@@ -804,11 +799,24 @@ const ACTION_GROUP: Record<string, string> = {
   予約: "reserve",
 };
 
+// 主語のあと、完了した行為までのあいだにこれがあれば、その主語は従属節（「私が入院している間に」）の主語。
+const SUBORDINATE_AFTER = /間に|あいだに|ときに|時に|とき、|うちに|ので|ため|前に|後に|あとに|あとで|てから|ながら/;
+
 // 文の中で、済ませた人を読む。完了した行為（at の位置）のすぐ前の主語を使う（4 回目の指摘②）。
-// 書かれていなければ、返答ではアプリ、本人の文では本人。
-function actorOf(sentence: string, voice: "reply" | "card", at: number): string {
-  const found = [...sentence.slice(0, at).matchAll(new RegExp(ACTOR_AT.source, "g"))].at(-1);
-  if (!found) return voice === "reply" ? "app" : "self";
+// 従属節の主語は外す。「は」の主語は文全体の主語として残す（#66 の A-2②）。
+// 主語が書かれていなければ、返答ではアプリ、本人の文では本人。主語はあるのに判別できなければ null。
+function actorOf(sentence: string, voice: "reply" | "card", at: number): string | null {
+  const head = sentence.slice(0, at);
+  const mentions = [...head.matchAll(new RegExp(ACTOR_AT.source, "g"))];
+  if (mentions.length === 0) return voice === "reply" ? "app" : "self";
+  const found = mentions
+    .filter(
+      (mention) =>
+        mention[0].endsWith("は") ||
+        !SUBORDINATE_AFTER.test(head.slice(mention.index + mention[0].length)),
+    )
+    .at(-1);
+  if (!found) return null;
   const word = found[0].replace(/(?:は|が|も|から)$/, "");
   if (word === "あなた") return voice === "reply" ? "self" : "other";
   if (/^(?:私|わたし|僕|ぼく|自分)$/.test(word)) return voice === "reply" ? "app" : "self";
@@ -820,8 +828,8 @@ function reportsIn(userTexts: readonly string[]): Set<string> {
   const reports = new Set<string>();
   for (const sentence of userTexts.flatMap((text) => text.match(/[^。！？\n]+[。！？]?/g) ?? [])) {
     const done = DONE_CLAIM.exec(sentence);
-    if (done)
-      reports.add(`${actorOf(sentence, "card", done.index)}:${ACTION_GROUP[done[1]]}`);
+    const actor = done ? actorOf(sentence, "card", done.index) : null;
+    if (done && actor) reports.add(`${actor}:${ACTION_GROUP[done[1]]}`);
   }
   return reports;
 }
@@ -850,6 +858,8 @@ function overclaims(
   if (appAction || !done) return true;
   // 本人や家族の完了の報告は、本人が同じこと（同じ人が、同じ手続きを）を話していれば残す。
   const actor = actorOf(sentence, voice, done.index);
+  // 済ませた人を判別できなければ、置き換えない（ADR 0018: 迷ったら伏せない・置き換えない側に倒す）。
+  if (actor === null) return false;
   if (actor === "app" || actor === "other") return true;
   return !reportsIn(userTexts).has(`${actor}:${ACTION_GROUP[done[1]]}`);
 }
@@ -874,4 +884,70 @@ export function softenTitle(title: string, options: SoftenOptions = {}): string 
   return softenClaims(title, { voice: "card", ...options }).replaced > 0
     ? SOFTENED_TITLE
     : title;
+}
+
+// 足りない額を「足ります」、残る額を「足りません」のように、向きを逆に書いた文を見つけて、
+// 計算から作った文に置き換える（#66 の A-3）。数字は計算と合うので、金額の照合では見つからない。
+// 足りる側と足りない側の言い方がまざって判別できない文は、置き換えない。
+const SHORT_WORDS = /足りません|足りない|足りなく|足らない|足らず|不足/;
+const ENOUGH_WORDS = /足ります|足りる|足りています|間に合います|間に合う|収まります|収まる|残ります|残る|余ります|余る/;
+
+interface Gap {
+  name: string;
+  cash: number;
+  needLow: number;
+  needHigh: number;
+}
+
+function latestGaps(toolEvents: readonly GuardToolEvent[]): Gap[] {
+  for (const event of [...toolEvents].reverse()) {
+    const parsed = cashflowOutputSchema.safeParse(event.output);
+    if (!parsed.success) continue;
+    const cash = parsed.data.cash_on_hand;
+    if (cash === null) return [];
+    return parsed.data.scenarios.map((scenario) => ({
+      name: scenario.name,
+      cash,
+      needLow: scenario.low_case.need,
+      needHigh: scenario.high_case.need,
+    }));
+  }
+  return [];
+}
+
+export function fixGapDirection(
+  text: string,
+  toolEvents: readonly GuardToolEvent[],
+): { text: string; replaced: number; sentences: string[] } {
+  const gaps = latestGaps(toolEvents);
+  if (gaps.length === 0) return { text, replaced: 0, sentences: [] };
+  const short = (value: number) =>
+    gaps.filter((gap) => [gap.needLow, gap.needHigh].some((need) => need - gap.cash === value));
+  const remain = (value: number) =>
+    gaps.filter((gap) => [gap.needLow, gap.needHigh].some((need) => gap.cash - need === value));
+  const sentences: string[] = [];
+  const pieces = (text.match(/[^。！？\n]+[。！？]?|\n/g) ?? []).map((sentence) => {
+    const saysShort = SHORT_WORDS.test(sentence);
+    const saysEnough = ENOUGH_WORDS.test(sentence);
+    if (saysShort === saysEnough) return sentence;
+    for (const { value } of amountsIn(sentence)) {
+      if (value <= 0) continue;
+      const shortOf = short(value);
+      const remainOf = remain(value);
+      if (shortOf.length > 0 && remainOf.length > 0) continue;
+      const wrong = saysEnough ? shortOf : remainOf;
+      if (wrong.length === 0) continue;
+      sentences.push(sentence.trim());
+      return wrong
+        .map(
+          (gap) =>
+            `「${gap.name}」なら、手元の ${yen(gap.cash)}では ${cashGapText(gap.cash, gap.needLow, gap.needHigh)}。`,
+        )
+        .join("");
+    }
+    return sentence;
+  });
+  return sentences.length === 0
+    ? { text, replaced: 0, sentences }
+    : { text: pieces.join(""), replaced: sentences.length, sentences };
 }
