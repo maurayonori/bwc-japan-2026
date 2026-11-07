@@ -70,7 +70,7 @@ test("会話の途中で年表やあそぶへ移って戻っても、会話・�
   await page.waitForSelector("#thoughts:not([disabled])");
   // 接続があるときは、送れない案内を出さない（#64）
   assert.equal(await page.locator("#offline-note").count(), 0);
-  const arrived = page.locator('main.talk p.sr-only[role="status"]');
+  const arrived = page.locator('p.sr-only[role="status"]');
   assert.equal(await arrived.innerText(), "");
   const said = "架空の例: 来月から 2 週間入院します。手元にいくら要るか知りたい。";
   await page.fill("#thoughts", said);
@@ -576,5 +576,106 @@ test("あそぶの家を押したまま外へ動かして離したら、戻ら�
   // 押し続ければ戻る
   await holdHome(page);
   await page.waitForURL(`${base}/play`);
+  await context.close();
+});
+
+test("あそぶの家を押しているあいだに別の指が遊びの場所に触れたら戻らない（先に置いた指でも）。1 本だけなら戻る", async () => {
+  const context = await browser.newContext({ viewport: { width: 900, height: 700 }, hasTouch: true });
+  const page = await context.newPage();
+  await page.goto(`${base}/play/pon`);
+  await page.locator(".play-home").waitFor();
+  const box = await page.locator(".play-home").boundingBox();
+  assert.ok(box);
+  const home = { x: box.x + box.width / 2, y: box.y + box.height / 2, id: 1 };
+  const other = { x: 450, y: 420, id: 2 };
+  const cdp = await context.newCDPSession(page);
+  const touch = (type: "touchStart" | "touchEnd", touchPoints: { x: number; y: number; id: number }[]) =>
+    cdp.send("Input.dispatchTouchEvent", { type, touchPoints });
+  // 1. 家を押してから、別の指を遊びの場所に置いたまま待つ
+  await touch("touchStart", [home]);
+  await page.waitForTimeout(300);
+  await touch("touchStart", [home, other]);
+  await page.waitForTimeout(2000);
+  assert.equal(page.url(), `${base}/play/pon`, "2 本目の指が触れているのに戻った");
+  await touch("touchEnd", []);
+  // 2. 別の指を先に置いてから、家を押して待つ
+  await touch("touchStart", [other]);
+  await touch("touchStart", [other, home]);
+  await page.waitForTimeout(2000);
+  assert.equal(page.url(), `${base}/play/pon`, "先に置いた指があるのに戻った");
+  await touch("touchEnd", []);
+  // 3. 1 本だけで押し続ければ戻る
+  await touch("touchStart", [home]);
+  await page.waitForURL(`${base}/play`, { timeout: 5000 });
+  await touch("touchEnd", []);
+  await context.close();
+});
+
+test("返答を待つあいだに「見通し」へ移っても、届いたことを読み上げの文で知らせる。渡すものが 0 件でお金のカードだけなら空の案内を出す", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  // お金のカードだけを返す。返すのは検査が合図するまで待たせる
+  const full = mockReply();
+  const moneyOnly = { ...full, cards: full.cards.filter((card) => card.kind === "money") };
+  assert.ok(moneyOnly.cards.length >= 1 && moneyOnly.cards.length < full.cards.length);
+  let answer = () => {};
+  const held = new Promise<void>((resolve) => (answer = resolve));
+  await page.route("**/api/chat", async (route) => {
+    await held;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(moneyOnly) });
+  });
+  await page.goto(`${base}/`);
+  await page.waitForSelector("#thoughts:not([disabled])");
+  await page.fill("#thoughts", "架空の例: 来月から 2 週間入院します。");
+  await page.getByRole("button", { name: /ここから整理する/ }).click();
+  await page.locator(".thinking").waitFor();
+  // 返答を待つあいだに「見通し」へ移ってから返す
+  await menu(page, "見通し");
+  await page.waitForSelector("#outlook-title");
+  const status = page.locator('p.sr-only[role="status"]');
+  assert.equal(await status.count(), 1);
+  assert.equal(await status.innerText(), "");
+  answer();
+  await page.locator(".memo-card.money").first().waitFor();
+  await page.waitForFunction(`document.querySelector('p.sr-only[role="status"]').textContent === "返答が届きました"`);
+  // 渡すものは 0 件。お金のカードがあっても、空の案内と体験例への導線を出す。書き出しは残す
+  await menu(page, "渡すもの");
+  await page.waitForSelector("#hand-title");
+  const empty = page.locator(".foresight-empty");
+  await empty.waitFor();
+  assert.equal(await empty.getByRole("link", { name: "話す" }).count(), 1);
+  assert.equal(await empty.getByRole("button", { name: "架空の体験例を見る" }).count(), 1);
+  assert.equal(await page.locator(".export-bar").count(), 1);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("動きを減らす設定では、会話の自動スクロールを滑らかに動かさない", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: "reduce" });
+  // 会話の欄の scrollTo に渡した動き方を控える
+  await context.addInitScript(`
+    (() => {
+      window.__behaviors = [];
+      const original = Element.prototype.scrollTo;
+      Element.prototype.scrollTo = function (options) {
+        if (this.classList && this.classList.contains("transcript") && options && typeof options === "object") window.__behaviors.push(options.behavior);
+        return original.apply(this, arguments);
+      };
+    })();
+  `);
+  const page = await context.newPage();
+  await page.route("**/api/chat", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(mockReply()) });
+  });
+  await page.goto(`${base}/`);
+  await page.waitForSelector("#thoughts:not([disabled])");
+  await page.fill("#thoughts", "架空の例: 来月入院します。");
+  await page.getByRole("button", { name: /ここから整理する/ }).click();
+  await page.waitForSelector(".message.assistant:not(.first-line)");
+  const behaviors = (await page.evaluate(`window.__behaviors`)) as string[];
+  assert.ok(behaviors.length > 0);
+  assert.ok(behaviors.every((b) => b === "auto"), JSON.stringify(behaviors));
   await context.close();
 });

@@ -419,9 +419,11 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [draft, remember, workspace.messages.length, example]);
   useEffect(() => {
+    // 動きを減らす設定のときは、滑らかに動かさない（#64）。
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     transcript.current?.scrollTo({
       top: transcript.current.scrollHeight,
-      behavior: "smooth",
+      behavior: reduce ? "auto" : "smooth",
     });
   }, [workspace.messages, busy]);
   useEffect(() => () => abort.current?.abort(), []);
@@ -633,12 +635,13 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
           </button>
         </div>
       </SiteHeader>
+      {/* 返答が届いたことの知らせ。返答を待つあいだに表示を切り替えても読み上げるよう、どの表示でも置く（#64） */}
+      <p className="sr-only" role="status">
+        {arrived}
+      </p>
       {view === "talk" && (
         <main className="talk" id="conversation" aria-label="話す">
           {(example || notice) && <div className="talk-notes">{notes}</div>}
-          <p className="sr-only" role="status">
-            {arrived}
-          </p>
           <div
             className="transcript"
             ref={transcript}
@@ -848,7 +851,8 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                 </h2>
               </div>
             </div>
-            {workspace.cards.length === 0 ? (
+            {/* 渡すものの件数で判定する。お金のカードだけのときも、空の案内と体験例への導線を出す（#64） */}
+            {handCards.length === 0 ? (
               <p className="foresight-empty">
                 朝の支度の引き継ぎ、窓口への質問文、残しておきたい言葉。会話から、ここに渡す文章ができていきます。
                 <span className="empty-actions">
@@ -899,24 +903,27 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                     </p>
                   )}
                 </div>
-                <div className="export-bar">
-                  <div>
-                    <strong>渡す内容は、自分で選べます。</strong>
-                    <p>会話の全文は入りません。</p>
-                  </div>
-                  <button
-                    className="primary"
-                    disabled={selected === 0 || busy}
-                    onClick={() => {
-                      setCopied(false);
-                      setModal("export");
-                    }}
-                  >
-                    選んだ{selected}件を確認{" "}
-                    <span aria-hidden="true">↗</span>
-                  </button>
-                </div>
               </>
+            )}
+            {/* 書き出しにはお金のカードも入るので、カードがあれば出す */}
+            {workspace.cards.length > 0 && (
+              <div className="export-bar">
+                <div>
+                  <strong>渡す内容は、自分で選べます。</strong>
+                  <p>会話の全文は入りません。</p>
+                </div>
+                <button
+                  className="primary"
+                  disabled={selected === 0 || busy}
+                  onClick={() => {
+                    setCopied(false);
+                    setModal("export");
+                  }}
+                >
+                  選んだ{selected}件を確認{" "}
+                  <span aria-hidden="true">↗</span>
+                </button>
+              </div>
             )}
           </section>
           {footer}
