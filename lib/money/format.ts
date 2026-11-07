@@ -79,6 +79,19 @@ export function signedYen(value: number): string {
   return `${value > 0 ? "+" : ""}${yen(value)}`;
 }
 
+// 手元のお金と、要る額の幅を比べた差。残るか、足りないか（#55）。
+export function cashGapText(
+  cash: number,
+  needLow: number,
+  needHigh: number,
+): string {
+  const gapLow = cash - needHigh;
+  const gapHigh = cash - needLow;
+  if (gapLow >= 0) return `${yenRange(gapLow, gapHigh)}残る`;
+  if (gapHigh <= 0) return `${yenRange(-gapHigh, -gapLow)}足りない`;
+  return `${yen(-gapLow)}まで足りないことがある`;
+}
+
 // 年は書かない。年をまたぐ見通しでも読み違えないよう、起点と違う年だけ年を足せるようにする。
 export function showDate(date: string | null, baseYear?: number): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? "");

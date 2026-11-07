@@ -4,7 +4,7 @@ Built with Claude: Japan 2026 の提出用リポジトリです。大会の要�
 
 ## 題材
 
-「さきよみ — 家族のための準備室」。入院が決まった人が普通の言葉で話すと、いつ・いくら要るかをプログラムが計算し、家族や窓口に渡す文章を Claude が下書きする（[ADR 0011](docs/adr/0011-confirm-sakiyomi-and-include-money.md)、[現在の仕様](docs/family-preparation.md)）。作るときは次を守る。
+「さきよみ — 入院のお金、支払日に間に合う準備」。入院が決まった人が普通の言葉で話すと、支払日に要るお金を、窓口で上限が使える場合と使えない場合で並べ、まず確かめる 1 つを出す Web アプリ。家族や窓口に渡す文章も Claude が下書きする。軸は「制度利用の確認と手続きで、避けられる一時立替と資金不足を減らす」（[ADR 0011](docs/adr/0011-confirm-sakiyomi-and-include-money.md)、[ADR 0013](docs/adr/0013-decision-first-range-and-one-check.md)、[ADR 0016](docs/adr/0016-pay-day-story-display-and-example.md)、[現在の仕様](docs/family-preparation.md)）。作るときは次を守る。
 
 - 固定の入力欄や定型の質問票を作らない。入口は自由な会話にする
 - 金額と日付はプログラムで計算する。Claude に生成させない。Claude は条件の読み取りと説明を担う

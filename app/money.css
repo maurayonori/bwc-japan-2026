@@ -93,6 +93,30 @@
 a.fact-cite {
   text-decoration: underline;
 }
+/* 支払日に要るお金。筋書きごとの額と手元のお金との差を、いちばん先に置く（#55）。 */
+.money-payday {
+  border-top: 0;
+  padding-top: 4px;
+}
+.money-payday h4 {
+  color: var(--green);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.money-payday .money-table td:nth-child(2),
+.money-payday .money-table td[data-label="要る額"] {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.payday-gap {
+  margin-top: 6px;
+}
+.payday-note {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: #776d57;
+}
 /* まず確かめる 1 つ。表より先に、答えと次の確認を置く。 */
 .money-confirm {
   border-top: 0;
