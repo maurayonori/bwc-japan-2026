@@ -1,4 +1,4 @@
-// かがみのブラウザでの検査（#54、ADR 0016）。Chromium の偽のカメラとマイクで撮る。先に next build を済ませておく。
+// かがみのブラウザでの検査（#54、ADR 0017）。Chromium の偽のカメラとマイクで撮る。先に next build を済ませておく。
 // ブラウザで動かすスクリプトは文字列で渡す（TypeScript の変換の補助 __name がブラウザに無いため）。
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
@@ -41,6 +41,33 @@ const KEEP_STREAMS = `
     };
   })();
 `;
+
+// 保存の呼び出しそのものを記録する（localStorage・sessionStorage の setItem、indexedDB.open、caches.open）。
+const COUNT_WRITES = `
+  (() => {
+    window.__writes = [];
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      window.__writes.push((this === window.localStorage ? "localStorage" : "sessionStorage") + ".setItem " + key);
+      return setItem.call(this, key, value);
+    };
+    if (window.indexedDB) {
+      const open = window.indexedDB.open.bind(window.indexedDB);
+      window.indexedDB.open = function (name, version) {
+        window.__writes.push("indexedDB.open " + name);
+        return open(name, version);
+      };
+    }
+    if (window.caches) {
+      const openCache = window.caches.open.bind(window.caches);
+      window.caches.open = function (name) {
+        window.__writes.push("caches.open " + name);
+        return openCache(name);
+      };
+    }
+  })();
+`;
+const writes = (page: Page) => page.evaluate(`window.__writes`) as Promise<string[]>;
 
 // blob: と data: 以外の通信を数える（映像がこの端末の外に出ないこと）。
 function watchRequests(page: Page) {
@@ -134,6 +161,7 @@ test("撮る・止める・消音のプレビュー・再生・端末に保存�
     permissions: ["camera", "microphone"],
     acceptDownloads: true,
   });
+  await context.addInitScript(COUNT_WRITES);
   const { page, errors } = await newPage(context);
   await page.goto(`${base}/kagami`);
   await page.waitForLoadState("networkidle");
@@ -185,6 +213,7 @@ test("撮る・止める・消音のプレビュー・再生・端末に保存�
   network.off();
   assert.deepEqual(network.list, [], "かがみの操作のあいだに通信した");
   assert.deepEqual(await storage(page), EMPTY);
+  assert.deepEqual(await writes(page), [], "保存の呼び出しがあった");
 
   // メニューで年表へ移って戻っても残る
   const menu = page.locator('nav[aria-label="メニュー"]');
@@ -202,6 +231,7 @@ test("撮る・止める・消音のプレビュー・再生・端末に保存�
   await page.locator(".kagami-item").getByRole("button", { name: "消す" }).click();
   assert.equal(await page.locator(".kagami-item").count(), 0);
   assert.deepEqual(await storage(page), EMPTY);
+  assert.deepEqual(await writes(page), [], "保存の呼び出しがあった");
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -272,7 +302,8 @@ test("2 分に達したら、自動で録画を止めて残す", async () => {
   await page.locator(".kagami-item").first().waitFor();
   assert.equal(await page.locator(".kagami-item").count(), 1);
   assert.equal(await page.locator(".kagami-rec").count(), 0);
-  assert.match(await page.locator(".kagami-meta").first().innerText(), /2:00/);
+  // 長さは 2:00 に丸めず、実際に録った長さを出す（上限ちょうどか、少し超える）
+  assert.match(await page.locator(".kagami-meta").first().innerText(), /・2:0\d・/);
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -283,6 +314,7 @@ test("カメラが拒否されたら、動画を選ぶ形に切り替わる。�
   const path = join(dir, "pick.webm");
   writeFileSync(path, video);
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
+  await context.addInitScript(COUNT_WRITES);
   await context.addInitScript(`
     navigator.mediaDevices.getUserMedia = function () {
       return Promise.reject(new DOMException("拒否", "NotAllowedError"));
@@ -314,6 +346,7 @@ test("カメラが拒否されたら、動画を選ぶ形に切り替わる。�
   network.off();
   assert.deepEqual(network.list, []);
   assert.deepEqual(await storage(page), EMPTY);
+  assert.deepEqual(await writes(page), []);
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -347,7 +380,7 @@ test("カメラの API が無いブラウザでは、開いたときから動画
   await context.close();
 });
 
-test("マイクが拒否されたら映像だけで撮る。カメラが 2 つあれば前とうしろを切り替える。isTypeSupported が無くても撮れる", async () => {
+test("マイクが拒否されたら映像だけで撮る。isTypeSupported が無くても撮れる", async () => {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
     hasTouch: true,
@@ -357,18 +390,9 @@ test("マイクが拒否されたら映像だけで撮る。カメラが 2 つ�
     (() => {
       const media = navigator.mediaDevices;
       const original = media.getUserMedia.bind(media);
-      const asked = [];
-      window.asked = asked;
       media.getUserMedia = function (constraints) {
-        const video = constraints && constraints.video;
-        asked.push(String((video && video.facingMode) || ""));
         if (constraints && constraints.audio) return Promise.reject(new DOMException("拒否", "NotAllowedError"));
         return original(constraints);
-      };
-      const list = media.enumerateDevices.bind(media);
-      media.enumerateDevices = async function () {
-        const devices = await list();
-        return devices.concat([{ deviceId: "back", groupId: "g", kind: "videoinput", label: "" }]);
       };
       MediaRecorder.isTypeSupported = undefined;
     })();
@@ -377,21 +401,136 @@ test("マイクが拒否されたら映像だけで撮る。カメラが 2 つ�
   await page.goto(`${base}/kagami`);
   await cameraOn(page);
   await page.getByText("マイクを使えないので、映像だけを録ります。").waitFor();
-  // 前のカメラは鏡のように左右を返して見せる
+  // 前のカメラを頼んで開き、向きが分からないときは前のカメラとして鏡のように見せる
   assert.match((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
-  await page.getByRole("button", { name: "うしろのカメラにする" }).click();
-  await page.getByRole("button", { name: "前のカメラにする" }).waitFor();
-  await page.waitForFunction(`(() => {
-    const video = document.querySelector("video.kagami-video");
-    return Boolean(video && video.videoWidth > 0);
-  })()`);
-  assert.doesNotMatch((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
-  const asked = await page.evaluate(`window.asked`);
-  assert.deepEqual(asked, ["user", "user", "environment", "environment"]);
+  // カメラが 1 つなら切り替えのボタンは出さない
+  assert.equal(await page.getByRole("button", { name: /カメラにする$/ }).count(), 0);
   await record(page, 1200);
   const clip = await page.locator('video[aria-label="いま撮った映像"]').evaluate((v: HTMLVideoElement) => v.src);
   assert.ok(clip.startsWith("blob:"));
   assert.equal(await page.locator(".kagami-item").count(), 1);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("カメラが 2 つあれば deviceId で切り替える。取得元が変わり、前のトラックは止まる", async () => {
+  // 偽のカメラを 2 つにしたブラウザで確かめる
+  const two = await chromium.launch({
+    args: ["--use-fake-device-for-media-stream=device-count=2", "--use-fake-ui-for-media-stream"],
+  });
+  try {
+    const context = await two.newContext({ viewport: { width: 390, height: 844 }, permissions: ["camera", "microphone"] });
+    await context.addInitScript(KEEP_STREAMS);
+    const { page, errors } = await newPage(context);
+    await page.goto(`${base}/kagami`);
+    await cameraOn(page);
+    const first = (await page.evaluate(`window.__streams[0].getVideoTracks()[0].getSettings().deviceId`)) as string;
+    assert.match((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
+    // 偽のカメラは向きを持たないので「ほかのカメラ」
+    await page.getByRole("button", { name: "ほかのカメラにする" }).click();
+    await page.waitForFunction(`window.__streams.length === 2 && window.__streams[1].getVideoTracks()[0].readyState === "live"`);
+    await page.waitForFunction(`(() => {
+      const video = document.querySelector("video.kagami-video");
+      return Boolean(video && video.videoWidth > 0 && video.srcObject === window.__streams[1]);
+    })()`);
+    const after = (await page.evaluate(`({
+      id: window.__streams[1].getVideoTracks()[0].getSettings().deviceId,
+      old: window.__streams[0].getTracks().map((t) => t.readyState),
+    })`)) as { id: string; old: string[] };
+    assert.notEqual(after.id, first, "取得元が変わっていない");
+    assert.ok(after.old.length > 0 && after.old.every((state) => state === "ended"), JSON.stringify(after.old));
+    // 向きが分からないカメラは鏡写しにしない
+    assert.doesNotMatch((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
+    // もう一度押すと最初のカメラに戻る
+    await page.getByRole("button", { name: "ほかのカメラにする" }).click();
+    await page.waitForFunction(`window.__streams.length === 3 && window.__streams[2].getVideoTracks()[0].readyState === "live"`);
+    assert.equal(await page.evaluate(`window.__streams[2].getVideoTracks()[0].getSettings().deviceId`), first);
+    await record(page, 1000);
+    assert.equal(await page.locator(".kagami-item").count(), 1);
+    assert.deepEqual(errors, []);
+    await context.close();
+  } finally {
+    await two.close();
+  }
+});
+
+test("カメラを取る途中で画面を離れたら取り直さず、タブが隠れたあとに返ってきたカメラはすぐ止める", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  // getUserMedia を 0.8 秒遅らせる。最初の方式では、音声つきの要求を遅れて断る
+  await context.addInitScript(`
+    (() => {
+      const media = navigator.mediaDevices;
+      const original = media.getUserMedia.bind(media);
+      window.__calls = [];
+      window.__streams = [];
+      window.__mode = "deny-audio-late";
+      media.getUserMedia = function (constraints) {
+        const audio = Boolean(constraints && constraints.audio);
+        window.__calls.push(audio);
+        const mode = window.__mode;
+        return new Promise(function (resolve, reject) {
+          setTimeout(function () {
+            if (mode === "deny-audio-late" && audio) {
+              reject(new DOMException("拒否", "NotAllowedError"));
+              return;
+            }
+            original(constraints).then(function (stream) {
+              window.__streams.push(stream);
+              resolve(stream);
+            }, reject);
+          }, 800);
+        });
+      };
+    })();
+  `);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await page.waitForLoadState("networkidle");
+  // 1. 取る途中で画面を離れたら、映像だけで取り直さない
+  await page.getByRole("button", { name: "カメラをつける" }).click();
+  await page.locator('nav[aria-label="メニュー"]').getByRole("link", { name: "年表" }).click();
+  await page.waitForURL(`${base}/roadmap`);
+  await page.waitForTimeout(1500);
+  assert.deepEqual(await page.evaluate(`window.__calls`), [true], "画面を離れたあとに取り直した");
+  // 2. 取る途中でタブが隠れたら、あとから返ってきたカメラはすぐ止める
+  await page.locator('nav[aria-label="メニュー"]').getByRole("link", { name: "かがみ" }).click();
+  await page.waitForURL(`${base}/kagami`);
+  await page.evaluate(`window.__mode = "late"`);
+  await page.getByRole("button", { name: "カメラをつける" }).click();
+  await page.evaluate(`(() => {
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+  })()`);
+  await page.waitForFunction(`window.__streams.length === 1`);
+  await page.waitForTimeout(300);
+  const states = (await page.evaluate(`window.__streams[0].getTracks().map((t) => t.readyState)`)) as string[];
+  assert.ok(states.length > 0 && states.every((s) => s === "ended"), JSON.stringify(states));
+  await page.getByRole("button", { name: "カメラをつける" }).waitFor();
+  assert.equal(await page.locator("video.kagami-video").count(), 0);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("カメラが途中で切れたら、録っていたところまでを残して「カメラをつける」に戻り、つけ直せる", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  await context.addInitScript(KEEP_STREAMS);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await cameraOn(page);
+  await page.getByRole("button", { name: "録画を始める" }).click();
+  await page.locator(".kagami-rec").waitFor();
+  await page.waitForTimeout(1200);
+  // カメラが外れたことにする
+  await page.evaluate(`window.__streams[0].getVideoTracks()[0].dispatchEvent(new Event("ended"))`);
+  await page.getByText("カメラが切れました。もう一度「カメラをつける」を押してください。").waitFor();
+  await page.locator(".kagami-item").first().waitFor();
+  assert.equal(await page.locator(".kagami-item").count(), 1);
+  const states = (await page.evaluate(`window.__streams[0].getTracks().map((t) => t.readyState)`)) as string[];
+  assert.ok(states.every((s) => s === "ended"), JSON.stringify(states));
+  // 取り直せる
+  await page.getByRole("button", { name: "残して、続けて撮る" }).click();
+  await cameraOn(page);
+  await page.getByRole("button", { name: "録画を始める" }).waitFor();
   assert.deepEqual(errors, []);
   await context.close();
 });
