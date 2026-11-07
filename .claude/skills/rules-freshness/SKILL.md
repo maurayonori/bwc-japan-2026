@@ -11,7 +11,9 @@ when_to_use: 「制度表の鮮度点検」「rules.ts を確かめて」「出�
 ## 誰が実行するか
 
 - メインの会話でこの Skill が呼ばれたら、手順 1〜5 を `rules-auditor` サブエージェント（`.claude/agents/rules-auditor.md`）に任せる。点検役は編集の道具を持たず、読めるのは `rules.ts` とこの手順書だけ、取得できるのは `rules.ts` に載っている出典のホストだけ、Bash は `gh issue create` だけに絞ってある
-- 任せる前に、呼び出し元が開いている点検の Issue を確かめ、番号と題を依頼文に書く: `gh issue list --state open --search "制度表の鮮度点検 in:title"`
+- 任せる前に、呼び出し元が次の 2 つを確かめて依頼文に書く（点検役は `git` や `gh issue list` を実行できない）
+  - 開いている点検の Issue の番号と題: `gh issue list --state open --search "制度表の鮮度点検 in:title"`
+  - 点検する `rules.ts` の最後のコミット: `git log -1 --format="%h %cs" -- lib/money/rules.ts`
 - `rules-auditor` が読み込まれていない（`.claude/agents/` を足した直後でセッションを立ち上げ直していない等）ときは、メインの会話で同じ手順を進めてよい。そのときも `rules.ts` は編集しない
 - 結果の表は、そのまま利用者に見せる。要約して丸めない
 
@@ -55,7 +57,7 @@ URL は手順 1 で読んだ `rules.ts` のものを使う。この手順書に 
 ### 4. 表を出す
 
 ```markdown
-点検日: YYYY-MM-DD（JST）　点検した表: lib/money/rules.ts（コミット <短い hash>）
+点検日: YYYY-MM-DD（JST）　点検した表: lib/money/rules.ts（依頼文にあるコミット。なければ「不明」）
 
 | 項目 | rules.ts の値 | 出典の値 | 結果 |
 | ---- | ------------- | -------- | ---- |
