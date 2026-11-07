@@ -142,7 +142,7 @@ Codex には、仕様への批判レビューと 11/5 の課題の比較も任�
 ## テスト
 
 ```sh
-npm test               # 本体（376 件。Node 24）
+npm test               # 本体（380 件。Node 24）
 npm run typecheck
 npm run build
 npm run test:e2e       # ブラウザの通し（Playwright、Chromium。ビルドしてから 6 件。Claude には送らない）
