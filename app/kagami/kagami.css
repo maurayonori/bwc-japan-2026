@@ -1,0 +1,155 @@
+/* かがみ（#54、ADR 0017）。色と文字はさきよみのトークン（globals.css）に揃える。規則は .kagami の中に閉じる。 */
+.kagami-title {
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.kagami-privacy {
+  margin: 4px 2px 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--sage);
+  color: var(--deep);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.kagami-stage {
+  display: grid;
+  gap: 12px;
+}
+.kagami-screen {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1f2d27;
+  aspect-ratio: 4 / 3;
+  max-height: 62vh;
+  width: 100%;
+}
+.kagami-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #1f2d27;
+}
+/* 前のカメラは鏡のように左右を返して見せる（録る映像そのものは返さない）。 */
+.kagami-video.mirror {
+  transform: scaleX(-1);
+}
+.kagami-off {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: #c9d3c6;
+  font-size: 13px;
+}
+.kagami-rec {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #1f2d27cc;
+  color: white;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.kagami-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #e0705b;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.kagami-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.kagami-controls .primary,
+.kagami-controls .secondary,
+.kagami-pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+.kagami-controls a.primary {
+  color: white;
+}
+.kagami-stop {
+  background: #a8452f;
+}
+.kagami-pick {
+  justify-self: start;
+  cursor: pointer;
+}
+/* 「動画を選ぶ」はラベルの中の入力欄に輪郭が出ないので、キーボードで選んだときはラベルに、ほかのボタンと同じ輪郭を付ける。 */
+.kagami-pick:focus-within {
+  outline: 3px solid #9bb397;
+  outline-offset: 3px;
+}
+.kagami .notice {
+  margin-bottom: 0;
+}
+.kagami .muted {
+  margin: 0;
+}
+.kagami-list {
+  margin-top: 28px;
+  padding-bottom: 32px;
+}
+.kagami-list h2 {
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+.kagami-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.kagami-item {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.kagami-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 8px;
+  background: #1f2d27;
+}
+.kagami-meta {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.kagami-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  font-size: 12px;
+}
+@media (max-width: 740px) {
+  .kagami-screen {
+    aspect-ratio: 3 / 4;
+  }
+  .kagami-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

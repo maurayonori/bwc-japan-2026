@@ -10,7 +10,7 @@
     "test": "tsx --test tests/*.test.ts",
     "test:roadmap": "node scripts/build-sapporo-roadmap.mjs --check && node docs/prototypes/sapporo-roadmap.test.cjs",
     "test:e2e": "next build && tsx --test --test-concurrency=1 e2e/*.test.ts",
-    "test:e2e:links": "NEXT_PUBLIC_PERSONA_URL=http://127.0.0.1:4317/ NEXT_PUBLIC_KAGAMI_URL=https://kagami.example.com/ npm run test:e2e",
+    "test:e2e:links": "NEXT_PUBLIC_PERSONA_URL=http://127.0.0.1:4317/ npm run test:e2e",
     "check:public": "node scripts/check-public.mjs"
   },
   "dependencies": {
