@@ -226,3 +226,57 @@ test("A-2③: 前の値の文の途中にほかの額があっても、切り替
   // 切り替えの語があれば、今の値として照らす。
   assert.equal(check("前の試算では115,690円でしたが、今の要る額は115,690円〜264,750円です。", events, [SAID]).length, 1);
 });
+
+// ===== #67 への Codex の確認（中 4 件） =====
+
+test("Codex③: 時を示す語（「退院前に」「仕事の合間に」）だけでは、主節の主語を外さない", async () => {
+  for (const said of ["夫が退院前に保険会社に連絡しました。", "夫が仕事の合間に、保険会社に連絡しました。"]) {
+    const result = await runChat({
+      model: mock(replyStep("ご主人が保険会社に連絡しました。")),
+      input: { messages: [{ id: "u1", role: "user", text: said }], cards: [] },
+    });
+    assert.match(result.reply, /ご主人が保険会社に連絡しました。/, said);
+  }
+});
+
+test("Codex①: 総額に幅がある月ごとの見積もり（12 月 70〜80 万円・1 月 0〜10 万円）は差し戻さない", () => {
+  const sources = [
+    okEvent("kougaku_gendo", kougaku("2026-12", 700_000, 800_000)),
+    okEvent("kougaku_gendo", kougaku("2027-01", 0, 100_000)),
+  ];
+  const input = {
+    start_date: today,
+    cash_on_hand: 200_000,
+    scenarios: [
+      {
+        name: "病院の見積もり",
+        events: [out("入院費（12 月分）", 89_940, 90_940), out("入院費（1 月分）", 0, 30_000), out("入院中の食事代", 36_300, 36_300)],
+      },
+    ],
+  };
+  assert.equal(monthSplitError(input, sources), null);
+  // 決まった総額を、月ごとに 0 円からの同じ幅へ広げた入力は、これまでどおり差し戻す。
+  assert.ok(monthSplitError(FIRST_RUN, rangedKougaku));
+});
+
+test("Codex②: 準備の方法を言う条件の文や、問いの形の文は、足りない額の向きを判別できないとして置き換えない", () => {
+  for (const text of [
+    "手元の20万円に10,180円を追加すれば、半々の場合でも足ります。",
+    "足りるかどうかは、10,180 円を用意できるかで決まります。",
+  ])
+    assert.equal(fixGapDirection(text, [monthCalc]).replaced, 0, text);
+  // 向きを逆に書いただけの文は、これまでどおり置き換える。
+  assert.equal(fixGapDirection("手元の20万円では、分かれる場合に 10,180 円足ります。", [monthCalc]).replaced, 1);
+});
+
+test("Codex④: 筋書きを見分ける部分が短くても（「半々」）、一致の条件に入れる。絞れなければ照らさない", () => {
+  const calc = okEvent("simulate_cashflow", {
+    start_date: today,
+    cash_on_hand: null,
+    scenarios: [rangeOf("窓口で上限が使える（12月寄り）", 127_240, 150_000), rangeOf("窓口で上限が使える（半々）", 210_180, 230_000)],
+  });
+  assert.deepEqual(check("窓口で上限が使える前提の場合、手元に要る額は127,240円から230,000円です。", [calc]), []);
+  // 短い部分まで条件に入っていれば、その筋書きと照らす。
+  assert.deepEqual(check("窓口で上限が使える前提で半々の場合、手元に要る額は210,180円から230,000円です。", [calc]), []);
+  assert.equal(check("窓口で上限が使える前提で半々の場合、手元に要る額は127,240円から230,000円です。", [calc]).length, 1);
+});

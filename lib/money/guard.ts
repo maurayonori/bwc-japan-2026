@@ -586,10 +586,14 @@ function scenariosFor(condition: string, scenarios: readonly ScenarioRange[]): S
   // 名前の部分（「・」などで区切った部分）が、すべて条件に入っている筋書きだけを使う（#66 の A-2①）。
   // 「窓口で上限が使える前提で費用が半々」は「窓口で上限が使える・費用が半々」に当たり、共通の部分しか入っていない
   // 「窓口で上限が使える・費用が12月に寄る」は混ぜない。どれも当たらなければ照らさない。
+  // 見分ける部分が短くても（「半々」）、一致の条件に入れる（#67 の Codex④）。
   const full = scenarios.filter((scenario) =>
     scenario.keys.some((key) => {
-      const parts = key.split(/[・、,／/（）()]/).filter((part) => part.length >= 4);
-      return parts.length > 0 && parts.every((part) => containsAffirmed(said, part));
+      const parts = key.split(/[・、,／/（）()]/).filter((part) => part.length > 0);
+      return (
+        parts.some((part) => part.length >= 3) &&
+        parts.every((part) => containsAffirmed(said, part))
+      );
     }),
   );
   return full.length > 0 ? full : null;
@@ -799,8 +803,10 @@ const ACTION_GROUP: Record<string, string> = {
   予約: "reserve",
 };
 
-// 主語のあと、完了した行為までのあいだにこれがあれば、その主語は従属節（「私が入院している間に」）の主語。
-const SUBORDINATE_AFTER = /間に|あいだに|ときに|時に|とき、|うちに|ので|ため|前に|後に|あとに|あとで|てから|ながら/;
+// 主語のすぐあとに述語と従属節の印（「入院している間に」「退院したので」）が続けば、その主語は従属節の主語。
+// 「退院前に」「仕事の合間に」のような時を示す語だけでは、従属節とみなさない（#67 の Codex③）。
+const SUBORDINATE_AFTER =
+  /^[^、。]*?(?:る|た|ない|ている|ていた|てる)(?:間に|あいだに|ときに|時に|とき、|うちに|ので|ため|前に|後に|あとに|あとで)|^[^、。]*?(?:てから|ながら)/;
 
 // 文の中で、済ませた人を読む。完了した行為（at の位置）のすぐ前の主語を使う（4 回目の指摘②）。
 // 従属節の主語は外す。「は」の主語は文全体の主語として残す（#66 の A-2②）。
@@ -809,13 +815,12 @@ function actorOf(sentence: string, voice: "reply" | "card", at: number): string 
   const head = sentence.slice(0, at);
   const mentions = [...head.matchAll(new RegExp(ACTOR_AT.source, "g"))];
   if (mentions.length === 0) return voice === "reply" ? "app" : "self";
-  const found = mentions
-    .filter(
-      (mention) =>
-        mention[0].endsWith("は") ||
-        !SUBORDINATE_AFTER.test(head.slice(mention.index + mention[0].length)),
-    )
-    .at(-1);
+  // 従属節の主語として外すのは、ほかにも主語が書かれていて、その主語のすぐあとに述語と従属節の印があるときだけ。
+  const subordinate = (mention: RegExpExecArray) =>
+    mentions.length >= 2 &&
+    !mention[0].endsWith("は") &&
+    SUBORDINATE_AFTER.test(head.slice(mention.index + mention[0].length));
+  const found = mentions.filter((mention) => !subordinate(mention)).at(-1);
   if (!found) return null;
   const word = found[0].replace(/(?:は|が|も|から)$/, "");
   if (word === "あなた") return voice === "reply" ? "self" : "other";
@@ -892,6 +897,8 @@ export function softenTitle(title: string, options: SoftenOptions = {}): string 
 const SHORT_WORDS = /足りません|足りない|足りなく|足らない|足らず|不足/;
 const ENOUGH_WORDS = /足ります|足りる|足りています|間に合います|間に合う|収まります|収まる|残ります|残る|余ります|余る/;
 
+const UNDECIDABLE_GAP = /れば|たら|ても|でも|かどうか|か[、。？?]|ますか|でしょうか/;
+
 interface Gap {
   name: string;
   cash: number;
@@ -930,6 +937,9 @@ export function fixGapDirection(
     const saysShort = SHORT_WORDS.test(sentence);
     const saysEnough = ENOUGH_WORDS.test(sentence);
     if (saysShort === saysEnough) return sentence;
+    // 準備の方法を言う条件の文（「追加すれば」「用意したら」）と、問いの形の文（「足りるかどうか」）は、
+    // 向きを判別できないので置き換えない（#67 の Codex②）。
+    if (UNDECIDABLE_GAP.test(sentence)) return sentence;
     for (const { value } of amountsIn(sentence)) {
       if (value <= 0) continue;
       const shortOf = short(value);
