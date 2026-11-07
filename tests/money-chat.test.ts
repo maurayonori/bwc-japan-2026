@@ -727,13 +727,21 @@ test("答えを伝えたターンで幅が縮み、前の幅を書いた返答�
   assert.equal(previous.what_to_confirm?.width, 209_060);
   assert.equal(after.output.what_to_confirm?.width, 2_000);
 
-  // 前の計算が無ければ、前の幅は見当たらない金額として注意が出る（検査が効いている）。
+  // 前の計算が無く、前の返答にもその額が無ければ、前の幅は見当たらない金額として注意が出る（検査が効いている）。
+  // 前の返答に書いた額は、照らし終えた値として根拠に入る（#61 の指摘 2）ので、対照では前の返答から額を外す。
   const withoutPrior = await runChat({
     model: mock(
       toolStep({ name: "simulate_cashflow", input: capOnly }),
       replyStep(reply, [answerCard]),
     ),
-    input: requestSchema.parse({ messages, cards: [] }),
+    input: requestSchema.parse({
+      messages: messages.map((message) =>
+        message.id === "a1"
+          ? { ...message, text: "まず確かめる 1 つは、窓口で上限が適用されるかです。" }
+          : message,
+      ),
+      cards: [],
+    }),
   });
   assert.deepEqual(
     withoutPrior.warnings.map((warning) => warning.shown),

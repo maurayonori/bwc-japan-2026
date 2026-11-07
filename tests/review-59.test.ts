@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { MockLanguageModelV4 } from "ai/test";
 import { runChat } from "../lib/chat";
 import { exampleMoneyTurns, exampleWorkspace } from "../lib/example";
-import { attachMoney, SYNTHETIC_BODY } from "../lib/money/attach";
+import { attachMoney } from "../lib/money/attach";
 import { checkReply, softenClaims } from "../lib/money/guard";
 import { simulateCashflow, type LedgerEvent } from "../lib/money/ledger";
 import { calculationSchema, type Calculation } from "../lib/money/schema";
@@ -114,7 +114,8 @@ test("指摘1: 見出し・次の行動・まだ確かめていないことに�
   }
 });
 
-test("指摘1: お金のカードは表を残し、照合できない文だけを差し替える", async () => {
+// #61 の指摘 7 で、照らせない文を決まった文に替えるのをやめ、照らせない部分だけを伏せるようにした。
+test("指摘1: お金のカードは表を残し、照合できない部分だけを伏せる", async () => {
   const result = await runChat({
     model: mock(
       toolStep({ name: "meal_cost", input: MEAL }),
@@ -126,7 +127,7 @@ test("指摘1: お金のカードは表を残し、照合できない文だけ�
   });
   assert.equal(result.cards.length, 1);
   assert.ok(result.cards[0].money);
-  assert.equal(result.cards[0].body, SYNTHETIC_BODY);
+  assert.equal(result.cards[0].body, "支払いは（照合できない金額）です。");
   assert.doesNotMatch(JSON.stringify(result.cards[0]), /123,456|123456/);
 });
 

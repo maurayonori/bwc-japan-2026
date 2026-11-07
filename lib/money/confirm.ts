@@ -425,9 +425,13 @@ export function rankUncertainties(
     );
   const effect = (factor: EventFactor) =>
     cornerWidth - (resolutions.get(factor.key)?.widthIfResolved ?? cornerWidth);
-  // 生の金額の幅ではなく、要る額の幅への効き方の大きい順に選ぶ。同じなら幅の大きい順、入力の順。
+  // 生の金額の幅ではなく、要る額の幅への効き方の大きい順に選ぶ。同じなら、表の並びと同じく
+  // 入金 → 支払いの額 → 入力に出てきた順（ADR 0013。#61 の指摘 12）。
   const all = [...candidates].sort(
-    (a, b) => effect(b) - effect(a) || b.spread - a.spread || a.order - b.order,
+    (a, b) =>
+      effect(b) - effect(a) ||
+      KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) ||
+      a.order - b.order,
   );
   const kept = all.slice(0, MAX_EVENT_FACTORS);
   const results = evaluateAll(input, kept, needRange);

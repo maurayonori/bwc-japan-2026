@@ -28,13 +28,21 @@ export const messageSchema = z.object({
   // この返答で作ったり直したりしたカードの id。返答の下の「見る」リンクに使う。前の保存データには無い。
   cardIds: z.array(id).max(5).optional(),
 });
+// 返答とカードの欄の字数の上限。サーバーの後処理（伏字・案内の置き換え）のあとも、この中に収める。
+export const TEXT_LIMITS = {
+  reply: 1800,
+  title: 80,
+  body: 2000,
+  nextStep: 200,
+  uncertainty: 400,
+} as const;
 export const proposalSchema = z.object({
   id,
   kind: z.enum(["daily", "contact", "memory", "money"]),
-  title: z.string().min(1).max(80),
-  body: z.string().min(1).max(2000),
-  nextStep: z.string().min(1).max(200),
-  uncertainty: z.string().max(400),
+  title: z.string().min(1).max(TEXT_LIMITS.title),
+  body: z.string().min(1).max(TEXT_LIMITS.body),
+  nextStep: z.string().min(1).max(TEXT_LIMITS.nextStep),
+  uncertainty: z.string().max(TEXT_LIMITS.uncertainty),
   evidence: z
     .array(z.object({ messageId: id, quote: z.string().min(1).max(2000) }))
     .min(1)
@@ -48,12 +56,12 @@ export const cardSchema = proposalSchema.extend({
 });
 // Claude に出してもらう形。表の項目を持たせない（表はサーバーが道具の結果から作る）。
 export const modelReplySchema = z.object({
-  reply: z.string().min(1).max(1800),
+  reply: z.string().min(1).max(TEXT_LIMITS.reply),
   cards: z.array(proposalSchema.omit({ money: true })).max(4),
 });
 // 合成カードを足すことがあるので、モデルの上限より 1 枚多く受ける。
 export const replySchema = z.object({
-  reply: z.string().min(1).max(1800),
+  reply: z.string().min(1).max(TEXT_LIMITS.reply),
   cards: z.array(proposalSchema).max(5),
   warnings: z.array(warningSchema).max(MAX_WARNINGS).optional(),
   tools: z.array(z.string()).max(40).optional(),
@@ -124,9 +132,19 @@ const storedWorkspaceSchema = workspaceSchema.extend({
   version: z.union([z.literal(1), z.literal(2)]),
 });
 
+// #59 より前の版で保存した「残しておく言葉」は、Claude が作った見出しと次の行動を持っている。
+// 次の行動が決まった文でないもの（前の版の形）は、本人が直したもの以外、読み込むときに原文の見出しと決まった文にそろえる（#61 の指摘 11）。
+// 体験例の見出し（作者が書いた架空の文）は、今の形で保存されているので、そのまま読む。
+function normalizeStoredMemory(card: Card): Card {
+  if (card.kind !== "memory" || card.edited) return card;
+  if (card.nextStep === MEMORY_NEXT_STEP && card.uncertainty === "") return card;
+  return memoryForExport(card);
+}
+
 // version 1（お金のカードが無かった頃）の保存データも、そのまま読む。読めないときは投げる。
 export function parseStoredWorkspace(raw: string): Workspace {
-  return { ...storedWorkspaceSchema.parse(JSON.parse(raw)), version: 2 };
+  const stored = storedWorkspaceSchema.parse(JSON.parse(raw));
+  return { ...stored, version: 2, cards: stored.cards.map(normalizeStoredMemory) };
 }
 
 type WorkspaceStorage = Pick<Storage, "getItem" | "setItem">;
@@ -210,7 +228,7 @@ export function asMemory<
   };
 }
 
-// 持ち出すときの「残しておく言葉」。本人が直したものはそのまま、それ以外は原文にない見出しと次の行動を書かない。
+// 読み込むときと持ち出すときの「残しておく言葉」。本人が直したものはそのまま、それ以外は原文にない見出しと次の行動を書かない。
 function memoryForExport(card: Card): Card {
   if (card.kind !== "memory" || card.edited) return card;
   const fixed = asMemory(card);
