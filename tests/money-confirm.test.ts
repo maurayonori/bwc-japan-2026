@@ -75,7 +75,7 @@ test("体験例では、窓口で上限が適用されるか（筋書き）を�
       factor.shrink,
     ]),
     [
-      ["scenario", "どの筋書きになるか", 60_000, 149_060],
+      ["scenario", "『窓口で上限が適用される場合』か『いったん 3 割を払う場合』か", 60_000, 149_060],
       ["amount", "入院費（保険診療分）の額", 207_060, 2_000],
     ],
   );
@@ -93,6 +93,22 @@ test("体験例では、窓口で上限が適用されるか（筋書き）を�
   // 食事代は幅が無いので、不明点にならない。
   assert.ok(confirm.factors.every((factor) => factor.label !== "入院中の食事代"));
   assert.ok(confirm.reading_guide.some((line) => line.includes("確率ではない")));
+});
+
+test("筋書きの不明点の名前は、2 本なら筋書きの名前から作り、3 本以上ならまとめて呼ぶ", () => {
+  const scenarios = ["上限が適用される場合", "3 割を払う場合", "入院が延びる場合"].map(
+    (name, index) => ({
+      name,
+      events: [event("入院費", "out", 100_000 * (index + 1), 100_000 * (index + 1))],
+    }),
+  );
+  const two = rank(scenarios.slice(0, 2));
+  assert.equal(two.factors[0].kind, "scenario");
+  assert.equal(two.factors[0].name, "『上限が適用される場合』か『3 割を払う場合』か");
+  assert.equal(two.factors[0].label, null);
+  const three = rank(scenarios);
+  assert.equal(three.factors[0].name, "どの筋書きになるか");
+  assert.equal(rank(scenarios.slice(0, 1)).factors.length, 0);
 });
 
 test("筋書きが 1 本で、額に幅が無ければ、不明点は無く幅も 0", () => {
@@ -205,6 +221,8 @@ test("入出金の不明点は 6 つまで。残りは数だけを返し、組�
     })),
   );
   assert.equal(most.combinations, 2_916);
+  // 筋書きが 3 本以上なら、名前を並べずにまとめて呼ぶ。
+  assert.equal(most.factors.find((factor) => factor.kind === "scenario")?.name, "どの筋書きになるか");
   assert.ok(most.combinations <= 2_916);
   assert.equal(most.omitted_factors, 4);
   assert.equal(most.factors.length, 7);
