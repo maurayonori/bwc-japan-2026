@@ -16,7 +16,8 @@ let base = "";
 let stop = () => {};
 
 before(async () => {
-  ({ base, stop } = await startServer());
+  // 送信を押せるよう、接続ありの画面で起動する（#64）。鍵は偽物で、送信はブラウザの中で差し替える。
+  ({ base, stop } = await startServer({ connected: true }));
   browser = await chromium.launch();
 });
 
