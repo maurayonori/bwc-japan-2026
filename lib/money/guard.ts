@@ -623,6 +623,16 @@ function rangeMismatches(
     if (SHRINK_AFTER.test(normalized.slice(high.end))) return [];
     const before = normalized.slice(sentenceStart, low.start);
     if (pastRange(before)) return [];
+    // 文の最後の「要る額」から範囲までに「幅」があり、「X 円から Y 円」と書いた範囲は、幅が変わることを言う文
+    // （「要る額の幅は149,060円から0円になります」）なので、要る額の範囲とは照らさない（#71）。
+    // 一つずつの額の照合は残る。「要る額の幅は X〜Y 円です」は要る額の範囲として照らす。
+    const lastNeed = before.lastIndexOf("要る額");
+    if (
+      lastNeed >= 0 &&
+      before.slice(lastNeed).includes("幅") &&
+      normalized.slice(low.end, high.start).includes("から")
+    )
+      return [];
     const conditions = [...before.matchAll(CONDITION_MARKER)];
     const condition = conditions.at(-1);
     let expected: { need_low: number; need_high: number; name: string | null };

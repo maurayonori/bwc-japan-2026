@@ -75,3 +75,24 @@ test("5: お金のカードの出典の一覧は、見出しと次の一歩の [
   const sources = moneySources({ calculations: [] }, `見出し [${inTitle.id}]\n本文\n次の一歩\n`);
   for (const source of inTitle.sources) assert.ok(sources.some((item) => item.url === source.url));
 });
+
+// ===== 実 API のデモの発言 1 で、正しい文を伏せた 2 件（#71 で直す） =====
+
+test("6: 「要る額の幅は X 円から Y 円になります」は幅を言う文として、要る額の範囲と照らさない", async () => {
+  const { exampleMoneyTurns } = await import("../lib/example");
+  const { checkReply, maskUnverified } = await import("../lib/money/guard");
+  const { first } = exampleMoneyTurns();
+  const args = { toolEvents: first.calculations, userTexts: [], today: "2026-11-30" };
+  const said =
+    "まず確かめる1つは、窓口で上限が使えるかどうかです。ここが分かると、要る額の幅は149,060円から0円になります。";
+  assert.deepEqual(checkReply({ ...args, reply: said }), []);
+  assert.equal(maskUnverified({ ...args, reply: said }).masked, 0);
+  // 幅と言わずに「要る額は X 円から Y 円」と書いた範囲は、今までどおり照らす。
+  assert.equal(checkReply({ ...args, reply: "要る額は149,060円から0円です。" }).length, 1);
+});
+
+test("7: プロンプトは、標準報酬月額の等級の額を書かず、給料の額と仮定した区分の名前だけを書かせる", () => {
+  const text = buildSystem("2026-11-07")[0].content;
+  assert.ok(text.includes("標準報酬月額の等級の額（例: 36 万円）は書かない"));
+  assert.ok(text.includes("給料の額（利用者の言葉）と、仮定した区分の名前だけを書く"));
+});
