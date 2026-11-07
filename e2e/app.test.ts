@@ -75,6 +75,11 @@ test("会話の途中で年表やあそぶへ移って戻っても、会話・�
   await page.waitForSelector("#outlook-title");
   const money = await page.locator(".memo-card.money").innerText();
   assert.match(money, /円/);
+  // 見通しの先頭は、支払日に要るお金（筋書きごとの額と手元のお金との差）と、まず確かめる 1 つ（#55）
+  const hero = await page.locator(".memo-card.money .decision").first().innerText();
+  assert.match(hero, /支払日に要るお金/);
+  assert.match(hero, /手元のお金との差/);
+  assert.match(await page.locator("#outlook-title").innerText(), /支払日に要るお金と、まず確かめる 1[\s\u00a0]つ/);
 
   await menu(page, "渡すもの");
   await page.waitForSelector("#hand-title");
