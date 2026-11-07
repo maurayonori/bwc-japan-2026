@@ -98,14 +98,14 @@ export function SiteHeader({
         <a className="brand" href={VIEW_HASH.talk} aria-label="さきよみ（話す）">
           <Mark />
           <span>
-            さきよみ<small>家族のための準備室</small>
+            さきよみ<small>使える制度を、支払日に間に合う準備へ</small>
           </span>
         </a>
       ) : (
         <Link className="brand" href={`/${VIEW_HASH.talk}`} aria-label="さきよみ（話す）">
           <Mark />
           <span>
-            さきよみ<small>家族のための準備室</small>
+            さきよみ<small>使える制度を、支払日に間に合う準備へ</small>
           </span>
         </Link>
       )}

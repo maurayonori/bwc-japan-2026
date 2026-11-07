@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SiteHeader } from "../app/site-header";
-import { exampleWorkspace } from "../lib/example";
+import { rangeExampleWorkspace as exampleWorkspace } from "./fixtures/range-example";
 import {
   forgetKeptWorkspace,
   keepWorkspace,

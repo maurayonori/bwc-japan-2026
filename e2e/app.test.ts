@@ -50,7 +50,7 @@ after(async () => {
   server?.kill();
 });
 
-// 架空の体験例の返答。お金のカード 1 枚と、渡すもの 4 枚。
+// 架空の体験例の最初の返答。お金のカード 1 枚と、渡すもの 2 枚（病院の会計への質問文、朝の支度）。
 function mockReply() {
   const example = exampleWorkspace();
   const reply = example.messages.find((m) => m.role === "assistant");
@@ -135,7 +135,7 @@ test("会話の途中で年表やあそぶへ移って戻っても、会話・�
   await page.getByText(firstLine.slice(0, 20), { exact: false }).first().waitFor();
   assert.equal(await page.inputValue("#thoughts"), "送る前の下書き");
   // メニューの件数も残っている
-  assert.match(await page.locator('nav[aria-label="メニュー"]').innerText(), /見通し\s*1[\s\S]*渡すもの\s*4/);
+  assert.match(await page.locator('nav[aria-label="メニュー"]').innerText(), /見通し\s*1[\s\S]*渡すもの\s*2/);
 
   // 計算の結果が同じ
   await menu(page, "見通し");
@@ -168,6 +168,84 @@ test("会話の途中で年表やあそぶへ移って戻っても、会話・�
   assert.equal(calls, 1);
   assert.equal(await page.evaluate(() => localStorage.getItem("sakiyomi-family-v1")), null);
   assert.equal(await page.evaluate(() => sessionStorage.length), 0);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("架空の体験例: 支払日に要るお金を 2 つ並べ、病院の答えの続きで更新する。直した文章は上書きしない", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  let calls = 0;
+  await page.route("**/api/chat", async (route) => {
+    calls++;
+    await route.abort();
+  });
+  await page.goto(`${base}/`);
+  const first = await page.locator(".first-line").innerText();
+  for (const text of ["入院の予定や医療費の見込みを、そのまま話してください。", "プログラムが計算", "医療や給付の判断はしません。"])
+    assert.ok(first.includes(text), text);
+  assert.equal(await page.locator(".brand small").innerText(), "使える制度を、支払日に間に合う準備へ");
+  await page.getByRole("button", { name: "まず、架空の体験例を見る" }).click();
+
+  // 返答の下に、2 つの支払日の額と差（避けられる一時立替）
+  const summary = page.locator(".message.assistant .payday.compact");
+  await summary.waitFor();
+  const said = await summary.innerText();
+  for (const text of ["窓口で上限を使う", "115,690 円", "使わずに、あとで還付", "264,750 円", "避けられる一時立替", "149,060 円", "84,310 円残る", "64,750 円足りない"])
+    assert.ok(said.includes(text), text);
+
+  // 見通し: カードの先頭に同じ 2 つ。確かさの区別と、還付の時期の出典と確認日
+  await menu(page, "見通し");
+  await page.waitForSelector("#outlook-title");
+  assert.match(await page.locator("#outlook-title").innerText(), /^支払日に要るお金と、まず確かめる 1\s?つ$/);
+  const block = page.locator(".memo-card.money .payday").first();
+  const outlook = await block.innerText();
+  for (const text of ["支払日に要るお金", "2026 年 12 月の診療分", "200,000 円", "見積もり", "仮定", "診療月から 3 か月以上", "確認 2026-"])
+    assert.ok(outlook.includes(text), text);
+  assert.equal(
+    await block.locator('a.fact-cite[href="https://www.kyoukaikenpo.or.jp/faq/benefit/004/index.html"]').count(),
+    1,
+  );
+  // カードの中で、支払日の額が本文より先に来る
+  const order = await page.locator(".memo-card.money").evaluate((card) => {
+    const payday = card.querySelector(".payday");
+    const body = card.querySelector(".card-body");
+    return Boolean(payday && body && payday.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  assert.equal(order, true);
+  assert.match(await page.locator(".money-confirm").innerText(), /病院の会計/);
+
+  // 渡すもの: 病院の会計への質問文を自分で直す
+  await menu(page, "渡すもの");
+  await page.waitForSelector("#hand-title");
+  const desk = page.locator(".memo-card", { hasText: "病院の会計に、このまま聞く" });
+  await desk.getByRole("button", { name: "内容を直す" }).click();
+  await page.locator("dialog textarea").first().fill("自分で直した質問文（架空）");
+  await page.getByRole("button", { name: "変更を残す" }).click();
+  await page.getByText("自分で直した質問文（架空）").waitFor();
+
+  // 続き: 病院の答えを話す
+  await page.getByRole("button", { name: "続き: 病院の答えを話す →" }).click();
+  await page.waitForURL(`${base}/#talk`);
+  await page.getByText("病院に聞いたら、マイナ保険証で窓口の上限は効くと言われました。").waitFor();
+  const updated = await page.locator(".message.assistant .payday.compact").innerText();
+  for (const text of ["115,690 円", "84,310 円残る", "この見通しには入れていません", "149,060 円"])
+    assert.ok(updated.includes(text), text);
+  assert.equal(await page.locator(".message.assistant .payday.compact").count(), 1, "最新の返答の下だけ");
+  assert.equal(await page.getByRole("button", { name: "続き: 病院の答えを話す →" }).count(), 0);
+  await page.getByText("要る額の幅は 149,060 円から 0 円に縮みました。").waitFor();
+
+  await menu(page, "見通し");
+  await page.waitForSelector("#outlook-title");
+  assert.match(await page.locator(".money-confirm").innerText(), /幅はありません/);
+  await menu(page, "渡すもの");
+  await page.waitForSelector("#hand-title");
+  await page.getByText("自分で直した質問文（架空）").waitFor();
+
+  // 体験例は Claude に送らない
+  assert.equal(calls, 0);
   assert.deepEqual(errors, []);
   await context.close();
 });

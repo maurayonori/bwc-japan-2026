@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { exampleWorkspace } from "../lib/example";
+import { rangeExampleWorkspace as exampleWorkspace } from "./fixtures/range-example";
 import { yenRange } from "../lib/money/format";
 import {
   VIEW_HASH,
@@ -49,11 +49,17 @@ test("URL の # から表示を決める。知らない # や # 無しは「話�
 test("体験例の返答の下に、見通しと渡すものへのリンクを出す。金額は道具の出力から組み立てる", () => {
   const { cards } = exampleWorkspace();
   const range = needRangeOf(moneyCard(cards));
-  assert.deepEqual(range, { low: 115_690, high: 324_750 });
   const calculation = moneyCard(cards).money?.calculations.find(
     (item) => item.name === "simulate_cashflow",
   );
   assert.ok(calculation?.name === "simulate_cashflow");
+  // 幅を縮める不明点の数（筋書きと入院費の額の 2 つ）。0 なら「まず確かめる 1 つ」をリンクに書かない。
+  assert.deepEqual(range, {
+    low: 115_690,
+    high: 324_750,
+    checks: calculation.output.what_to_confirm?.factors.length,
+  });
+  assert.equal(range?.checks, 2);
   assert.equal(range?.low, calculation.output.what_to_confirm?.need_low);
   assert.equal(range?.high, calculation.output.what_to_confirm?.need_high);
   assert.deepEqual(resultLinks(exampleReply(), cards, true), [

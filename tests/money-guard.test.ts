@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkReply } from "../lib/money/guard";
 import { executeTool } from "../lib/money/tools";
-import { exampleWorkspace } from "../lib/example";
+import { rangeExampleWorkspace as exampleWorkspace } from "./fixtures/range-example";
 
 const today = '2026-11-06';
 

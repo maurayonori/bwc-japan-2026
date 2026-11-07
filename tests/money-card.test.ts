@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { exampleWorkspace } from "../lib/example";
+import { rangeExampleWorkspace as exampleWorkspace } from "./fixtures/range-example";
 import { calcDate } from "../lib/money/business-days";
 import { citedFacts, moneySources, showDate, yen, yenRange } from "../lib/money/format";
 import { checkReply } from "../lib/money/guard";
