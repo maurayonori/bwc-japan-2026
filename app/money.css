@@ -299,3 +299,13 @@ a.fact-cite {
     flex: 1;
   }
 }
+
+/* 見通しを計算し直せなかったときの注記（#77）。古い額を今の額として読ませない。 */
+.money-stale {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--amber);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+}

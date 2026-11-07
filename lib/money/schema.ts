@@ -199,6 +199,9 @@ export const calculationSchema = z.discriminatedUnion("name", [
 
 export const moneySchema = z.object({
   calculations: z.array(calculationSchema).min(1).max(MAX_CALCULATIONS),
+  // 内訳を計算し直したあとに見通しを計算し直せなかったとき、残っている見通しは前の条件での計算（#77）。
+  // サーバーへは送らない。次に見通しを計算し直すと、この項目の無いお金の項目で置き換わる。
+  stale_cashflow: z.literal(true).optional(),
 });
 
 // サーバーへ送るときは入力だけにする。結果はサーバーが計算し直せるので、送らない。

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { FACTS } from "@/lib/money/facts";
 import {
   CERTAINTY_TEXT,
+  paydayTable,
+  STALE_CASHFLOW_NOTE,
   DIRECTION_TEXT,
   KOUGAKU_ROWS,
   cashGapText,
@@ -410,12 +412,21 @@ function ScenarioBlock({
   );
 }
 
-function CashflowBlock({ output }: { output: CashflowOutput }) {
+// 見通しを計算し直せなかったときに、見出しに添える（#77）。
+const STALE_SUFFIX = "（前の条件での計算）";
+
+function CashflowBlock({
+  output,
+  stale = false,
+}: {
+  output: CashflowOutput;
+  stale?: boolean;
+}) {
   const hasCash = output.cash_on_hand !== null;
   const baseYear = Number(output.start_date.slice(0, 4));
   return (
     <section className="money-block">
-      <h4>お金の出入りの見通し</h4>
+      <h4>お金の出入りの見通し{stale ? STALE_SUFFIX : ""}</h4>
       <p className="money-muted">
         起点: {showDate(output.start_date)}。手元のお金:{" "}
         {hasCash
@@ -514,46 +525,21 @@ function OtherFactors({ confirm }: { confirm: WhatToConfirm }) {
 }
 
 // 支払日に要るお金を、筋書きごとに並べる（#55）。窓口で上限が使える場合と使えない場合の差（いったん立て替える額）と、
-// 手元のお金との差を、表より先に読めるようにする。値はすべてサーバーの計算結果で、筋書きの名前は会話で付けたもの。
-const CERTAINTY_ORDER = ["confirmed", "estimate", "assumption"] as const;
-
+// 手元のお金との差を、表より先に読めるようにする。値はすべてサーバーの計算結果で、行は lib/money/format.ts の paydayTable が作る。
 export function PayDayBlock({
   output,
   refundNote,
+  stale = false,
 }: {
   output: CashflowOutput;
   refundNote: boolean;
+  stale?: boolean;
 }) {
-  const cash = output.cash_on_hand;
-  const baseYear = Number(output.start_date.slice(0, 4));
-  const rows = output.scenarios.map((scenario) => {
-    const { low_case: low, high_case: high } = scenario;
-    // 支払いに入っている額の確かさを、確かめた額・見積もり・仮定の順に並べる（例: 入院費は確かめた額、食事代は見積もり）。
-    const outRows = high.rows.filter((row) => row.direction === "out");
-    const certainty = CERTAINTY_ORDER.filter((kind) =>
-      outRows.some((row) => row.certainty === kind),
-    ).map((kind) => CERTAINTY_TEXT[kind]);
-    return [
-      scenario.name,
-      yenRange(low.need, high.need),
-      high.need_date ? showDate(high.need_date, baseYear) : "なし",
-      ...(cash === null ? [] : [cashGapText(cash, low.need, high.need)]),
-      certainty.length > 0 ? certainty.join("・") : "—",
-    ];
-  });
+  const { headers, rows } = paydayTable(output);
   return (
     <section className="money-block money-payday decision">
-      <h4>支払日に要るお金</h4>
-      <Table
-        headers={[
-          "筋書き",
-          "要る額",
-          "いつ",
-          ...(cash === null ? [] : ["手元のお金との差"]),
-          "確かさ",
-        ]}
-        rows={rows}
-      />
+      <h4>支払日に要るお金{stale ? STALE_SUFFIX : ""}</h4>
+      <Table headers={headers} rows={rows} />
       {output.comparison_with_first.length > 0 && (
         <p className="money-muted payday-gap">{paydayGapText(output)}</p>
       )}
@@ -572,11 +558,13 @@ export function ConfirmBlock({
   question,
   onAsk,
   disabled = false,
+  stale = false,
 }: {
   output: CashflowOutput;
   question?: AskQuestion | null;
   onAsk?: (text: string) => void;
   disabled?: boolean;
+  stale?: boolean;
 }) {
   const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
   const confirm = output.what_to_confirm;
@@ -593,7 +581,9 @@ export function ConfirmBlock({
   }
   return (
     <section className="money-block money-confirm decision">
-      <h4>まず確かめる 1{"\u00a0"}つ</h4>
+      <h4>
+        まず確かめる 1{"\u00a0"}つ{stale ? STALE_SUFFIX : ""}
+      </h4>
       {top && width > 0 && <p className="money-confirm-name">{top.name}</p>}
       <p className="decision-range">
         <span className="money-muted">手元に要る額の幅</span>{" "}
@@ -720,6 +710,7 @@ export function MoneyDetails({
   );
   const payday =
     latest?.name === "simulate_cashflow" && latest.output.scenarios.length > 0;
+  const stale = money.stale_cashflow === true;
   // 支払日の表の払い戻しの注意は、出典の一覧にも出す。
   const sources = moneySources(
     money,
@@ -729,8 +720,17 @@ export function MoneyDetails({
   );
   return (
     <div className="money">
+      {stale && (
+        <p className="money-stale" role="note">
+          {STALE_CASHFLOW_NOTE}
+        </p>
+      )}
       {payday && latest?.name === "simulate_cashflow" && (
-        <PayDayBlock output={latest.output} refundNote={hasKougaku} />
+        <PayDayBlock
+          output={latest.output}
+          refundNote={hasKougaku}
+          stale={stale}
+        />
       )}
       {latest?.name === "simulate_cashflow" && (
         <ConfirmBlock
@@ -738,12 +738,19 @@ export function MoneyDetails({
           question={question}
           onAsk={onAsk}
           disabled={disabled}
+          stale={stale}
         />
       )}
       {calculations.map((calculation, index) => {
         switch (calculation.name) {
           case "simulate_cashflow":
-            return <CashflowBlock key={index} output={calculation.output} />;
+            return (
+              <CashflowBlock
+                key={index}
+                output={calculation.output}
+                stale={stale}
+              />
+            );
           case "kougaku_gendo":
             return <KougakuBlock key={index} output={calculation.output} />;
           case "meal_cost":
