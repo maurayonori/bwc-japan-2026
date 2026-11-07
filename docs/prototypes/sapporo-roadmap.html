@@ -10,7 +10,8 @@
 <style>
 /* 色と文字は、さきよみのトークン（app/globals.css の --ink・--muted・--green・--line・--paper・--bg・--sage・--amber・--font）に揃える（#52、ADR 0015）。
    単独で開くときも、さきよみの中（/roadmap）でも同じに見えるよう、globals.css を読んだ上に重ねる。年表の規則はすべて .rmp の中に閉じる。
-   年表だけで使う色（レーン・締切・今日の線・子の印）は、さきよみの色から濃さを合わせて決めた。 */
+   年表だけで使う色（レーン・締切・今日の線・子の印）は、さきよみの色から濃さを合わせて決めた。
+   さきよみに暗い表示は無いので、年表も端末の設定にかかわらず明るいトークンのまま出す（暗い表示の切り替えは外した）。 */
 .rmp {
   --surface: var(--paper);
   --surface-2: var(--sage);
@@ -41,81 +42,6 @@
   font-family: var(--font);
   font-size: 14px;
   line-height: 1.75;
-}
-/* 表示の明るさ（設定画面の「暗い」と、自動のときの端末の設定）。さきよみの色を暗くした値に置き換え、ヘッダーとメニューも同じにする。 */
-:root[data-theme="dark"] {
-  --ink: #e3e8e1;
-  --muted: #a3ada4;
-  --green: #8cc4a8;
-  --deep: #6fae90;
-  --line: #36413b;
-  --paper: #1d2420;
-  --bg: #151a17;
-  --sage: #26302a;
-  --amber: #e2b97c;
-  color-scheme: dark;
-}
-:root[data-theme="dark"] .rmp {
-  --grid: #262e29;
-  --accent-weak: #22352c;
-  --danger: #ff8f7f;
-  --danger-weak: #45231e;
-  --warn-weak: #3a2f19;
-  --ok: #86d0a0;
-  --ok-weak: #1c3426;
-  --today: #ff7563;
-  --lane-m-weak: #3d2f1c;
-  --lane-p-weak: #20352b;
-  --lane-v: #c9a6d6;
-  --lane-v-weak: #33283a;
-  --lane-c: #77c9c9;
-  --lane-c-weak: #1a3536;
-  --lane-e: #e2b27a;
-  --lane-e-weak: #3c2e1e;
-  --who-a: #79c3e6;
-  --who-b: #f09cc0;
-  --shadow: none;
-}
-:root[data-theme="dark"] .view-nav a[aria-current="page"] { background: var(--paper); border-color: var(--line); }
-:root[data-theme="dark"] .view-nav .count { background: var(--sage); }
-:root[data-theme="dark"] .rmp .error { background: var(--warn-weak); color: var(--warn); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --ink: #e3e8e1;
-    --muted: #a3ada4;
-    --green: #8cc4a8;
-    --deep: #6fae90;
-    --line: #36413b;
-    --paper: #1d2420;
-    --bg: #151a17;
-    --sage: #26302a;
-    --amber: #e2b97c;
-    color-scheme: dark;
-  }
-  :root:not([data-theme="light"]) .rmp {
-    --grid: #262e29;
-    --accent-weak: #22352c;
-    --danger: #ff8f7f;
-    --danger-weak: #45231e;
-    --warn-weak: #3a2f19;
-    --ok: #86d0a0;
-    --ok-weak: #1c3426;
-    --today: #ff7563;
-    --lane-m-weak: #3d2f1c;
-    --lane-p-weak: #20352b;
-    --lane-v: #c9a6d6;
-    --lane-v-weak: #33283a;
-    --lane-c: #77c9c9;
-    --lane-c-weak: #1a3536;
-    --lane-e: #e2b27a;
-    --lane-e-weak: #3c2e1e;
-    --who-a: #79c3e6;
-    --who-b: #f09cc0;
-    --shadow: none;
-  }
-  :root:not([data-theme="light"]) .view-nav a[aria-current="page"] { background: var(--paper); border-color: var(--line); }
-  :root:not([data-theme="light"]) .view-nav .count { background: var(--sage); }
-  :root:not([data-theme="light"]) .rmp .error { background: var(--warn-weak); color: var(--warn); }
 }
 
 html { -webkit-text-size-adjust: 100%; }
@@ -172,11 +98,6 @@ body { overflow-x: hidden; }
 .rmp .settings .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .rmp .btn { display: inline-block; padding: 5px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--text); }
 .rmp .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; font-size: 13px; line-height: 1.8; }
-.rmp .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.rmp .seg button { border: 0; border-radius: 0; border-right: 1px solid var(--line); }
-.rmp .seg button:last-child { border-right: 0; }
-.rmp .seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
-.rmp .theme-set { display: block !important; }
 
 /* 年表 */
 .rmp .rm-head { display: flex; flex-wrap: wrap; gap: 2px 16px; align-items: baseline; margin: 8px 0 6px; font-size: 13px; color: var(--muted); }
@@ -356,14 +277,6 @@ body { overflow-x: hidden; }
         <a class="btn primary" href="#roadmap" id="back-main">年表に戻る</a>
         <button type="button" id="b-reset">初期値に戻す</button>
       </div>
-      <fieldset class="theme-set">
-        <legend>表示の明るさ</legend>
-        <div class="seg" role="group" aria-label="表示の明るさ">
-          <button type="button" data-theme-set="auto">自動</button>
-          <button type="button" data-theme-set="light">明るい</button>
-          <button type="button" data-theme-set="dark">暗い</button>
-        </div>
-      </fieldset>
     </form>
   </section>
 
@@ -990,7 +903,7 @@ function startRoadmap() {
   var DATA = JSON.parse(document.getElementById('data').textContent);
   var KEY = 'sapporo-roadmap:v2';
   var WARDS = DATA.wards.map(function (w) { return w.name; });
-  var state = { settings: normalizeSettings(DEFAULT_SETTINGS), done: {}, theme: 'auto', view: 'all' };
+  var state = { settings: normalizeSettings(DEFAULT_SETTINGS), done: {}, view: 'all' };
   var canStore = false;
   var ITEM_IDS = {}; DATA.items.forEach(function (it) { ITEM_IDS[it.id] = it; });
   var q = /[?&]today=(\d{4}-\d{2}-\d{2})/.exec(location.search);
@@ -1030,23 +943,17 @@ function startRoadmap() {
       if (s && typeof s === 'object') {
         if (s.settings && typeof s.settings === 'object') state.settings = normalizeSettings(s.settings);
         if (s.done && typeof s.done === 'object') Object.keys(s.done).forEach(function (k) { var m = /^([ab]):(.+)$/.exec(k); if (m && ITEM_IDS[m[2]] && s.done[k] === true) state.done[k] = true; });
-        if (['auto', 'light', 'dark'].indexOf(s.theme) >= 0) state.theme = s.theme;
         if (['all', 'a', 'b'].indexOf(s.view) >= 0) state.view = s.view;
       }
     } catch (e) { canStore = false; }
   }
   function save() {
     if (!canStore) return;
-    try { window.localStorage.setItem(KEY, JSON.stringify({ settings: state.settings, done: state.done, theme: state.theme, view: state.view })); }
+    try { window.localStorage.setItem(KEY, JSON.stringify({ settings: state.settings, done: state.done, view: state.view })); }
     catch (e) { canStore = false; storageNote(); }
   }
   function storageNote() {
     $('storage-note').textContent = canStore ? '' : 'このブラウザでは保存できないので、閉じると設定とチェックは初期値に戻ります。';
-  }
-  function applyTheme() {
-    var root = document.documentElement;
-    if (state.theme === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', state.theme);
-    document.querySelectorAll('[data-theme-set]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-theme-set') === state.theme)); });
   }
   function wardOf() { return DATA.wards.filter(function (w) { return w.name === state.settings.ward; })[0] || null; }
 
@@ -1484,7 +1391,6 @@ function startRoadmap() {
   function init() {
     load();
     storageNote();
-    applyTheme();
     var sel = $('s-ward');
     DATA.wards.forEach(function (w) { sel.appendChild(el('option', { value: w.name, text: w.name })); });
     Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).addEventListener('change', onSettingsChange); });
@@ -1495,7 +1401,6 @@ function startRoadmap() {
       state.view = 'all';
       save(); writeForm(); showSettingsMsg('初期値に戻しました。');
     });
-    document.querySelectorAll('[data-theme-set]').forEach(function (b) { b.addEventListener('click', function () { state.theme = b.getAttribute('data-theme-set'); applyTheme(); save(); }); });
     if (window.innerWidth > 760) $('legend').open = true;
     function onPopState() { if (location.hash !== '#settings' && !$('settings-view').hidden) route(); else if (/^#item-/.test(location.hash)) fromHash(false); else if (location.hash === '#roadmap' || !location.hash) $('roadmap').scrollIntoView({ block: 'start' }); }
     window.addEventListener('hashchange', route);
@@ -1504,7 +1409,6 @@ function startRoadmap() {
     return function stop() {
       window.removeEventListener('hashchange', route);
       window.removeEventListener('popstate', onPopState);
-      document.documentElement.removeAttribute('data-theme');
     };
   }
   return init();
