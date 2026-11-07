@@ -8,9 +8,16 @@ import {
   type LanguageModel,
   type ToolSet,
 } from "ai";
-import { attachMoney, type ToolEvent } from "./money/attach";
+import {
+  SYNTHETIC_BODY,
+  SYNTHETIC_NEXT_STEP,
+  SYNTHETIC_TITLE,
+  SYNTHETIC_UNCERTAINTY,
+  attachMoney,
+  type ToolEvent,
+} from "./money/attach";
 import { todayInJapan } from "./money/dates";
-import { checkReply } from "./money/guard";
+import { checkReply, maskUnverified, softenClaims } from "./money/guard";
 import {
   MAX_WARNINGS,
   calculationSchema,
@@ -153,6 +160,48 @@ function proseOf(reply: string, cards: readonly Proposal[]): string {
 
 const toPromptMessage = ({ id, role, text }: Message) => ({ id, role, text });
 
+// 給付の断定や代行の完了を言う文を、固定の案内に置き換える（#59 の指摘 7）。残しておく言葉は本人の原文なので触らない。
+function softenCard(card: Proposal): Proposal {
+  if (card.kind === "memory") return card;
+  return {
+    ...card,
+    body: softenClaims(card.body).text,
+    nextStep: softenClaims(card.nextStep).text,
+    uncertainty: softenClaims(card.uncertainty).text,
+  };
+}
+
+// 照らせない金額や日付を含むカードは採用しない（#59 の指摘 1）。採用しなければ、前の版が画面に残る。
+// お金のカードの表はプログラムの計算なので残し、照らせない文だけを決まった文に替える。
+function keepVerified(
+  cards: readonly Proposal[],
+  args: Omit<Parameters<typeof checkReply>[0], "reply">,
+): { cards: Proposal[]; warnings: MoneyWarning[] } {
+  const warnings: MoneyWarning[] = [];
+  const kept = cards.flatMap((card): Proposal[] => {
+    if (checkReply({ ...args, reply: proseOf("", [card]) }).length === 0)
+      return [card];
+    if (card.kind === "money")
+      return [
+        {
+          ...card,
+          title: SYNTHETIC_TITLE,
+          body: SYNTHETIC_BODY,
+          nextStep: SYNTHETIC_NEXT_STEP,
+          uncertainty: SYNTHETIC_UNCERTAINTY,
+        },
+      ];
+    const title = card.title.slice(0, 80);
+    warnings.push({
+      kind: "card",
+      shown: title,
+      message: `「${title}」のメモは、計算結果や話した内容と照らせない金額か日付があったので、出しませんでした（前の版があれば、そのまま残しています）。もう一度送ると、作り直せます。`,
+    });
+    return [];
+  });
+  return { cards: kept, warnings };
+}
+
 export async function runChat({
   model,
   input,
@@ -219,29 +268,41 @@ export async function runChat({
         },
       },
     });
-    const { reply, cards: proposals } = result.output;
-    const { cards, warnings } = attachMoney({
+    const { reply: rawReply, cards: proposals } = result.output;
+    const attached = attachMoney({
       ...context,
       proposals,
     });
-    const guardWarnings = checkReply({
-      reply: proseOf(reply, cards),
+    const checkArgs = {
       toolEvents: [...prior.events, ...events],
       userTexts: input.messages
         .filter((message) => message.role === "user")
         .map((message) => message.text),
       today,
+    };
+    const reply = softenClaims(rawReply).text;
+    const softened = attached.cards.map(softenCard);
+    const guardWarnings = checkReply({
+      ...checkArgs,
+      reply: proseOf(reply, softened),
     });
-    return finish(reply, cards, [...guardWarnings, ...warnings], {
-      steps: result.steps.length,
-      usage: {
-        inputTokens: result.usage.inputTokens,
-        outputTokens: result.usage.outputTokens,
-        cacheReadTokens: result.usage.inputTokenDetails?.cacheReadTokens,
-        cacheWriteTokens: result.usage.inputTokenDetails?.cacheWriteTokens,
+    const verified = keepVerified(softened, checkArgs);
+    return finish(
+      // 返答の本文の照らせない金額と日付は伏せ、短い注記を足す。
+      maskUnverified({ ...checkArgs, reply }).text,
+      verified.cards,
+      [...guardWarnings, ...attached.warnings, ...verified.warnings],
+      {
+        steps: result.steps.length,
+        usage: {
+          inputTokens: result.usage.inputTokens,
+          outputTokens: result.usage.outputTokens,
+          cacheReadTokens: result.usage.inputTokenDetails?.cacheReadTokens,
+          cacheWriteTokens: result.usage.inputTokenDetails?.cacheWriteTokens,
+        },
+        fallback: false,
       },
-      fallback: false,
-    });
+    );
   } catch (error) {
     // 利用者が中止したとき、計算が 1 つも済んでいないときは、失敗として返す。
     if (signal?.aborted || !events.some((event) => event.ok)) throw error;

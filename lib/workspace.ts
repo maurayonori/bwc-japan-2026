@@ -188,8 +188,37 @@ export function mergeCards(current: Card[], proposals: Proposal[]): Card[] {
   return cards;
 }
 
+// 「残しておく言葉」は本人の発言の原文だけにする（#59 の指摘 2）。
+// 見出しと次の行動も作らせない。見出しは原文の最初の一文、次の行動は固定の文にする。
+export const MEMORY_NEXT_STEP = "この言葉を残しておくか、自分で選ぶ。";
+const MAX_MEMORY_TITLE = 40;
+
+export function memoryTitle(body: string): string {
+  const firstLine = body.split("\n").find((line) => line.trim()) ?? "";
+  const sentence = /^[^。！？]*[。！？]?/.exec(firstLine.trim())?.[0] ?? "";
+  return sentence.slice(0, MAX_MEMORY_TITLE) || "残しておく言葉";
+}
+
+export function asMemory<
+  T extends { title: string; body: string; nextStep: string; uncertainty: string },
+>(card: T): T {
+  return {
+    ...card,
+    title: memoryTitle(card.body),
+    nextStep: MEMORY_NEXT_STEP,
+    uncertainty: "",
+  };
+}
+
+// 持ち出すときの「残しておく言葉」。本人が直したものはそのまま、それ以外は原文にない見出しと次の行動を書かない。
+function memoryForExport(card: Card): Card {
+  if (card.kind !== "memory" || card.edited) return card;
+  const fixed = asMemory(card);
+  return card.body.includes(card.title) ? { ...fixed, title: card.title } : fixed;
+}
+
 export function exportMemo(cards: Card[]): string {
-  const selected = cards.filter((card) => card.included);
+  const selected = cards.filter((card) => card.included).map(memoryForExport);
   if (selected.length === 0) return "";
   return [
     "さきよみ — 渡すもの",
