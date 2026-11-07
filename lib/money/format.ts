@@ -37,12 +37,18 @@ const NEED_GUIDE = [
   "「手元に要る額」は、その日までの支払いをまかなうために、起点の日に手元に要る額です。あとから入るお金では、先に来る支払いは埋まりません。",
   "同じ日の入金と支払いは、支払いを先に置いています。",
 ];
+// 支払日のカードの決まった注記（窓口で上限が使えない筋書きがあるとき）。払い戻しは見込みとして書き、
+// 受けられるか・いつかは加入先に確かめると分かるようにする（給付を言い切らない。#70）。
+export const REFUND_NOTE =
+  "窓口で上限が使えないときは、上限を超えた分をいったん立て替えます。超えた分は、あとから払い戻される見込みの額です。払い戻しを受けられるか、いつになるかは加入している健康保険に確かめてください。協会けんぽの案内では、払い戻しは診療月から 3 か月以上あとです。[F05]";
+
 export const KOUGAKU_ROWS = [
   ["医療費の総額（10 割）", "total_medical_cost"],
   ["上限が無いときの窓口負担", "copay_without_cap"],
   ["1 か月の上限額", "cap"],
   ["窓口で払う額（上限が適用されるとき）", "pay_with_cap"],
-  ["いったん全額を払ったとき、あとで戻る額", "refund_later"],
+  // 払い戻しは受けられるかを確かめていないことがあるので、見込みとして書く（#71）。
+  ["いったん全額を払ったとき、あとで戻る見込みの額", "refund_later"],
 ] as const;
 
 // 返答の下に出す「この返答で呼んだ計算」の名前。
@@ -251,6 +257,16 @@ function sourceLines(sources: readonly Source[]): string[] {
         ),
       ]
     : [];
+}
+
+// 出典の番号を集める文。見出しと次の一歩の [Fxx] も含める（#70）。
+export function citedText(card: {
+  title: string;
+  body: string;
+  nextStep: string;
+  uncertainty: string;
+}): string {
+  return [card.title, card.body, card.nextStep, card.uncertainty].join("\n");
 }
 
 // 表の無いメモの本文に [F03] があるとき、持ち出した先でも出典をたどれるようにする。
