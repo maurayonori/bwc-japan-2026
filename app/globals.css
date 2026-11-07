@@ -252,17 +252,37 @@ h2 {
   margin-left: 6px;
   font-size: 16px;
 }
+/* 個人情報を書かない注意。入力欄の直上に、会話の本文と同じ大きさで置く（#64）。 */
 .privacy-hint {
-  font-size: 9px;
-  color: var(--muted);
-  margin: 10px 3px 0;
+  font-size: 13px;
+  color: var(--ink);
+  margin: 0 3px 10px;
   line-height: 1.8;
 }
 .privacy-hint button {
-  font-size: 9px;
+  font-size: inherit;
   background: none;
   padding: 0 0 0 4px;
+  color: var(--green);
   text-decoration: underline;
+}
+/* 接続が無いときの案内（#64）。押す前に送れないと分かるよう、入力欄の近くに置く。 */
+.offline-note {
+  font-size: 13px;
+  line-height: 1.8;
+  margin: 0 3px 8px;
+  padding: 10px 12px;
+  background: #f3ece0;
+  border-radius: 7px;
+  color: #7c603d;
+}
+.offline-note button {
+  font-size: inherit;
+  background: none;
+  padding: 0 0 0 6px;
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .message {
   margin-bottom: 21px;
@@ -327,6 +347,16 @@ h2 {
 }
 .foresight .memo-card.money {
   border-top-width: 4px;
+}
+/* 空の見通し・渡すものの「話す」と体験例のボタン（#64）。途中で折れないよう 1 つのかたまりにする */
+.foresight-empty .empty-actions {
+  display: inline-flex;
+  gap: 14px;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+.foresight-empty .empty-actions .text-link {
+  font-size: inherit;
 }
 .foresight-empty {
   margin-top: 17px;
@@ -1001,8 +1031,12 @@ main.page {
   .brand {
     font-size: 16px;
   }
+  /* 副題は消さず、小さめの字で 1 行に出す（#64）。 */
   .brand small {
-    display: none;
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    margin-top: 0;
   }
   .brand .mark {
     width: 28px;
@@ -1013,6 +1047,11 @@ main.page {
     width: 100%;
     overflow-x: auto;
     scrollbar-width: none;
+    /* キーボードで移った項目が端で隠れないよう、余白を見込んで送る。輪郭は内側に描く（#64）。 */
+    scroll-padding-inline: 16px;
+  }
+  .view-nav a:focus-visible {
+    outline-offset: -3px;
   }
   .view-nav ul {
     flex: 1;
@@ -1082,7 +1121,7 @@ main.page {
     padding: 9px 13px;
   }
   .privacy-hint {
-    font-size: 9px;
+    font-size: 13px;
   }
   .memo-heading {
     padding: 0 3px 16px;
@@ -1204,6 +1243,16 @@ main.page {
 }
 /* 320px 前後の幅でも、メニューの 5 つを 1 行に収める（ペルソナやかがみを足したときは、メニューの中で横に送る）。 */
 @media (max-width: 360px) {
+  /* 副題を出しても、製品名と「保存とプライバシー」を 1 行目に収める（#64）。 */
+  .site-header {
+    column-gap: 8px;
+  }
+  .brand {
+    gap: 8px;
+  }
+  .brand small {
+    letter-spacing: 0;
+  }
   .view-nav a {
     font-size: 11px;
     padding: 5px 3px;

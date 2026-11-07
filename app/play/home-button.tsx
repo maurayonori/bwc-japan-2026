@@ -14,6 +14,8 @@ export function HomeButton({ to, label }: { to: string; label: string }) {
   const [progress, setProgress] = useState(0);
   const frame = useRef<number | null>(null);
   const pointers = useRef(new Set<number>());
+  // 画面のどこかに触れている指（家の指も含む）。家以外の場所にも指が触れていれば、長押しを数え直す（#64、ADR 0015）。
+  const touching = useRef(new Set<number>());
 
   const stop = useCallback(() => {
     if (frame.current !== null) cancelAnimationFrame(frame.current);
@@ -41,6 +43,26 @@ export function HomeButton({ to, label }: { to: string; label: string }) {
     if (frame.current !== null) cancelAnimationFrame(frame.current);
   }, []);
 
+  // 画面全体の指を数える。捕まえる前の段階で受けるので、遊びの場所が知らせを止めても数えられる。
+  useEffect(() => {
+    const down = (e: PointerEvent) => {
+      touching.current.add(e.pointerId);
+      // 家を押しているあいだに、ほかの指が触れたら取り消す（家の上でも、遊びの場所でも）
+      if (frame.current !== null && !pointers.current.has(e.pointerId)) stop();
+    };
+    const up = (e: PointerEvent) => {
+      touching.current.delete(e.pointerId);
+    };
+    document.addEventListener("pointerdown", down, true);
+    document.addEventListener("pointerup", up, true);
+    document.addEventListener("pointercancel", up, true);
+    return () => {
+      document.removeEventListener("pointerdown", down, true);
+      document.removeEventListener("pointerup", up, true);
+      document.removeEventListener("pointercancel", up, true);
+    };
+  }, [stop]);
+
   const release = (id: number) => {
     pointers.current.delete(id);
     stop();
@@ -54,8 +76,17 @@ export function HomeButton({ to, label }: { to: string; label: string }) {
       onPointerDown={(e) => {
         // 遊びの場所に「触れた」と伝えない（家の下に形や音を出さない）。
         e.stopPropagation();
+        // 押したまま家の外へ動かして離しても、離したこと（pointerup）が家に届くよう捕まえる（#64）。
+        // 届かないと長押しが続き、外で離したのに戻ってしまう。
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // 捕まえられないときも、離した・取り消した・捕まえ損ねたの知らせで取り消す
+        }
         pointers.current.add(e.pointerId);
-        if (pointers.current.size > 1) stop();
+        // 家に 2 本以上、または家の外にも指が触れていれば始めない（手のひらなど）
+        const elsewhere = [...touching.current].some((id) => !pointers.current.has(id));
+        if (pointers.current.size > 1 || elsewhere) stop();
         else start();
       }}
       onPointerUp={(e) => release(e.pointerId)}
