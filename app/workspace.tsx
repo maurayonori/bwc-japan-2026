@@ -13,13 +13,19 @@ import {
   toRequest,
   UNREADABLE_STORAGE_KEY,
   type Card,
+  type Message,
   type Workspace,
 } from "@/lib/workspace";
-import { exampleWorkspace } from "@/lib/example";
+import {
+  answerExample,
+  exampleAnswered,
+  exampleWorkspace,
+} from "@/lib/example";
 import {
   VIEW_HASH,
   isHandCard,
   latestMoneyMessageId,
+  paydayOf,
   questionCard,
   resultLinks,
   viewFromHash,
@@ -30,6 +36,7 @@ import { keepWorkspace, keptWorkspace } from "@/lib/kept-workspace";
 import {
   FactText,
   MoneyDetails,
+  PaydayBlock,
   ToolTrace,
   WaitingNote,
   WarningList,
@@ -86,6 +93,8 @@ function MemoCard({
   const [title, setTitle] = useState(card.title);
   const [step, setStep] = useState(card.nextStep);
   const [uncertainty, setUncertainty] = useState(card.uncertainty);
+  // 支払日に要るお金。窓口で上限を使う場合と使わない場合を、カードの先頭に並べる（#55）。
+  const payday = card.kind === "money" ? paydayOf(card.money) : null;
   function edit() {
     setTitle(card.title);
     setBody(card.body);
@@ -110,6 +119,7 @@ function MemoCard({
         </span>
       </div>
       <h3>{card.title}</h3>
+      {payday && <PaydayBlock payday={payday} />}
       <p className="card-body">
         {card.kind === "memory" ? card.body : <FactText text={card.body} />}
       </p>
@@ -252,9 +262,9 @@ const HANDOVER_KINDS = ["daily", "contact", "memory"] as const;
 
 // 話し始めの手がかりは、会話の最初の 1 文と入力欄の例だけにする（固定の質問票にしない）。
 const FIRST_LINE =
-  "入院のことや家族に頼みたいことを、思いついた順にそのまま話してください。";
+  "入院の予定や医療費の見込みを、そのまま話してください。支払日に要るお金と、使える制度の確認を整理します。";
 const PLACEHOLDER =
-  "例: 来月から 2 週間入院します。手元にいくら要るか知りたい。";
+  "例: 来月 2 週間入院します。見積もりは総額 80 万円くらい。支払日にいくら要るか知りたい。";
 // 入力欄に入る文字数の上限。マイクで足す文字も、この中に収める。
 const DRAFT_LIMIT = 4000;
 
@@ -269,6 +279,20 @@ function errorMessageOf(data: unknown, status: number): string {
   return status === 429
     ? "短い時間に送信が続いたため、いまは受け付けられません。入力とメモは残っています。少し時間をおいて試してください。"
     : "接続できませんでした。入力とメモは残っています。少し待って、もう一度試してください。";
+}
+
+// 返答の下に、支払日に要るお金の短い版を出す。その返答で作ったり直したりしたお金のカードの計算だけを使う。
+function ReplyPayday({
+  message,
+  cards,
+}: {
+  message: Message;
+  cards: readonly Card[];
+}) {
+  const ids = new Set(message.cardIds ?? []);
+  const card = cards.find((item) => item.kind === "money" && ids.has(item.id));
+  const payday = card ? paydayOf(card.money) : null;
+  return payday ? <PaydayBlock payday={payday} compact /> : null;
 }
 
 export function FamilyWorkspace({ connected }: { connected: boolean }) {
@@ -491,6 +515,11 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
     setFilter("all");
     setNotice("");
   }
+  // 見本の続き。病院の会計の答えを話したあとの返答を、会話と同じ mergeCards で重ねる（直したカードは上書きしない）。
+  function continueExample() {
+    setWorkspace((prev) => (prev.mode === "example" ? answerExample(prev) : prev));
+    if (view !== "talk") window.location.hash = VIEW_HASH.talk;
+  }
   function updateCard(id: string, patch: Partial<Card>) {
     setWorkspace((prev) => ({
       ...prev,
@@ -549,6 +578,11 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
           <span className="example-note">
             会話と文章は見本です。編集・完了・持ち出しを試せます。
           </span>
+          {!exampleAnswered(workspace) && (
+            <button onClick={continueExample}>
+              続き: 病院の答えを話す →
+            </button>
+          )}
           <button onClick={toggleExample}>自分の準備に戻る →</button>
         </div>
       )}
@@ -659,6 +693,9 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                         m.text
                       )}
                     </p>
+                    {m.id === moneyMessageId && (
+                      <ReplyPayday message={m} cards={workspace.cards} />
+                    )}
                     {links.length > 0 && (
                       <p className="result-links">
                         {links.map((link) => (
@@ -708,7 +745,9 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                 disabled={busy || example}
                 placeholder={
                   example
-                    ? "「自分の準備に戻る」から、自由に話せます。"
+                    ? exampleAnswered(workspace)
+                      ? "「自分の準備に戻る」から、自由に話せます。"
+                      : "見本の続きは、上の「続き: 病院の答えを話す」から見られます。"
                     : PLACEHOLDER
                 }
               />
@@ -773,15 +812,15 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
               <div>
                 <span className="section-number">見通し</span>
                 <h2 id="outlook-title">
-                  退院の日に要る額と、まず確かめる 1{" "}つ
+                  支払日に要るお金と、まず確かめる 1{" "}つ
                 </h2>
               </div>
               <span className="draft-label">話すほど、幅が縮む</span>
             </div>
             {moneyCards.length === 0 ? (
               <p className="foresight-empty">
-                入院のことを話すと、ここに要る額の幅と、まず確かめる 1
-                {" "}つが出ます。<a href={VIEW_HASH.talk}>話す</a>
+                入院の予定や医療費の見込みを話すと、ここに支払日に要るお金と、まず確かめる
+                1{" "}つが出ます。<a href={VIEW_HASH.talk}>話す</a>
               </p>
             ) : (
               <div className="cards">{moneyCards.map(renderCard)}</div>

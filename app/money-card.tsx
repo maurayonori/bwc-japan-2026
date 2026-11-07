@@ -31,7 +31,14 @@ import type {
   MoneyWarning,
   WhatToConfirm,
 } from "@/lib/money/schema";
-import { askWhom } from "@/lib/views";
+import {
+  PAYDAY_FACTS,
+  askWhom,
+  type CashResult,
+  type Pair,
+  type Payday,
+  type PaydayColumn,
+} from "@/lib/views";
 import "./money.css";
 
 // 表に出す金額と日付は、すべてサーバーの計算結果。Claude が書いた数字は入らない。
@@ -403,6 +410,192 @@ function CashflowBlock({ output }: { output: CashflowOutput }) {
         <summary>この表の読み方</summary>
         <Lines items={readingGuide(output)} />
       </details>
+    </section>
+  );
+}
+
+const pairText = ({ low, high }: Pair): string => yenRange(low, high);
+
+function cashText(result: CashResult): string {
+  return result.kind === "short"
+    ? `${yen(result.amount)}足りない`
+    : `${yen(result.amount)}残る`;
+}
+
+// 手元のお金と比べた結果。少なめと多めで向きが違うときは、両方を書く。
+function cashLine(
+  cash: NonNullable<PaydayColumn["cash"]>,
+  onHand: number,
+): string {
+  const { low, high } = cash;
+  const head = `手元の ${yen(onHand)}と比べて`;
+  if (low.kind === high.kind)
+    return low.amount === high.amount
+      ? `${head} ${cashText(low)}`
+      : `${head} ${yenRange(Math.min(low.amount, high.amount), Math.max(low.amount, high.amount))}${low.kind === "short" ? "足りない" : "残る"}`;
+  return `${head}、少なめなら ${cashText(low)}、多めなら ${cashText(high)}`;
+}
+
+function PaydayFact({ id, text }: { id: string; text: string }) {
+  const fact = FACTS.find((item) => item.id === id);
+  return (
+    <p className="money-muted payday-fact">
+      {text} <Citation id={id} />
+      {fact && <span>（確認 {fact.checked_on}）</span>}
+    </p>
+  );
+}
+
+const CERTAINTY_ORDER = ["confirmed", "estimate", "assumption"];
+
+function PaydayTile({
+  title,
+  column,
+  onHand,
+  missing,
+  compact,
+}: {
+  title: string;
+  column: PaydayColumn | null;
+  onHand: number | null;
+  missing: string | null;
+  compact: boolean;
+}) {
+  if (!column)
+    return (
+      <div className="payday-tile missing">
+        <p className="payday-title">{title}</p>
+        <p className="money-muted">この見通しには入れていません。</p>
+        {missing && <p className="money-muted">{missing}</p>}
+      </div>
+    );
+  const baseYear = Number((column.needDate ?? "").slice(0, 4)) || undefined;
+  return (
+    <div className="payday-tile">
+      <p className="payday-title">{title}</p>
+      <p className="payday-need">
+        <strong>{pairText(column.need)}</strong>
+      </p>
+      {column.needDate && (
+        <p className="money-muted">{showDate(column.needDate, baseYear)}に要る額</p>
+      )}
+      {column.cash && onHand !== null && (
+        <p
+          className={`payday-cash ${column.cash.high.kind === "short" ? "short" : "remain"}`}
+        >
+          {cashLine(column.cash, onHand)}
+        </p>
+      )}
+      {column.withoutUnconfirmedIncome && (
+        <p className="money-muted">
+          確かめていない入金を数えないと {yen(column.withoutUnconfirmedIncome.need)}
+          {column.withoutUnconfirmedIncome.cash &&
+            `（${cashText(column.withoutUnconfirmedIncome.cash)}）`}
+        </p>
+      )}
+      {!compact && (
+        <ul className="payday-rows">
+          {column.rows.map((row, index) => (
+            <li key={index}>
+              <span>{row.label}</span>{" "}
+              <span>
+                {DIRECTION_TEXT[row.direction] === "入る" ? "＋" : ""}
+                {pairText(row.amount)}
+              </span>{" "}
+              <span
+                className={`certainty ${CERTAINTY_ORDER.includes(row.certainty) ? row.certainty : ""}`}
+              >
+                {CERTAINTY_TEXT[row.certainty] ?? row.certainty}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!compact && (
+        <p className="money-muted payday-scenario">筋書き: {column.scenario}</p>
+      )}
+    </div>
+  );
+}
+
+// 支払日に要るお金を、窓口で上限を使う場合と、使わずにあとで還付を受ける場合で並べる（#55）。
+// 額はすべて計算の出力（lib/views.ts の paydayOf が選んだ値）。どちらの筋書きかは、高額療養費の計算の額との一致で決めている。
+export function PaydayBlock({
+  payday,
+  compact = false,
+}: {
+  payday: Payday;
+  compact?: boolean;
+}) {
+  const { cap, nocap, kougaku, needDifference, cashOnHand } = payday;
+  const advance = needDifference ?? kougaku?.refundLater ?? null;
+  const sameAsRefund =
+    needDifference !== null &&
+    kougaku !== null &&
+    needDifference.low === kougaku.refundLater.low &&
+    needDifference.high === kougaku.refundLater.high;
+  return (
+    <section
+      className={`money-block payday${compact ? " compact" : ""}`}
+      aria-label="支払日に要るお金"
+    >
+      {!compact && <h4>支払日に要るお金</h4>}
+      {!compact && (
+        <p className="money-muted">
+          {kougaku ? `${monthText(kougaku.month)}の診療分。` : ""}
+          手元のお金:{" "}
+          {cashOnHand === null ? "聞いていないので、要る額までを出しています" : yen(cashOnHand)}
+        </p>
+      )}
+      <div className="payday-columns">
+        <PaydayTile
+          title="窓口で上限を使う"
+          column={cap}
+          onHand={cashOnHand}
+          compact={compact}
+          missing={
+            kougaku
+              ? `上限を使えれば、入院費の窓口負担は ${pairText(kougaku.payWithCap)}です。`
+              : null
+          }
+        />
+        <PaydayTile
+          title="使わずに、あとで還付"
+          column={nocap}
+          onHand={cashOnHand}
+          compact={compact}
+          missing={
+            kougaku
+              ? `上限を使わないと、入院費の窓口負担は ${pairText(kougaku.copayWithoutCap)}で、あとで戻る ${pairText(kougaku.refundLater)}を還付まで立て替えます。`
+              : null
+          }
+        />
+      </div>
+      {cap && nocap && needDifference ? (
+        <p className="payday-diff">
+          <span className="payday-diff-label">
+            {sameAsRefund ? "避けられる一時立替" : "支払日に要るお金の差"}
+          </span>{" "}
+          <strong>{pairText(needDifference)}</strong>
+          {sameAsRefund && (
+            <span> 窓口で上限を使えば、この額を還付まで立て替えずに済みます。</span>
+          )}
+        </p>
+      ) : (
+        cap &&
+        !nocap &&
+        advance && (
+          <p className="payday-diff">
+            <span className="payday-diff-label">避けられる一時立替</span>{" "}
+            <strong>{pairText(advance)}</strong>
+            <span> 窓口で上限までの支払いになれば、この額を還付まで立て替えずに済みます。</span>
+          </p>
+        )
+      )}
+      {!compact &&
+        PAYDAY_FACTS.map((fact) => (
+          <PaydayFact key={fact.id} id={fact.id} text={fact.text} />
+        ))}
     </section>
   );
 }
