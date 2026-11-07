@@ -191,6 +191,68 @@ export function cashflowRows(
   };
 }
 
+// 支払日に要るお金の表（#55）。画面の先頭に出す。値はすべて simulate_cashflow の結果で、ここで新しい額を作らない。
+const CERTAINTY_ORDER = ["confirmed", "estimate", "assumption"] as const;
+
+type LedgerPath = CashflowScenario["low_case"];
+
+// その行の額に入っている確かさを、確かめた額・見積もり・仮定の順に並べる（例: 入院費は確かめた額、食事代は見積もり）。
+// 支払いと、その行の場合（少なめと多めの両方）に数えた入金を見る。0 円で数えた入金は、額を動かさないので入れない。
+// 入金に幅があると、少なめの場合だけが入金を数えていることがあるので、片方の場合だけでは決めない。
+function certaintyText(...paths: LedgerPath[]): string {
+  const counted = paths
+    .flatMap((path) => path.rows)
+    .filter((row) => row.direction === "out" || row.amount > 0);
+  const kinds = CERTAINTY_ORDER.filter((kind) =>
+    counted.some((row) => row.certainty === kind),
+  ).map((kind) => CERTAINTY_TEXT[kind]);
+  return kinds.length > 0 ? kinds.join("・") : "—";
+}
+
+export const WITHOUT_UNCONFIRMED_INCOME = "確かめていない入金を数えない場合";
+
+export function paydayTable(output: CashflowOutput): {
+  headers: string[];
+  rows: string[][];
+} {
+  const cash = output.cash_on_hand;
+  const baseYear = Number(output.start_date.slice(0, 4));
+  const row = (name: string, low: LedgerPath, high: LedgerPath) => [
+    name,
+    yenRange(low.need, high.need),
+    high.need_date ? showDate(high.need_date, baseYear) : "なし",
+    ...(cash === null ? [] : [cashGapText(cash, low.need, high.need)]),
+    certaintyText(low, high),
+  ];
+  const rows = output.scenarios.flatMap((scenario) => {
+    const counted = row(scenario.name, scenario.low_case, scenario.high_case);
+    // 確かめていない入金がある筋書きは、すぐ下に、その入金が入らない場合を並べる（CLAUDE.md、#77）。
+    if (scenario.totals.unconfirmed_in_high <= 0) return [counted];
+    const without = scenario.high_case_without_unconfirmed_income;
+    // 入金が支払日より後などで、要る額もいつも多めの場合と同じなら、同じ額の行を重ねない
+    // （手元のお金との差も要る額から決まるので同じになる。統括の判断、PR #80）。
+    if (
+      without.need === scenario.high_case.need &&
+      without.need_date === scenario.high_case.need_date
+    )
+      return [counted];
+    return [
+      counted,
+      row(`${scenario.name}・${WITHOUT_UNCONFIRMED_INCOME}`, without, without),
+    ];
+  });
+  return {
+    headers: [
+      "筋書き",
+      "要る額",
+      "いつ",
+      ...(cash === null ? [] : ["手元のお金との差"]),
+      "確かさ",
+    ],
+    rows,
+  };
+}
+
 // 幅のある場合が 1 つも無ければ、幅についての読み方は要らない。
 export function readingGuide(output: CashflowOutput): string[] {
   return output.scenarios.some((scenario) => cashflowPaths(scenario).length > 1)
@@ -417,6 +479,14 @@ export function inDisplayOrder(
     );
 }
 
+// 見通しを計算し直せなかったときに、表の上と持ち出しの文に出す（#77）。
+export const STALE_CASHFLOW_NOTE =
+  "支払日に要るお金と要る額の幅は、前の条件での計算です。内訳は新しい条件で計算し直しましたが、見通しはまだ計算し直していません。今の額として使わず、「計算し直して」と送ってください。";
+
+// 印があるあいだ、「まず確かめる 1 つ」の代わりに会話の入力欄へ入れる下書き（#77）。
+export const RECALC_REQUEST =
+  "前の条件のままの見通しを、今の条件で計算し直して。";
+
 export function moneyToText(money: Money, text: string): string {
   const calculations = inDisplayOrder(money.calculations);
   const tables = calculations.flatMap((calculation) => {
@@ -453,6 +523,7 @@ export function moneyToText(money: Money, text: string): string {
   const sources = moneySources(money, text);
   return [
     "表の金額と日付は、プログラムが計算したものです。",
+    ...(money.stale_cashflow ? [`※ ${STALE_CASHFLOW_NOTE}`] : []),
     ...tables,
     ...(notIncluded.length > 0
       ? ["この額に含まれない費用", ...notIncluded.map((line) => `- ${line}`)]

@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { todayInJapan } from "./money/dates";
-import { citationsToText, citedText, moneyToText } from "./money/format";
+import {
+  citationsToText,
+  citedText,
+  moneyToText,
+  STALE_CASHFLOW_NOTE,
+} from "./money/format";
 import { fixGapDirection, maskProblems } from "./money/guard";
 import {
   MAX_WARNINGS,
@@ -125,6 +130,7 @@ export function toRequest(
           name,
           input,
         })),
+        ...(card.money.stale_cashflow ? { stale_cashflow: true as const } : {}),
       },
     })),
   };
@@ -237,6 +243,12 @@ function memoryForExport(card: Card): Card {
   return card.body.includes(card.title) ? { ...fixed, title: card.title } : fixed;
 }
 
+const currentCalculations = (card: Card) =>
+  (card.money?.calculations ?? []).filter(
+    (calculation) =>
+      !(card.money?.stale_cashflow && calculation.name === "simulate_cashflow"),
+  );
+
 // 持ち出す直前にも、カードの文の金額と日付を、カードの計算・会話・出典と照らし、照らせない部分を伏せる
 // （3 回目の指摘 6）。前の版で保存したカードや、検査より前に作られたカードが、そのまま家族や窓口へ渡らないように。
 // 本人が直したカードは本人の文なので触らない。残しておく言葉は原文なので触らない。
@@ -246,13 +258,14 @@ function verifiedForExport(
   messages: readonly Message[],
 ): Card {
   if (card.edited || card.kind === "memory") return card;
+  // 前の条件での計算の見通し（#77）は、今の額の照合の根拠にしない。
   const others = cards
     .filter((item) => item.id !== card.id)
-    .flatMap((item) => item.money?.calculations ?? []);
+    .flatMap(currentCalculations);
   const args = {
     // 要る額の範囲は「最新の計算」と照らすので、そのカード自身の計算を最後に置く（4 回目の指摘④）。
     // 選んだあとに条件を変えた、別のカードの計算で照らさないため。
-    toolEvents: [...others, ...(card.money?.calculations ?? [])],
+    toolEvents: [...others, ...currentCalculations(card)],
     // 本線の見通しは、そのカード自身の計算から選ぶ（自身に見通しが無いときだけ、ほかのカードまでさかのぼる。#85）。
     currentFrom: others.length,
     // 会話が渡されないときも、カードの根拠の引用（本人の発言の原文）は使う。
@@ -292,6 +305,9 @@ export function exportMemo(
   return [
     "さきよみ — 渡すもの",
     "渡す前の確認用メモです。未確認の内容は各項目に記載しています。",
+    ...(cards.some((card) => card.money?.stale_cashflow)
+      ? [`※ ${STALE_CASHFLOW_NOTE}`]
+      : []),
     ...selected.map((card) =>
       [
         `【${kinds[card.kind].label}】${card.title}`,
