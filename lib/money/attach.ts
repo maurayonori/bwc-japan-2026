@@ -1,5 +1,5 @@
 import type { Card, Message, Proposal } from "../workspace";
-import { validateEvidence } from "../workspace";
+import { asMemory, validateEvidence } from "../workspace";
 import {
   MAX_CALCULATIONS,
   calculationSchema,
@@ -24,10 +24,11 @@ type ExistingCard = Omit<Card, "money">;
 // 計算だけで見通しになる道具。日付だけの計算では、カードを新しく作らない。
 const TABLE_TOOLS = new Set(["kougaku_gendo", "meal_cost", "simulate_cashflow"]);
 
+export const SYNTHETIC_TITLE = "お金の見通し";
 export const SYNTHETIC_BODY =
   "計算の結果を表にしました。説明は会話の返答を見てください。";
-const SYNTHETIC_NEXT_STEP = "表の前提を読み、違うところを会話で伝える。";
-const SYNTHETIC_UNCERTAINTY =
+export const SYNTHETIC_NEXT_STEP = "表の前提を読み、違うところを会話で伝える。";
+export const SYNTHETIC_UNCERTAINTY =
   "表の額には、見積もりや仮に置いた値が入っています。";
 
 const isProtected = (card: ExistingCard): boolean =>
@@ -78,15 +79,23 @@ export function toCalculations(events: readonly ToolEvent[]): Calculation[] {
   );
 }
 
-// 今回の計算を優先し、今回呼ばなかった道具の前回の結果は残す（出典や内訳が表から消えないように）。
+// 置き換えの単位。高額療養費は診療月ごとに計算するので、道具の名前と診療月で区別する（#59 の指摘 6）。
+function replaceKey(calculation: Calculation): string {
+  if (calculation.name !== "kougaku_gendo") return calculation.name;
+  const month = (calculation.input as { treatment_month?: unknown })
+    .treatment_month;
+  return `${calculation.name}:${String(month)}`;
+}
+
+// 今回の計算を優先し、今回呼ばなかった道具（と診療月）の前回の結果は残す（出典や内訳が表から消えないように）。
 function combine(
   fresh: readonly Calculation[],
   prior: readonly Calculation[],
 ): Calculation[] {
-  const names = new Set(fresh.map((calculation) => calculation.name));
+  const keys = new Set(fresh.map(replaceKey));
   const kept = fresh.slice(-MAX_CALCULATIONS);
   return [
-    ...prior.filter((calculation) => !names.has(calculation.name)),
+    ...prior.filter((calculation) => !keys.has(replaceKey(calculation))),
     ...kept,
   ].slice(-MAX_CALCULATIONS);
 }
@@ -152,7 +161,8 @@ export function attachMoney({
     seenIds.add(proposal.id);
 
     if (proposal.kind !== "money") {
-      if (hasValidEvidence(proposal, messages)) cards.push(proposal);
+      if (hasValidEvidence(proposal, messages))
+        cards.push(proposal.kind === "memory" ? asMemory(proposal) : proposal);
       else
         warnings.push(
           dropped(proposal.title, "話した内容と照らせなかったので、出しませんでした。もう一度送ると、作り直せます。"),
@@ -199,7 +209,7 @@ export function attachMoney({
     cards.push({
       id,
       kind: "money",
-      title: "お金の見通し",
+      title: SYNTHETIC_TITLE,
       body: SYNTHETIC_BODY,
       nextStep: SYNTHETIC_NEXT_STEP,
       uncertainty: SYNTHETIC_UNCERTAINTY,
