@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { exampleWorkspace } from "../lib/example";
+import { rangeExampleWorkspace as exampleWorkspace } from "./fixtures/range-example";
 import {
   simulateCashflow,
   type CashflowInput,

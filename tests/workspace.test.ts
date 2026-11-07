@@ -8,7 +8,7 @@ import {
   workspaceSchema,
   type Reply,
 } from "../lib/workspace";
-import { exampleWorkspace } from "../lib/example";
+import { rangeExampleWorkspace as exampleWorkspace } from "./fixtures/range-example";
 import { isAllowedRequest, readBoundedJson } from "../lib/request";
 
 test("架空の体験例にも、本人の発言を根拠にする検査を適用する", () => {

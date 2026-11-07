@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { MockLanguageModelV4 } from "ai/test";
 import { MAX_RESPONSE_TOOLS, runChat, toResponse } from "../lib/chat";
-import { exampleWorkspace } from "../lib/example";
+import { rangeExampleWorkspace as exampleWorkspace } from "./fixtures/range-example";
 import { attachMoney, SYNTHETIC_BODY } from "../lib/money/attach";
 import {
   calculationSchema,
