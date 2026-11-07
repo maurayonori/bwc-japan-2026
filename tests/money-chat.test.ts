@@ -1,12 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { MockLanguageModelV4 } from "ai/test";
-import { runChat } from "../lib/chat";
+import { MAX_RESPONSE_TOOLS, runChat, toResponse } from "../lib/chat";
+import { exampleWorkspace } from "../lib/example";
 import { attachMoney, SYNTHETIC_BODY } from "../lib/money/attach";
-import { calculationSchema, type Calculation } from "../lib/money/schema";
+import {
+  calculationSchema,
+  type Calculation,
+  type CashflowOutput,
+} from "../lib/money/schema";
 import { executeTool } from "../lib/money/tools";
 import {
   mergeCards,
+  replySchema,
   requestSchema,
   type Card,
   type ChatRequest,
@@ -666,4 +672,136 @@ test("計算が多すぎるときは最後の 8 件だけにして、注意を�
     days_high: 10,
   });
   assert.equal(warnings[0].kind, "calc");
+});
+
+// 体験例の見通しの入力（窓口で上限が適用される場合と、いったん 3 割を払う場合）。
+function exampleCashflowInput() {
+  const card = exampleWorkspace().cards.find((item) => item.kind === "money");
+  const found = card?.money?.calculations.find(
+    (item) => item.name === "simulate_cashflow",
+  );
+  assert.ok(found);
+  return structuredClone(found.input) as {
+    start_date: string;
+    cash_on_hand: number | null;
+    scenarios: { name: string; events: unknown[] }[];
+  };
+}
+
+function cashflowOf(card: { money?: { calculations: Calculation[] } }) {
+  const found = card.money?.calculations.find(
+    (item) => item.name === "simulate_cashflow",
+  );
+  assert.ok(found?.name === "simulate_cashflow");
+  return found;
+}
+
+const ANSWER = "病院の会計で、窓口で上限が適用されると聞いた。";
+const ASKED =
+  "まず確かめる 1 つは、窓口で上限が適用されるかです。病院の会計に聞くと、要る額の幅は 209,060 円から 60,000 円に縮みます。";
+
+test("答えを伝えたターンで幅が縮み、前の幅を書いた返答にも注意が出ない", async () => {
+  const before = exampleCashflowInput();
+  const capOnly = { ...before, scenarios: [before.scenarios[0]] };
+  const messages = [
+    INPUT.messages[0],
+    { id: "a1", role: "assistant" as const, text: ASKED },
+    { id: "u2", role: "user" as const, text: ANSWER },
+  ];
+  const card = {
+    ...proposal(),
+    ...flags,
+    money: { calculations: [moneyRef("simulate_cashflow", before)] },
+  };
+  const reply =
+    "窓口で上限が適用されると分かったので、要る額の幅は 209,060 円から 2,000 円に縮みました。";
+  const answerCard = proposal({ evidence: [{ messageId: "u2", quote: ANSWER }] });
+  const result = await runChat({
+    model: mock(
+      toolStep({ name: "simulate_cashflow", input: capOnly }),
+      replyStep(reply, [answerCard]),
+    ),
+    input: requestSchema.parse({ messages, cards: [card] }),
+  });
+  assert.deepEqual(result.warnings, []);
+  assert.equal(result.cards[0].id, "m1");
+  const after = cashflowOf(result.cards[0]);
+  assert.deepEqual(after.input, capOnly);
+  const previous = resultOf("simulate_cashflow", before) as CashflowOutput;
+  assert.equal(previous.what_to_confirm?.width, 209_060);
+  assert.equal(after.output.what_to_confirm?.width, 2_000);
+
+  // 前の計算が無ければ、前の幅は見当たらない金額として注意が出る（検査が効いている）。
+  const withoutPrior = await runChat({
+    model: mock(
+      toolStep({ name: "simulate_cashflow", input: capOnly }),
+      replyStep(reply, [answerCard]),
+    ),
+    input: requestSchema.parse({ messages, cards: [] }),
+  });
+  assert.deepEqual(
+    withoutPrior.warnings.map((warning) => warning.shown),
+    ["209,060 円"],
+  );
+});
+
+test("渡すものに含めたお金のカードは、答えのターンでも上書きせず、新しい id で出す", async () => {
+  const before = exampleCashflowInput();
+  const capOnly = { ...before, scenarios: [before.scenarios[0]] };
+  const existing: Card = {
+    ...(proposal({ body: "渡すものに含めた文章" }) as Card),
+    ...flags,
+    included: true,
+    money: {
+      calculations: [
+        calculationSchema.parse({
+          name: "simulate_cashflow",
+          input: before,
+          output: resultOf("simulate_cashflow", before),
+        }),
+      ],
+    },
+  };
+  const result = await runChat({
+    model: mock(
+      toolStep({ name: "simulate_cashflow", input: capOnly }),
+      replyStep("幅が縮みました。", [proposal({ body: "新しい説明" })]),
+    ),
+    input: requestSchema.parse({ ...INPUT, cards: [existing] }),
+  });
+  assert.notEqual(result.cards[0].id, "m1");
+  const merged = mergeCards([existing], result.cards);
+  assert.equal(merged.length, 2);
+  assert.equal(merged[0].body, "渡すものに含めた文章");
+  assert.deepEqual(merged[0].money, existing.money);
+  assert.equal(cashflowOf(merged[1]).output.what_to_confirm?.width, 2_000);
+});
+
+test("画面へ返すのは reply・cards・warnings・tools だけ", async () => {
+  const result = await runChat({
+    model: mock(
+      toolStep({ name: "meal_cost", input: MEAL }),
+      replyStep("例", [proposal()]),
+    ),
+    input: INPUT,
+  });
+  const response = toResponse(result);
+  assert.deepEqual(Object.keys(response).sort(), [
+    "cards",
+    "reply",
+    "tools",
+    "warnings",
+  ]);
+  assert.deepEqual(response.tools, ["meal_cost"]);
+  assert.doesNotMatch(
+    JSON.stringify(response),
+    /inputTokens|"usage"|"meta"|"fallback"/,
+  );
+  assert.equal(replySchema.safeParse(response).success, true);
+  const many = toResponse({
+    ...result,
+    meta: { ...result.meta, tools: Array.from({ length: 50 }, () => "meal_cost") },
+  });
+  assert.equal(many.tools.length, MAX_RESPONSE_TOOLS);
+  assert.equal(replySchema.safeParse(many).success, true);
 });

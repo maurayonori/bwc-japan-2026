@@ -1,16 +1,21 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { calcDate } from "../lib/money/business-days";
+import { exampleWorkspace } from "../lib/example";
 import {
+  TOOL_LABELS,
   cashflowPaths,
   cashflowRows,
+  confirmText,
   inDisplayOrder,
   moneyToText,
   needDifferenceText,
   readingGuide,
+  toolTraceText,
 } from "../lib/money/format";
 import { simulateCashflow } from "../lib/money/ledger";
-import type { Calculation, Money } from "../lib/money/schema";
+import type { Calculation, CashflowOutput, Money } from "../lib/money/schema";
+import { TOOLS } from "../lib/money/tools";
 
 function cashflow(
   scenarios: {
@@ -152,4 +157,50 @@ test("起点と同じ日までを数えただけの日付計算は、表に出�
   assert.deepEqual(inDisplayOrder([trivial, useful]), [useful]);
   assert.ok(!moneyToText(asMoney([trivial]), "").includes("日付の計算"));
   assert.ok(moneyToText(asMoney([useful]), "").includes("日付の計算"));
+});
+
+function exampleCashflow(): CashflowOutput {
+  const card = exampleWorkspace().cards.find((item) => item.kind === "money");
+  const found = card?.money?.calculations.find(
+    (item) => item.name === "simulate_cashflow",
+  );
+  assert.ok(found?.name === "simulate_cashflow");
+  return found.output;
+}
+
+test("持ち出し用の「まず確かめる 1 つ」は、先頭の不明点と前後の幅を書く", () => {
+  assert.deepEqual(confirmText(exampleCashflow()), [
+    "■ まず確かめる 1 つ",
+    "どの筋書きになるか",
+    "- 手元に要る額の幅: 115,690〜324,750 円（幅 209,060 円）",
+    "- 確かめると残る幅: 60,000 円（答えによって残る幅のうち、大きいほう）",
+    "- 答えが「窓口で上限が適用される場合」なら: 115,690〜117,690 円",
+    "- 答えが「いったん 3 割を払う場合」なら: 264,750〜324,750 円",
+  ]);
+});
+
+test("不明点が無いとき・順位の無い前の結果では、「まず確かめる 1 つ」の見出しを出さない", () => {
+  const flat = cashflow([{ name: "試算", low: 100_000, high: 100_000 }]);
+  assert.deepEqual(flat.what_to_confirm?.factors, []);
+  assert.deepEqual(confirmText(flat), []);
+  const { what_to_confirm: _ranking, ...old } = exampleCashflow();
+  assert.deepEqual(confirmText(old), []);
+  const text = moneyToText(
+    asMoney([
+      { name: "simulate_cashflow", input: {}, output: old } as Calculation,
+    ]),
+    "",
+  );
+  assert.ok(!text.includes("まず確かめる"));
+  assert.ok(text.includes("お金の出入りの見通し"));
+});
+
+test("この返答で呼んだ計算は、呼んだ順に名前と回数でまとめる", () => {
+  assert.equal(
+    toolTraceText(["kougaku_gendo", "simulate_cashflow", "kougaku_gendo"]),
+    "高額療養費の上限 ×2、お金の出入りの見通し ×1",
+  );
+  assert.equal(toolTraceText([]), "");
+  assert.equal(toolTraceText(["unknown_tool"]), "unknown_tool ×1");
+  for (const tool of TOOLS) assert.ok(TOOL_LABELS[tool.name], tool.name);
 });

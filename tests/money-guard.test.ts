@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkReply } from "../lib/money/guard";
 import { executeTool } from "../lib/money/tools";
+import { exampleWorkspace } from "../lib/example";
 
 const today = '2026-11-06';
 
@@ -110,4 +111,14 @@ test('返答が無いときは、何も指摘しない', () => {
 
 test('割合や回数など、円でも日付でもない数字は見ない', () => {
   assert.deepEqual(check('3 割負担で、5 営業日、2 回の通院、67.6% の人が使っています。'), []);
+});
+
+test('「まず確かめる 1 つ」の前後の幅は、資金繰りの計算結果だけで通る', () => {
+  const card = exampleWorkspace().cards.find((item) => item.kind === 'money');
+  const input = card?.money?.calculations.find((item) => item.name === 'simulate_cashflow')?.input;
+  assert.ok(input);
+  const args = { toolEvents: [eventOf('simulate_cashflow', input)], userTexts: [], today };
+  assert.deepEqual(checkReply({ reply: '要る額の幅は 209,060 円から 60,000 円に縮みます。', ...args }), []);
+  const warnings = checkReply({ reply: '要る額の幅は 209,060 円から 59,000 円に縮みます。', ...args });
+  assert.deepEqual(warnings.map((warning) => warning.shown), ['59,000 円']);
 });
