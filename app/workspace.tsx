@@ -19,8 +19,10 @@ import { exampleWorkspace } from "@/lib/example";
 import {
   FactText,
   MoneyDetails,
+  ToolTrace,
   WaitingNote,
   WarningList,
+  type AskQuestion,
 } from "./money-card";
 
 function Mark({ small = false }: { small?: boolean }) {
@@ -81,11 +83,15 @@ function MemoCard({
   update,
   remove,
   disabled,
+  question,
+  onAsk,
 }: {
   card: Card;
   update: (patch: Partial<Card>) => void;
   remove: () => void;
   disabled: boolean;
+  question?: AskQuestion | null;
+  onAsk?: (text: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(card.body);
@@ -120,7 +126,13 @@ function MemoCard({
         {card.kind === "memory" ? card.body : <FactText text={card.body} />}
       </p>
       {card.kind === "money" && card.money && (
-        <MoneyDetails money={card.money} text={card.body} />
+        <MoneyDetails
+          money={card.money}
+          text={card.body}
+          question={question}
+          onAsk={onAsk}
+          disabled={disabled}
+        />
       )}
       {card.uncertainty && (
         <div className="uncertainty">
@@ -159,7 +171,7 @@ function MemoCard({
             onChange={(e) => update({ included: e.target.checked })}
             disabled={disabled}
           />
-          渡すメモに含める
+          渡すものに含める
         </label>
         <details>
           <summary>元の言葉</summary>
@@ -170,7 +182,7 @@ function MemoCard({
         </details>
       </div>
       {editing && (
-        <Modal title="メモを直す" close={() => setEditing(false)}>
+        <Modal title="文章を直す" close={() => setEditing(false)}>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -247,6 +259,9 @@ function MemoCard({
   );
 }
 
+// 下の段（渡す）に並べる種類。お金の見通しは上の段（見通す）に出す。
+const HANDOVER_KINDS = ["daily", "contact", "memory"] as const;
+
 const starters = [
   {
     label: "入院のお金の見通し",
@@ -287,7 +302,9 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
   const [notice, setNotice] = useState("");
   const [remember, setRemember] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [filter, setFilter] = useState<"all" | Card["kind"]>("all");
+  const [filter, setFilter] = useState<
+    "all" | (typeof HANDOVER_KINDS)[number]
+  >("all");
   const [modal, setModal] = useState<"privacy" | "export" | "reset" | null>(
     null,
   );
@@ -299,6 +316,23 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
   const example = workspace.mode === "example";
   const selected = workspace.cards.filter((c) => c.included).length;
   const memo = exportMemo(workspace.cards);
+  const moneyCards = workspace.cards.filter((c) => c.kind === "money");
+  const otherCards = workspace.cards.filter((c) => c.kind !== "money");
+  const shownCards = otherCards.filter(
+    (c) => filter === "all" || c.kind === filter,
+  );
+  // 「まず確かめる 1 つ」で見せる質問文。一番あとに作った「確かめる・頼む」の文章を使う。
+  const latestContact = workspace.cards.findLast((c) => c.kind === "contact");
+  const question = latestContact
+    ? { title: latestContact.title, body: latestContact.body }
+    : null;
+  // 質問文が無いときは、作ってもらう下書きを会話の入力欄に入れる。送信はしない。
+  const askForQuestion = example
+    ? undefined
+    : (text: string) => {
+        setDraft(text);
+        input.current?.focus();
+      };
 
   useEffect(() => {
     try {
@@ -394,6 +428,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
             role: "assistant",
             text: reply.reply,
             warnings: reply.warnings,
+            tools: reply.tools,
           },
         ],
         cards: mergeCards(prev.cards, reply.cards),
@@ -433,6 +468,24 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
       cards: prev.cards.map((c) => (c.id === id ? { ...c, ...patch } : c)),
     }));
   }
+  function renderCard(card: Card) {
+    return (
+      <MemoCard
+        key={card.id}
+        card={card}
+        disabled={busy}
+        update={(patch) => updateCard(card.id, patch)}
+        remove={() =>
+          setWorkspace((prev) => ({
+            ...prev,
+            cards: prev.cards.filter((c) => c.id !== card.id),
+          }))
+        }
+        question={card.kind === "money" ? question : undefined}
+        onAsk={card.kind === "money" ? askForQuestion : undefined}
+      />
+    );
+  }
   function download() {
     const blob = new Blob(["\uFEFF" + memo], {
       type: "text/plain;charset=utf-8",
@@ -440,7 +493,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = example ? "家族のしおり-架空の体験例.txt" : "家族のしおり.txt";
+    a.download = example ? "渡すもの-架空の体験例.txt" : "渡すもの.txt";
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -497,7 +550,10 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
               <br className="mobile-break" />
               今できることから。
             </h1>
-            <p>入院や長い不在の前に。話すだけで、いつ・いくら要るかの見通しと、家族に渡すメモができます。</p>
+            <p>
+              話すだけで、退院の日に要る額の幅と、その幅を一番縮める確認が
+              1{"\u00a0"}つ分かります。家族に渡す文章もできます。
+            </p>
           </div>
           <button
             className="example-button"
@@ -591,6 +647,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                         m.text
                       )}
                     </p>
+                    {m.role === "assistant" && <ToolTrace tools={m.tools} />}
                     <WarningList warnings={m.warnings} />
                   </div>
                 ))
@@ -661,125 +718,131 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
               </p>
             </div>
           </section>
-          <section className="preparation" aria-labelledby="memo-title">
-            <div className="section-heading memo-heading">
-              <div>
-                <span className="section-number">準備する</span>
-                <h2 id="memo-title">
-                  家族のしおり
-                  <span className="count">{workspace.cards.length}</span>
-                </h2>
-              </div>
-              <span className="draft-label">少しずつ育てるメモ</span>
-            </div>
-            {workspace.cards.length === 0 ? (
-              <div className="empty-board">
-                <div className="paper-art" aria-hidden="true">
-                  <div className="paper back" />
-                  <div className="paper front">
-                    <Mark small />
-                    <i />
-                    <i />
-                    <i />
-                    <b>一枚から、はじめよう。</b>
-                  </div>
+          <div className="preparation">
+            <section className="foresight" aria-labelledby="foresight-title">
+              <div className="section-heading memo-heading">
+                <div>
+                  <span className="section-number">見通す</span>
+                  <h2 id="foresight-title">
+                    退院の日に要る額と、まず確かめる 1{"\u00a0"}つ
+                  </h2>
                 </div>
-                <h3>
-                  話したことが、
-                  <br />
-                  家族の役に立つかたちに。
-                </h3>
-                <p>
-                  退院の日に要るお金。朝の支度の引き継ぎ。窓口への質問文。
-                  <br />
-                  大切にしておきたい、今日のひと言。
-                  <br />
-                  会話から、ここにメモができていきます。
+                <span className="draft-label">話すほど、幅が縮む</span>
+              </div>
+              {moneyCards.length === 0 ? (
+                <p className="foresight-empty">
+                  入院のことを話すと、ここに要る額の幅と、まず確かめる 1
+                  {"\u00a0"}つが出ます。
                 </p>
-                <ol className="steps">
-                  <li>
-                    <span>1</span>気がかりを話す
-                  </li>
-                  <li>
-                    <span>2</span>できた文章を確かめる
-                  </li>
-                  <li>
-                    <span>3</span>渡すものを選ぶ
-                  </li>
-                </ol>
+              ) : (
+                <div className="cards">{moneyCards.map(renderCard)}</div>
+              )}
+            </section>
+            <section className="handover" aria-labelledby="memo-title">
+              <div className="section-heading memo-heading">
+                <div>
+                  <span className="section-number">渡す</span>
+                  <h2 id="memo-title">
+                    家族と窓口に渡すもの
+                    <span className="count">{otherCards.length}</span>
+                  </h2>
+                </div>
               </div>
-            ) : (
-              <>
-                <div className="board-summary">
-                  <span>
-                    <strong>
-                      {workspace.cards.filter((c) => c.done).length}
-                    </strong>{" "}
-                    / {workspace.cards.length} 件の準備ができました
-                  </span>
-                  <p>全部を一度に進めなくても。ひとつ選ぶところから。</p>
-                </div>
-                <div className="filters" aria-label="メモの絞り込み">
-                  <button
-                    aria-pressed={filter === "all"}
-                    onClick={() => setFilter("all")}
-                  >
-                    すべて
-                  </button>
-                  {Object.entries(kinds).map(([k, v]) => (
-                    <button
-                      key={k}
-                      aria-pressed={filter === k}
-                      onClick={() => setFilter(k as Card["kind"])}
-                    >
-                      {v.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="cards">
-                  {workspace.cards
-                    .filter((c) => filter === "all" || c.kind === filter)
-                    .map((card) => (
-                      <MemoCard
-                        key={card.id}
-                        card={card}
-                        disabled={busy}
-                        update={(patch) => updateCard(card.id, patch)}
-                        remove={() =>
-                          setWorkspace((prev) => ({
-                            ...prev,
-                            cards: prev.cards.filter((c) => c.id !== card.id),
-                          }))
-                        }
-                      />
-                    ))}
-                  {!workspace.cards.some(
-                    (c) => filter === "all" || c.kind === filter,
-                  ) && (
-                    <p className="filter-empty">
-                      この種類のメモは、まだありません。
-                    </p>
-                  )}
-                </div>
-                <div className="export-bar">
-                  <div>
-                    <strong>渡す内容は、自分で選べます。</strong>
-                    <p>会話の全文は入りません。</p>
+              {workspace.cards.length === 0 ? (
+                <div className="empty-board">
+                  <div className="paper-art" aria-hidden="true">
+                    <div className="paper back" />
+                    <div className="paper front">
+                      <Mark small />
+                      <i />
+                      <i />
+                      <i />
+                      <b>一枚から、はじめよう。</b>
+                    </div>
                   </div>
-                  <button
-                    className="primary"
-                    disabled={selected === 0 || busy}
-                    onClick={() => {
-                      setCopied(false);
-                      setModal("export");
-                    }}
-                  >
-                    選んだ{selected}件を確認 <span aria-hidden="true">↗</span>
-                  </button>
+                  <h3>
+                    話したことが、
+                    <br />
+                    家族の役に立つかたちに。
+                  </h3>
+                  <p>
+                    朝の支度の引き継ぎ。窓口への質問文。
+                    <br />
+                    大切にしておきたい、今日のひと言。
+                    <br />
+                    会話から、ここに渡す文章ができていきます。
+                  </p>
+                  <ol className="steps">
+                    <li>
+                      <span>1</span>気がかりを話す
+                    </li>
+                    <li>
+                      <span>2</span>できた文章を確かめる
+                    </li>
+                    <li>
+                      <span>3</span>渡すものを選ぶ
+                    </li>
+                  </ol>
                 </div>
-              </>
-            )}
-          </section>
+              ) : (
+                <>
+                  <div className="board-summary">
+                    <span>
+                      <strong>
+                        {workspace.cards.filter((c) => c.done).length}
+                      </strong>{" "}
+                      / {workspace.cards.length} 件の準備ができました
+                    </span>
+                    <p>全部を一度に進めなくても。ひとつ選ぶところから。</p>
+                  </div>
+                  <div className="filters" aria-label="渡すものの絞り込み">
+                    <button
+                      aria-pressed={filter === "all"}
+                      onClick={() => setFilter("all")}
+                    >
+                      すべて
+                    </button>
+                    {HANDOVER_KINDS.map((kind) => (
+                      <button
+                        key={kind}
+                        aria-pressed={filter === kind}
+                        onClick={() => setFilter(kind)}
+                      >
+                        {kinds[kind].label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="cards">
+                    {shownCards.map(renderCard)}
+                    {shownCards.length === 0 && (
+                      <p className="filter-empty">
+                        {filter === "all"
+                          ? "家族や窓口に渡す文章は、まだありません。"
+                          : "この種類の文章は、まだありません。"}
+                      </p>
+                    )}
+                  </div>
+                  <div className="export-bar">
+                    <div>
+                      <strong>渡す内容は、自分で選べます。</strong>
+                      <p>会話の全文は入りません。</p>
+                    </div>
+                    <button
+                      className="primary"
+                      disabled={selected === 0 || busy}
+                      onClick={() => {
+                        setCopied(false);
+                        setModal("export");
+                      }}
+                    >
+                      選んだ{selected}件を確認{" "}
+                      <span aria-hidden="true">↗</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </section>
+          </div>
         </div>
         <footer className="workspace-footer">
           <label>
@@ -796,7 +859,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
             onClick={() => setModal("reset")}
             disabled={busy || example}
           >
-            会話とメモを消去
+            会話と準備を消去
           </button>
           <p>
             さきよみは、家族の準備を進めるための試作です。診療や保障の判断は行いません。
@@ -883,7 +946,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
         </Modal>
       )}
       {modal === "reset" && (
-        <Modal title="会話とメモを消去しますか" close={() => setModal(null)}>
+        <Modal title="会話と準備を消去しますか" close={() => setModal(null)}>
           <p>
             この画面と、このブラウザに保存した内容を消去します。必要なメモは先に持ち出してください。
           </p>
@@ -906,7 +969,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                 setDraft("");
                 setRemember(false);
                 setError("");
-                setNotice("会話とメモを消去しました。");
+                setNotice("会話と準備を消去しました。");
                 setModal(null);
               }}
             >

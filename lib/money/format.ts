@@ -45,6 +45,23 @@ export const KOUGAKU_ROWS = [
   ["いったん全額を払ったとき、あとで戻る額", "refund_later"],
 ] as const;
 
+// 返答の下に出す「この返答で呼んだ計算」の名前。
+export const TOOL_LABELS: Record<string, string> = {
+  kougaku_gendo: "高額療養費の上限",
+  meal_cost: "入院中の食事代",
+  calc_date: "日付の計算",
+  simulate_cashflow: "お金の出入りの見通し",
+};
+
+// 呼んだ順に、同じ計算は回数にまとめる（例: 高額療養費の上限 ×2、お金の出入りの見通し ×1）。
+export function toolTraceText(names: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
+  return [...counts]
+    .map(([name, count]) => `${TOOL_LABELS[name] ?? name} ×${count}`)
+    .join("、");
+}
+
 const numberFormat = new Intl.NumberFormat("ja-JP");
 
 export function yen(value: number | null | undefined): string {
@@ -286,10 +303,33 @@ function dateText(output: CalcDateOutput): string[] {
   ];
 }
 
+// 持ち出し用の「まず確かめる 1 つ」。不明点が無ければ見出しも出さない。
+export function confirmText(output: CashflowOutput): string[] {
+  const confirm = output.what_to_confirm;
+  const top = confirm?.factors[0];
+  if (!confirm || !top) return [];
+  return [
+    "■ まず確かめる 1 つ",
+    top.name,
+    `- 手元に要る額の幅: ${yenRange(confirm.need_low, confirm.need_high)}（幅 ${yen(confirm.width)}）`,
+    ...(confirm.shortfall_low !== null && confirm.shortfall_high !== null
+      ? [
+          `- 手元のお金と比べて足りない額: ${yenRange(confirm.shortfall_low, confirm.shortfall_high)}`,
+        ]
+      : []),
+    `- 確かめると残る幅: ${yen(top.width_if_resolved)}（答えによって残る幅のうち、大きいほう）`,
+    ...top.branches.map(
+      (branch) =>
+        `- 答えが「${branch.name}」なら: ${yenRange(branch.need_low, branch.need_high)}`,
+    ),
+  ];
+}
+
 function cashflowText(output: CashflowOutput): string[] {
   const hasCash = output.cash_on_hand !== null;
   const baseYear = yearOf(output.start_date);
   return [
+    ...confirmText(output),
     `■ お金の出入りの見通し（起点 ${showDate(output.start_date)}。手元のお金: ${hasCash ? yen(output.cash_on_hand) : "聞いていないので、要る額までを出しています"}）`,
     ...output.scenarios.flatMap((scenario) => {
       const { headers, rows } = cashflowRows(scenario, hasCash, baseYear);
