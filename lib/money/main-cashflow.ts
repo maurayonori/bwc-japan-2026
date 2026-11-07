@@ -74,10 +74,14 @@ export function cashflowAmounts(input: unknown): number[] {
 }
 
 // 本線にする見通しの位置。見通しが無ければ -1。
-export function mainCashflowIndex(items: readonly ToolLike[]): number {
-  const cashflows = items.flatMap((item, index) =>
+// from は今回の回の記録が始まる位置（#85）。今回の回に見通しがあれば今回の見通しから選び、無いときだけ
+// 前の回までさかのぼる。内訳の額（照らす基準）は、前の回の分も含めて全体から集める。
+export function mainCashflowIndex(items: readonly ToolLike[], from = 0): number {
+  const all = items.flatMap((item, index) =>
     isCashflowOutput(item.output) ? [index] : [],
   );
+  const current = all.filter((index) => index >= from);
+  const cashflows = current.length > 0 ? current : all;
   if (cashflows.length <= 1) return cashflows[0] ?? -1;
   const reference = breakdownAmounts(items);
   const consistent =
