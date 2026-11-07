@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { createElement, type ReactElement } from "react";
+import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { FRIENDS } from "../app/play/baa/animals";
@@ -81,7 +81,7 @@ const fakeRouter = {
   prefetch() {},
 };
 
-function renderPlay(component: () => ReactElement) {
+function renderPlay(component: ComponentType) {
   return renderToStaticMarkup(
     createElement(
       AppRouterContext.Provider,
