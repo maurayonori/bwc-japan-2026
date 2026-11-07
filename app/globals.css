@@ -903,6 +903,12 @@ main.talk {
 .voice-error {
   color: #7c603d;
 }
+/* 年表（/roadmap）の入れ物。幅と余白は年表の .wrap が決める（#52）。 */
+main.roadmap-main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
 main.page {
   width: 100%;
   max-width: 760px;
