@@ -42,6 +42,9 @@ export function splitRoadmapHtml(html: string): RoadmapParts {
   return { css, markup, code: `${model}\n${app}` };
 }
 
-export function readRoadmapParts(path = ROADMAP_HTML_PATH): RoadmapParts {
-  return splitRoadmapHtml(readFileSync(path, "utf8"));
+// 読む場所は決め打ちにする（引数で場所を変えられると、ビルドがプロジェクト全体をサーバーの成果物に含めてしまう）。
+export function readRoadmapParts(): RoadmapParts {
+  return splitRoadmapHtml(
+    readFileSync(join(process.cwd(), "docs", "prototypes", "sapporo-roadmap.html"), "utf8"),
+  );
 }
