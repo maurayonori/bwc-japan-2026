@@ -118,7 +118,7 @@ function MemoCard({
       {card.kind === "money" && card.money && (
         <MoneyDetails
           money={card.money}
-          text={card.body}
+          text={citedText(card)}
           question={question}
           onAsk={onAsk}
           disabled={disabled}
@@ -143,7 +143,9 @@ function MemoCard({
           </p>
         </div>
       </div>
-      {card.kind !== "memory" && <FactSources text={citedText(card)} />}
+      {card.kind !== "memory" && !(card.kind === "money" && card.money) && (
+        <FactSources text={citedText(card)} />
+      )}
       <div className="card-actions">
         <button className="text-button" onClick={edit} disabled={disabled}>
           内容を直す

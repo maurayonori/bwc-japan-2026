@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FACTS } from "../lib/money/facts";
-import { REFUND_NOTE } from "../lib/money/format";
+import { KOUGAKU_ROWS, REFUND_NOTE, moneySources } from "../lib/money/format";
 import { simulateCashflow } from "../lib/money/ledger";
 import { buildSystem } from "../lib/prompt";
 import { exportMemo, type Card } from "../lib/workspace";
@@ -62,4 +62,16 @@ test("3: 支払日のカードの払い戻しの注記は、見込みとして�
   assert.match(REFUND_NOTE, /見込み/);
   assert.match(REFUND_NOTE, /受けられるか、いつになるかは加入している健康保険に確かめて/);
   assert.match(REFUND_NOTE, /\[F05\]/);
+});
+
+test("4: 計算表の行名も、あとで戻る額を見込みとして書く", () => {
+  const labels = KOUGAKU_ROWS.map(([label]) => label);
+  assert.ok(labels.includes("いったん全額を払ったとき、あとで戻る見込みの額"));
+  assert.ok(!labels.some((label) => label.endsWith("あとで戻る額")));
+});
+
+test("5: お金のカードの出典の一覧は、見出しと次の一歩の [Fxx] も含めて 1 か所にまとめる", () => {
+  const [inTitle] = FACTS.filter((fact) => fact.sources.length > 0);
+  const sources = moneySources({ calculations: [] }, `見出し [${inTitle.id}]\n本文\n次の一歩\n`);
+  for (const source of inTitle.sources) assert.ok(sources.some((item) => item.url === source.url));
 });
