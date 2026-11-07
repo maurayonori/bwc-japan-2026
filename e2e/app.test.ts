@@ -2,52 +2,25 @@
 // Claude には送らない。/api/chat への送信は、架空の体験例の返答で差し替える。
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, type ChildProcess } from "node:child_process";
-import { createServer } from "node:net";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { chromium, devices, type Browser, type Page } from "playwright";
 import { exampleWorkspace } from "../lib/example";
-import { pathToFileURL } from "node:url";
 import { externalHref } from "../lib/menu";
+import { startServer } from "./server";
 
-let server: ChildProcess;
 let browser: Browser;
 let base = "";
-
-async function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const s = createServer();
-    s.listen(0, "127.0.0.1", () => {
-      const address = s.address();
-      s.close(() => (typeof address === "object" && address ? resolve(address.port) : reject(new Error("port"))));
-    });
-  });
-}
+let stop = () => {};
 
 before(async () => {
-  const port = await freePort();
-  base = `http://127.0.0.1:${port}`;
-  const next = join(process.cwd(), "node_modules", "next", "dist", "bin", "next");
-  // 実 API に届かないよう、鍵を外して起動する
-  const env = { ...process.env, ANTHROPIC_API_KEY: "" };
-  server = spawn(process.execPath, [next, "start", "-H", "127.0.0.1", "-p", String(port)], {
-    env,
-    stdio: "ignore",
-  });
-  for (let i = 0; i < 100; i++) {
-    try {
-      if ((await fetch(`${base}/roadmap`)).ok) break;
-    } catch {
-      // まだ起動していない
-    }
-    await new Promise((r) => setTimeout(r, 200));
-  }
+  ({ base, stop } = await startServer());
   browser = await chromium.launch();
 });
 
 after(async () => {
   await browser?.close();
-  server?.kill();
+  stop();
 });
 
 // 架空の体験例の返答。お金のカード 1 枚と、渡すもの 4 枚。
@@ -172,22 +145,13 @@ test("会話の途中で年表やあそぶへ移って戻っても、会話・�
   await context.close();
 });
 
-test("メニューはどのページでも 1 つ。あそぶでは出さない。ペルソナとかがみは設定があるときだけ", async () => {
+test("メニューはどのページでも 1 つ。あそぶでは出さない。かがみは中のページ、ペルソナは設定があるときだけ", async () => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
-  // ビルドのときの値で決まる。npm run test:e2e は未設定、npm run test:e2e:links は両方を設定して確かめる
+  // ビルドのときの値で決まる。npm run test:e2e は未設定、npm run test:e2e:links はペルソナを設定して確かめる
   const persona = externalHref(process.env.NEXT_PUBLIC_PERSONA_URL);
-  const kagami = externalHref(process.env.NEXT_PUBLIC_KAGAMI_URL);
-  const expected = [
-    "話す",
-    "見通し",
-    "渡すもの",
-    "年表",
-    "あそぶ",
-    ...(persona ? ["ペルソナ"] : []),
-    ...(kagami ? ["かがみ"] : []),
-  ];
-  for (const path of ["/", "/#outlook", "/#hand", "/roadmap"]) {
+  const expected = ["話す", "見通し", "渡すもの", "年表", "あそぶ", "かがみ", ...(persona ? ["ペルソナ"] : [])];
+  for (const path of ["/", "/#outlook", "/#hand", "/roadmap", "/kagami"]) {
     await page.goto(`${base}${path}`);
     await page.waitForLoadState("networkidle");
     const nav = page.locator('nav[aria-label="メニュー"]');
@@ -198,9 +162,11 @@ test("メニューはどのページでも 1 つ。あそぶでは出さない�
     assert.equal(await nav.locator('a[href$="#outlook"]').count(), 1, path);
     assert.equal(await nav.locator('a[href$="#hand"]').count(), 1, path);
     assert.equal(await page.locator('header a[href$="#outlook"], header a[href$="#hand"]').count(), 2, path);
-    for (const href of [persona, kagami].filter(Boolean))
-      assert.equal(await nav.locator(`a[href="${href}"][target="_blank"][rel="noopener noreferrer"]`).count(), 1, path);
-    assert.equal(await nav.locator('a[target="_blank"]').count(), [persona, kagami].filter(Boolean).length, path);
+    if (persona)
+      assert.equal(await nav.locator(`a[href="${persona}"][target="_blank"][rel="noopener noreferrer"]`).count(), 1, path);
+    assert.equal(await nav.locator('a[target="_blank"]').count(), persona ? 1 : 0, path);
+    // かがみはアプリの中のページ
+    assert.equal(await nav.locator('a[href="/kagami"]:not([target])').count(), 1, path);
   }
   for (const path of ["/play", "/play/pon", "/play/baa", "/play/shabon"]) {
     await page.goto(`${base}${path}`);
@@ -211,7 +177,7 @@ test("メニューはどのページでも 1 つ。あそぶでは出さない�
   // 320px の幅でもページは横にはみ出さない。収まらないメニューは、メニューの中で横に送って最後まで届く
   const phone = await browser.newContext({ ...devices["iPhone SE"] });
   const small = await phone.newPage();
-  for (const path of ["/", "/roadmap"]) {
+  for (const path of ["/", "/roadmap", "/kagami"]) {
     await small.goto(`${base}${path}`);
     await small.waitForLoadState("networkidle");
     assert.equal(await small.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, path);
@@ -254,7 +220,7 @@ test("ヘッダーの文字を、どの幅でも途中で折り返さない。12
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
   const widths = [320, 375, 414, 600, 740, 741, 771, 800, 850, 900, 950, 1000, 1050, 1100, 1150, 1200, 1280, 1440];
-  for (const path of ["/", "/roadmap"]) {
+  for (const path of ["/", "/roadmap", "/kagami"]) {
     await page.goto(`${base}${path}`);
     await page.waitForLoadState("networkidle");
     for (const width of widths) {
