@@ -1,8 +1,8 @@
 # 0011. 発表する製品を「さきよみ」に確定し、入院前のお金の計算を本体に入れる
 
-- 状態: 採用
+- 状態: 一部置き換え（0013）
 - 日付: 2026-11-06
-- 関連: #29、#27、#28、[ADR 0007](0007-test-preparation-through-hospital-cost-simulation.md)、[ADR 0008](0008-build-family-preparation-workspace.md)、[ADR 0009](0009-conversational-hospital-cost-prototype.md)、[ADR 0012](0012-open-production-with-usage-limits.md)
+- 関連: #29、#27、#28、[ADR 0007](0007-test-preparation-through-hospital-cost-simulation.md)、[ADR 0008](0008-build-family-preparation-workspace.md)、[ADR 0009](0009-conversational-hospital-cost-prototype.md)、[ADR 0012](0012-open-production-with-usage-limits.md)、[ADR 0013](0013-decision-first-range-and-one-check.md)
 
 ## 背景
 
