@@ -93,6 +93,28 @@
 a.fact-cite {
   text-decoration: underline;
 }
+/* [Fxx] を引いた文章のあとに、出典すべてと確認日を見える形で並べる（#68）。 */
+.fact-sources {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82em;
+  color: var(--muted);
+}
+.fact-source {
+  display: block;
+  margin-top: 2px;
+}
+.fact-source-head,
+.fact-source-item {
+  display: block;
+}
+.fact-source-item {
+  padding-left: 1em;
+  overflow-wrap: anywhere;
+}
+.fact-source-item a {
+  color: var(--green);
+}
 /* 支払日に要るお金。筋書きごとの額と手元のお金との差を、いちばん先に置く（#55）。 */
 .money-payday {
   border-top: 0;

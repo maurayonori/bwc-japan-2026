@@ -1,0 +1,68 @@
+// 出典の番号 [Fxx] を引いた返答に、出典すべて（名前と URL）と確認日が、ホバーでなく見える形で出る（#68）。
+// Claude には送らない。/api/chat への送信は、架空の体験例の返答で差し替える。
+import test, { after, before } from "node:test";
+import assert from "node:assert/strict";
+import { chromium, type Browser } from "playwright";
+import { exampleWorkspace } from "../lib/example";
+import { citedFacts } from "../lib/money/format";
+import { startServer } from "./server";
+
+let browser: Browser;
+let base = "";
+let stop = () => {};
+
+before(async () => {
+  ({ base, stop } = await startServer());
+  browser = await chromium.launch();
+});
+
+after(async () => {
+  await browser?.close();
+  stop();
+});
+
+test("[Fxx] を引いた返答の下に、その事実の出典すべての名前と URL、確認日が見える", async () => {
+  const example = exampleWorkspace();
+  const reply = example.messages.find((m) => m.role === "assistant");
+  assert.ok(reply);
+  const facts = citedFacts(reply.text);
+  assert.ok(facts.length > 0, "体験例の返答は [F05] を引いている");
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route("**/api/chat", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        reply: reply.text,
+        cards: example.cards.map(({ edited: _e, done: _d, included: _i, ...card }) => card),
+        tools: reply.tools,
+      }),
+    });
+  });
+  await page.goto(`${base}/`);
+  await page.waitForSelector("#thoughts:not([disabled])");
+  await page.fill("#thoughts", "架空の例: 来月から 2 週間入院します。手元にいくら要るか知りたい。");
+  await page.getByRole("button", { name: /ここから整理する/ }).click();
+  const message = page.locator(".message.assistant").filter({ hasText: reply.text.split("\n")[0].slice(0, 20) }).first();
+  await message.waitFor();
+  const sources = message.locator(".fact-sources");
+  await sources.waitFor();
+  assert.equal(await sources.isVisible(), true);
+  const shown = await sources.innerText();
+  for (const fact of facts) {
+    assert.ok(shown.includes(`確認 ${fact.checked_on}`), `${fact.id} の確認日`);
+    for (const source of fact.sources) {
+      assert.ok(shown.includes(source.name), `${fact.id} の出典の名前: ${source.name}`);
+      assert.ok(shown.includes(source.url), `${fact.id} の出典の URL: ${source.url}`);
+      assert.equal(await sources.locator(`a[href="${source.url}"]`).first().isVisible(), true);
+    }
+  }
+  // 狭い幅でも、出典の行が横にはみ出さない。
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(overflow <= 0, `横にはみ出した幅: ${overflow}px`);
+  assert.deepEqual(errors, []);
+  await context.close();
+});

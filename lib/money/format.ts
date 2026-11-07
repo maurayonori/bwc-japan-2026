@@ -224,6 +224,7 @@ export function citedFacts(text: string): CitedFact[] {
 }
 
 // 計算の結果と、文章で引いた事実の出典を 1 つにまとめる（同じ URL は 1 回だけ）。
+// simulate_cashflow は、渡した入出金を日付順に並べるだけで制度の表を使わないので、出典を持たない（結果に sources が無い）。
 export function moneySources(money: Money, text: string): Source[] {
   const fromTools = money.calculations.flatMap((calculation) =>
     calculation.name === "simulate_cashflow" ? [] : calculation.output.sources,
