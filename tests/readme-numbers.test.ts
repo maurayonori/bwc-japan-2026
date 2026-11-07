@@ -8,6 +8,7 @@ import { cashGapText, yen } from "../lib/money/format";
 import { kougakuGendo } from "../lib/money/kougaku";
 import { simulateCashflow, type CashflowInput } from "../lib/money/ledger";
 import { mealCost } from "../lib/money/meals";
+import { KOUGAKU_UNDER_70, MEAL_COPAY } from "../lib/money/rules";
 
 // README と提出文の架空の例の金額が、本番と同じ計算関数の結果と一致することを確かめる（#55）。
 // 条件: 2026 年 12 月 14 日〜28 日、協会けんぽ、区分ウ、医療費の総額 80 万円、手元 20 万円。
@@ -156,7 +157,7 @@ test("提出文の架空の例の金額は、計算関数の結果と一致す�
     `${yen(withoutCap.low_case.need)}で、差は ${yen(first.cashflow.comparison_with_first[0].need_low_difference)}`,
     `${cashGapText(CASH_ON_HAND, withCap.low_case.need, withCap.high_case.need).replace("残る", "残り")}`,
     `${cashGapText(CASH_ON_HAND, withoutCap.low_case.need, withoutCap.high_case.need).replace("足りない", "足りません")}`,
-    `${yen(confirmed.low_case.need)}に決まります`,
+    `要る額は ${yen(confirmed.low_case.need)}の 1 つ`,
     `12 月に寄れば ${yen(extended.skewed.low_case.need)}`,
     `半々なら ${yen(extended.half.low_case.need)}`,
     `上限が使えなければ ${yen(extended.withoutCap.low_case.need)}`,
@@ -164,6 +165,107 @@ test("提出文の架空の例の金額は、計算関数の結果と一致す�
   for (const text of expected) assert.ok(form.includes(text), text);
   // 確かめたのは条件（窓口で上限が使える）だけなので、額は見積もりのまま（#68）。
   assert.equal(confirmed.high_case.rows[0].certainty, "estimate");
+});
+
+// 体験例の条件（日付・区分・総額・手元）を、exampleMoneyTurns の計算の入力から作る（#62）。
+// 文書に手で書いた値を正としない。
+function exampleFacts() {
+  const { first, second } = exampleMoneyTurns();
+  const kougaku = first.calculations.find((item) => item.name === "kougaku_gendo");
+  const stay = first.calculations.find((item) => item.name === "calc_date");
+  assert.ok(kougaku?.name === "kougaku_gendo" && stay?.name === "calc_date");
+  const { start_date: start, until_date: until } = stay.input;
+  const { amount_low: amount, income_category: category } = kougaku.input;
+  assert.ok(typeof start === "string" && typeof until === "string");
+  assert.ok(typeof amount === "number" && typeof category === "string");
+  assert.ok(stay.output.until);
+  const cashOnHand = first.cashflow.cash_on_hand;
+  assert.ok(cashOnHand !== null);
+  const [y, m, d] = start.split("-").map(Number);
+  const [, , d2] = until.split("-").map(Number);
+  return {
+    first,
+    second,
+    y,
+    m,
+    d,
+    d2,
+    days: stay.output.until.days_inclusive,
+    category,
+    amountMan: amount / 10_000,
+    cashMan: cashOnHand / 10_000,
+  };
+}
+
+// 文書ごとの、体験例の条件を書いた文。文全体で照らすので、どれか 1 つの値を書き違えると落ちる。
+function conditionSentences(f: ReturnType<typeof exampleFacts>): [string, string][] {
+  const total = `${f.amountMan} 万円`;
+  const cash = `${f.cashMan} 万円`;
+  return [
+    ["README.md", `条件は架空で、協会けんぽ・区分${f.category}・医療費の総額 ${total}・手元 ${cash}です。`],
+    [
+      "docs/submission/form.md",
+      `${f.m} 月 ${f.d} 日から ${f.d2} 日まで ${f.days} 日間入院し、協会けんぽで区分${f.category}、医療費の総額が ${total}、手元に ${cash}ある人の場合です。`,
+    ],
+    [
+      "docs/family-preparation.md",
+      `体験例は ${f.y} 年 ${f.m} 月 ${f.d} 日〜${f.d2} 日の ${f.days} 日間、協会けんぽ、区分${f.category}、医療費の総額 ${total}、手元 ${cash}で、`,
+    ],
+    [
+      "docs/adr/0016-pay-day-story-display-and-example.md",
+      `${f.y} 年 ${f.m} 月 ${f.d} 日〜${f.d2} 日の ${f.days} 日間、協会けんぽ、区分${f.category}、医療費の総額 ${total}、手元 ${cash}。`,
+    ],
+  ];
+}
+
+test("README・提出文・仕様・ADR 0016 の体験例の条件の文は、計算の入力と一致する", () => {
+  for (const [path, sentence] of conditionSentences(exampleFacts())) {
+    assert.ok(read(path).includes(sentence), `${path}: ${sentence}`);
+  }
+});
+
+test("4 つの文書に出てくる総額・手元・区分は、すべて体験例の計算の入力と同じ", () => {
+  const f = exampleFacts();
+  const patterns: [RegExp, string][] = [
+    [/総額(?:が)? ?(\d+) 万円/g, String(f.amountMan)],
+    [/手元(?:に|の)? ?(\d+) 万円/g, String(f.cashMan)],
+    [/区分([アイウエオ])/g, f.category],
+  ];
+  for (const [path] of conditionSentences(f)) {
+    const text = read(path);
+    for (const [pattern, expected] of patterns) {
+      const found = [...text.matchAll(pattern)].map((match) => match[1]);
+      assert.ok(found.length > 0, `${path}: ${pattern}`);
+      for (const value of found) assert.equal(value, expected, `${path}: ${pattern}`);
+    }
+  }
+});
+
+test("仕様の体験例の金額は、計算関数の結果と一致する", () => {
+  const spec = read("docs/family-preparation.md");
+  const { first, second } = exampleFacts();
+  const [withCap, withoutCap] = first.cashflow.scenarios;
+  const [answered] = second.cashflow.scenarios;
+  const expected = [
+    `窓口で上限が使えれば ${yen(withCap.low_case.need)}`,
+    `使えなければ ${yen(withoutCap.low_case.need)}`,
+    `差は ${yen(first.cashflow.comparison_with_first[0].need_low_difference)}`,
+    `要る額は ${yen(answered.low_case.need)}の 1 つ`,
+  ];
+  for (const text of expected) assert.ok(spec.includes(text), text);
+  assert.equal(withCap.low_case.need, withCap.high_case.need);
+  assert.equal(answered.low_case.need, withCap.low_case.need);
+});
+
+test("README の計算例の制度の値には、制度表と同じ出典と確認日が付いている", () => {
+  const readme = read("README.md");
+  for (const source of [KOUGAKU_UNDER_70.sources[0], MEAL_COPAY.sources[0]]) {
+    assert.ok(readme.includes(`[${source.name}](${source.url})（確認 ${source.checked_on}）`), source.name);
+  }
+  const category = KOUGAKU_UNDER_70.categories.find((item) => item.key === "ウ");
+  assert.ok(category?.threshold);
+  assert.ok(readme.includes(`${yen(category.base)} ＋（${yen(TOTAL_COST)} − ${yen(category.threshold)}）× ${KOUGAKU_UNDER_70.rate_percent}%`));
+  assert.ok(readme.includes(`${yen(MEAL_COPAY.yen_per_meal)} × ${MEAL_COPAY.meals_per_day_max} 食`));
 });
 
 test("月またぎの「まず確かめる 1 つ」は、12 月と 1 月の内訳で、幅 82,940 円が 0 円になる", () => {
