@@ -731,3 +731,188 @@ test("年表の設定とチェックは、保存を選んだときだけブラ�
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+// 年表の保存の検査で使う（#86）。保存の読み書きを、検査の合図で失敗させる。
+const ROADMAP_KEY = "sapporo-roadmap:v2";
+const DONE_ID = "a-sapporo-procedures-shussho-todoke";
+const FAILING_STORAGE = (names: string[]) => `
+  (() => {
+    window.__failStorage = new Set(${JSON.stringify(names)});
+    window.__roadmapWrites = [];
+    const proto = Storage.prototype;
+    for (const name of ["getItem", "setItem", "removeItem"]) {
+      const original = proto[name];
+      proto[name] = function () {
+        if (arguments[0] === "${ROADMAP_KEY}") {
+          if (window.__failStorage.has(name)) throw new DOMException("拒否", "SecurityError");
+          if (name === "setItem") window.__roadmapWrites.push(arguments[1]);
+        }
+        return original.apply(this, arguments);
+      };
+    }
+  })();
+`;
+async function roadmapSettings(page: Page) {
+  await page.evaluate(() => {
+    location.hash = "#settings";
+  });
+  await page.waitForSelector("#settings-view:not([hidden])");
+}
+async function roadmapMain(page: Page) {
+  await page.click("#back-main");
+  await page.waitForSelector("#main-view:not([hidden])");
+}
+const storedRoadmap = (page: Page) => page.evaluate((key) => localStorage.getItem(key), ROADMAP_KEY);
+async function setElderBirth(page: Page, value: string) {
+  await page.fill("#s-elderBirth", value);
+  await page.dispatchEvent("#s-elderBirth", "change");
+}
+const doneChecked = (page: Page) =>
+  page.evaluate((id) => (document.getElementById("done-" + id) as HTMLInputElement | null)?.checked ?? null, DONE_ID);
+
+test("年表: 保存を選ぶと済んだのチェックと表示する子も残り、再読み込みで戻る。何も変えずに外して画面を行き来しても、いまの状態はタブの中に残る", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${base}/roadmap`);
+  await page.waitForSelector("#cond:not(:empty)");
+  // 済んだにして、表示する子を変え、生年月日も変える
+  await page.evaluate((id) => {
+    (document.getElementById("item-" + id) as HTMLDetailsElement).open = true;
+    (document.getElementById("done-" + id) as HTMLInputElement).click();
+  }, DONE_ID);
+  assert.equal(await doneChecked(page), true);
+  await page.locator("#views button").nth(1).click();
+  const view = await page.locator('#views button[aria-pressed="true"]').innerText();
+  await roadmapSettings(page);
+  await setElderBirth(page, "2025-12-01");
+  assert.equal(await storedRoadmap(page), null);
+  // 保存を選ぶと、済んだ・表示する子・設定が残る
+  await page.check("#s-remember");
+  const saved = JSON.parse((await storedRoadmap(page)) ?? "null") as { settings: { elderBirth: string }; done: Record<string, boolean>; view: string };
+  assert.equal(saved.settings.elderBirth, "2025-12-01");
+  assert.equal(saved.done["a:sapporo-procedures-shussho-todoke"], true);
+  assert.notEqual(saved.view, "all");
+  // 再読み込みで戻る
+  await page.reload();
+  await page.waitForSelector("#settings-view:not([hidden])");
+  assert.equal(await page.isChecked("#s-remember"), true);
+  await roadmapMain(page);
+  assert.equal(await doneChecked(page), true);
+  assert.equal(await page.locator('#views button[aria-pressed="true"]').innerText(), view);
+  // 何も変えずに外し、「話す」→「年表」と移っても、いまの状態はタブの中に残る（ブラウザには残さない）
+  await roadmapSettings(page);
+  await page.uncheck("#s-remember");
+  assert.equal(await storedRoadmap(page), null);
+  await menu(page, "話す");
+  await page.waitForSelector("main.talk");
+  await menu(page, "年表");
+  await page.waitForURL(`${base}/roadmap`);
+  await page.waitForSelector("#cond:not(:empty)");
+  assert.equal(await doneChecked(page), true);
+  assert.equal(await page.locator('#views button[aria-pressed="true"]').innerText(), view);
+  await roadmapSettings(page);
+  assert.equal(await page.inputValue("#s-elderBirth"), "2025-12-01");
+  assert.equal(await page.isChecked("#s-remember"), false);
+  assert.equal(await storedRoadmap(page), null);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("年表: 保存の削除や書き込みに失敗したら、そう伝え、外して消す操作は使えるまま。読めないときは選べない", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  await context.addInitScript(FAILING_STORAGE([]));
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const message = () => page.textContent("#settings-msg").then((t) => t ?? "");
+  await page.goto(`${base}/roadmap`);
+  await page.waitForSelector("#cond:not(:empty)");
+  await roadmapSettings(page);
+
+  // A. 保存してある状態で、削除が失敗する → 消せなかったと伝え、選んだ状態のまま。値は残る
+  await page.check("#s-remember");
+  assert.ok(await storedRoadmap(page));
+  await page.evaluate(`window.__failStorage.add("removeItem")`);
+  // 画面はチェックを戻すので、uncheck ではなくクリックで外す
+  await page.click("#s-remember");
+  assert.match(await message(), /このブラウザから消せませんでした。/);
+  assert.equal(await page.isChecked("#s-remember"), true);
+  assert.ok(await storedRoadmap(page));
+  // 削除できるようになれば、外して消せる
+  await page.evaluate(`window.__failStorage.delete("removeItem")`);
+  await page.uncheck("#s-remember");
+  assert.equal(await storedRoadmap(page), null);
+  assert.doesNotMatch(await message(), /消せませんでした/);
+
+  // B. 保存してある状態で、書き込みだけが失敗する → 書けなかったと伝え、選択は押せるまま。外せば消える
+  await page.check("#s-remember");
+  const before = await storedRoadmap(page);
+  assert.ok(before);
+  await page.evaluate(`window.__failStorage.add("setItem")`);
+  await setElderBirth(page, "2025-12-01");
+  assert.match(await message(), /このブラウザに保存できませんでした。前に保存した値が残っています。/);
+  assert.doesNotMatch(await message(), /保存しました/);
+  assert.equal(await page.isChecked("#s-remember"), true);
+  assert.equal(await page.isDisabled("#s-remember"), false);
+  assert.equal(await storedRoadmap(page), before);
+  await page.uncheck("#s-remember");
+  assert.equal(await storedRoadmap(page), null);
+  // 再読み込みしても、前の値は戻らない
+  await page.reload();
+  await page.waitForSelector("#settings-view:not([hidden])");
+  assert.equal(await page.isChecked("#s-remember"), false);
+  assert.equal(await page.inputValue("#s-elderBirth"), "2025-11-07");
+
+  // C. 保存が無い状態で、書き込みが失敗する → 選んでも保存できないと伝え、選んでいない状態に戻す
+  await page.evaluate(`window.__failStorage.add("setItem")`);
+  // 画面はチェックを戻すので、check ではなくクリックで選ぶ
+  await page.click("#s-remember");
+  assert.match(await message(), /このブラウザに保存できませんでした。閉じると/);
+  assert.equal(await page.isChecked("#s-remember"), false);
+  assert.equal(await storedRoadmap(page), null);
+  assert.deepEqual(errors, []);
+  await context.close();
+
+  // D. 読むこともできないブラウザ → 選べず、そう伝える。設定は画面の中で使え、書き込みは 1 回もしない
+  const blocked = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  await blocked.addInitScript(FAILING_STORAGE(["getItem", "setItem", "removeItem"]));
+  const page2 = await blocked.newPage();
+  const errors2: string[] = [];
+  page2.on("pageerror", (e) => errors2.push(e.message));
+  await page2.goto(`${base}/roadmap`);
+  await page2.waitForSelector("#cond:not(:empty)");
+  await roadmapSettings(page2);
+  assert.equal(await page2.isDisabled("#s-remember"), true);
+  assert.match((await page2.textContent("#storage-note")) ?? "", /このブラウザでは保存できない/);
+  await setElderBirth(page2, "2025-12-01");
+  await roadmapMain(page2);
+  assert.ok(((await page2.textContent("#cond")) ?? "").endsWith("あなたの設定"));
+  assert.deepEqual(await page2.evaluate(`window.__roadmapWrites`), []);
+  assert.deepEqual(errors2, []);
+  await blocked.close();
+});
+
+test("年表: 壊れた形の保存の値は、保存の同意として扱わない（選んでいない状態で始め、書き換えない）", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${base}/roadmap`);
+  await page.waitForSelector("#cond:not(:empty)");
+  for (const raw of ["null", "[]", '"x"', "{broken", '{"settings":[]}', '{"done":{}}']) {
+    await page.evaluate(([key, value]) => localStorage.setItem(key, value), [ROADMAP_KEY, raw] as const);
+    await page.reload();
+    await page.waitForSelector("#cond:not(:empty)");
+    await roadmapSettings(page);
+    assert.equal(await page.isChecked("#s-remember"), false, raw);
+    await setElderBirth(page, "2025-12-01");
+    assert.doesNotMatch((await page.textContent("#settings-msg")) ?? "", /保存しました/, raw);
+    assert.equal(await storedRoadmap(page), raw, raw);
+    await page.evaluate((key) => localStorage.removeItem(key), ROADMAP_KEY);
+    await roadmapMain(page);
+  }
+  assert.deepEqual(errors, []);
+  await context.close();
+});
