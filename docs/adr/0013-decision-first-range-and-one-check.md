@@ -1,6 +1,6 @@
 # 0013. 主役を「退院の日に要る額の幅」と「まず確かめる 1 つ」にし、メモは渡すものとして下に置く
 
-- 状態: 提案
+- 状態: 採用
 - 日付: 2026-11-07
 - 関連: #30、[ADR 0011](0011-confirm-sakiyomi-and-include-money.md)、[ADR 0007](0007-test-preparation-through-hospital-cost-simulation.md)、[ADR 0008](0008-build-family-preparation-workspace.md)、[現在の仕様](../family-preparation.md)、[調査メモ](../research/hospital-money-facts-20261105.md)
 

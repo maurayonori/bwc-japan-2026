@@ -1,6 +1,6 @@
 # 現在の製品：さきよみ — 家族のための準備室
 
-2026-11-07 更新。公開の URL は https://sakiyomi-bwc2026.vercel.app （ログイン不要、会話には利用上限あり）。判断の記録は [ADR 0013](adr/0013-decision-first-range-and-one-check.md)（主役を幅と確認 1 つにする。提案）、[ADR 0011](adr/0011-confirm-sakiyomi-and-include-money.md)（題材と金額計算）、[ADR 0012](adr/0012-open-production-with-usage-limits.md)（公開）、[ADR 0008](adr/0008-build-family-preparation-workspace.md)（会話とカード）、[ADR 0014](adr/0014-browser-speech-recognition-for-voice-input.md)（入力欄の横のマイク）。
+2026-11-07 更新。公開の URL は https://sakiyomi-bwc2026.vercel.app （ログイン不要、会話には利用上限あり）。判断の記録は [ADR 0013](adr/0013-decision-first-range-and-one-check.md)（主役を幅と確認 1 つにする）、[ADR 0011](adr/0011-confirm-sakiyomi-and-include-money.md)（題材と金額計算）、[ADR 0012](adr/0012-open-production-with-usage-limits.md)（公開）、[ADR 0008](adr/0008-build-family-preparation-workspace.md)（会話とカード）、[ADR 0014](adr/0014-browser-speech-recognition-for-voice-input.md)（入力欄の横のマイク）。
 
 最上段の幅と確認 1 つは ADR 0013 で決めた仕様で、実装は 11/7 に main へ入った（#31〜#34）。公開中の画面に反映されたかは、この文書では確かめていない。
 
