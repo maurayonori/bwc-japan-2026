@@ -351,12 +351,15 @@ function compactItem(it) {
     schedule: it.schedule,
     prep: it.prep_days ?? null,
     cost: { amount: it.cost?.amount ?? null, subsidy: it.cost?.subsidy ?? null },
-    contacts: (it.contacts ?? []).map((c) => ({
-      ward: c.ward ?? null,
-      name: c.name,
-      url: c.url ? httpsUrl(c.url, where) : null,
-      phone: c.phone ?? null,
-    })),
+    // 出典と同じ URL と null の欄は省く（画面では url が無ければ出典へリンクする）
+    contacts: (it.contacts ?? []).map((c) =>
+      dropNull({
+        ward: c.ward,
+        name: c.name,
+        url: c.url && c.url !== it.source_url ? httpsUrl(c.url, where) : null,
+        phone: c.phone,
+      }),
+    ),
     src: httpsUrl(it.source_url, where),
     chk: String(it.checked_on),
     ev: it.evidence,
@@ -392,20 +395,21 @@ function compactEvent(ev) {
   };
 }
 
+// 区の source_urls は画面で使わない（窓口ごとの url を出典として出す）
 function compactWard(w) {
   if (!DATE_RE.test(String(w.checked_on))) throw new Error(`${w.name}: 確認日が無い`);
+  for (const o of w.offices ?? []) if (!o.url) throw new Error(`${w.name} ${o.name}: 出典 URL が無い`);
   return {
     name: w.name,
     chk: String(w.checked_on),
-    src: (w.source_urls ?? []).map((u) => httpsUrl(u, w.name)),
-    offices: (w.offices ?? []).map((o) => ({
-      role: o.role,
-      name: o.name,
-      url: o.url ? httpsUrl(o.url, w.name) : null,
-      phone: o.phone ?? null,
-      address: o.address ?? null,
-    })),
+    offices: (w.offices ?? []).map((o) =>
+      dropNull({ role: o.role, name: o.name, url: httpsUrl(o.url, w.name), phone: o.phone, address: o.address }),
+    ),
   };
+}
+
+function dropNull(o) {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v != null));
 }
 
 export function loadYaml(root = ROOT) {
