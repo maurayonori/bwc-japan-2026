@@ -31,6 +31,7 @@ import type {
   MoneyWarning,
   WhatToConfirm,
 } from "@/lib/money/schema";
+import { askWhom } from "@/lib/views";
 import "./money.css";
 
 // 表に出す金額と日付は、すべてサーバーの計算結果。Claude が書いた数字は入らない。
@@ -410,11 +411,6 @@ function CashflowBlock({ output }: { output: CashflowOutput }) {
 export interface AskQuestion {
   title: string;
   body: string;
-}
-
-// 「病院の会計に、このまま聞く」から、聞く相手の名前だけを取り出す。
-function askWhom(title: string): string {
-  return title.replace(/に、?\s*このまま聞く$/, "") || title;
 }
 
 function Bar({

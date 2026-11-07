@@ -20,6 +20,7 @@ import {
   VIEW_HASH,
   isHandCard,
   latestMoneyMessageId,
+  questionCard,
   resultLinks,
   viewFromHash,
   type View,
@@ -323,10 +324,10 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
     workspace.messages,
     workspace.cards,
   );
-  // 「まず確かめる 1 つ」で見せる質問文。一番あとに作った「確かめる・頼む」の文章を使う。
-  const latestContact = workspace.cards.findLast((c) => c.kind === "contact");
-  const question = latestContact
-    ? { title: latestContact.title, body: latestContact.body }
+  // 「まず確かめる 1 つ」で見せる質問文。今の見通しを作った返答で、いっしょに作ったり直したりした文章だけを使う（#48）。
+  const questionSource = questionCard(workspace.messages, workspace.cards);
+  const question = questionSource
+    ? { title: questionSource.title, body: questionSource.body }
     : null;
 
   // 会話の入力欄へ移る。ほかの表示にいるときは、「話す」に移ってからフォーカスする。

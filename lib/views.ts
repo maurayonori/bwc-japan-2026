@@ -81,3 +81,34 @@ export function latestMoneyMessageId(
     )?.id ?? null
   );
 }
+
+// 「病院の会計に、このまま聞く」から、聞く相手の名前だけを取り出す。
+export function askWhom(title: string): string {
+  return title.replace(/に、?\s*このまま聞く$/, "") || title;
+}
+
+// 「まず確かめる 1 つ」で見せる質問文のカード（#48）。
+// カードの並び順では選ばない。直したカードは元の位置に残るので、並びの最後が今の確認の質問文とは限らない。
+// 今の見通しを作った返答（お金のカードを最後に扱った返答）で、いっしょに作ったり直したりした「確かめる・頼む」の文章だけを使う。
+// 2 枚以上あれば、その返答の「まず確かめる」の行に聞く相手が出てくる 1 枚に絞る。決まらなければ出さない（質問文を作ってもらう）。
+export function questionCard(
+  messages: readonly Message[],
+  cards: readonly Card[],
+): Card | null {
+  const messageId = latestMoneyMessageId(messages, cards);
+  const message = messages.find((item) => item.id === messageId);
+  if (!message) return null;
+  const ids = new Set(message.cardIds ?? []);
+  const contacts = cards.filter(
+    (card) => card.kind === "contact" && ids.has(card.id),
+  );
+  if (contacts.length <= 1) return contacts[0] ?? null;
+  const confirmLines = message.text
+    .split("\n")
+    .filter((line) => line.includes("まず確かめる"))
+    .join("\n");
+  const named = contacts.filter((card) =>
+    confirmLines.includes(askWhom(card.title)),
+  );
+  return named.length === 1 ? named[0] : null;
+}
