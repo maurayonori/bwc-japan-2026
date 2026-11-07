@@ -70,7 +70,7 @@ function MenuLink({
 }
 
 // 全ページで同じ 1 つのメニュー（#52、ADR 0015）。会話の画面では件数を、ほかのページではメモリに残っている件数を出す。
-// ペルソナとかがみは、ビルドのときに URL があるときだけ出す外部リンク。
+// ペルソナは、ビルドのときに URL があるときだけ出す外部リンク。
 // children はヘッダーの右に置くもの（会話の画面の「保存とプライバシー」など）。
 export function SiteHeader({
   current,
@@ -85,13 +85,12 @@ export function SiteHeader({
   const [shown] = useState<Counts | null>(() => counts ?? keptCounts());
   const shownCounts = counts ?? shown;
   // NEXT_PUBLIC_ の値はビルドのときに埋め込まれる。名前をそのまま書く（まとめて読むと埋め込まれない）。
-  const items = menuItems({
-    persona: process.env.NEXT_PUBLIC_PERSONA_URL,
-    kagami: process.env.NEXT_PUBLIC_KAGAMI_URL,
-  });
+  const items = menuItems({ persona: process.env.NEXT_PUBLIC_PERSONA_URL });
   const home = isHomeKey(current);
   // 外部リンクの数。中くらいの幅でヘッダーをどこまで詰めるかを、CSS がこれで決める。
   const links = items.filter((item) => item.external).length;
+  const primary = items.filter((item) => item.group === "sakiyomi");
+  const tools = items.filter((item) => item.group === "tools");
   return (
     <header className="site-header" data-links={links}>
       {home ? (
@@ -111,12 +110,8 @@ export function SiteHeader({
       )}
       <nav className="view-nav" aria-label="メニュー">
         <ul>
-          {items.map((item, i) => (
-            <li
-              key={item.key}
-              // さきよみの会話の画面と、ほかの道具のあいだに区切りを置く。
-              className={i > 0 && items[i - 1].group !== item.group ? "tools-start" : undefined}
-            >
+          {primary.map((item) => (
+            <li key={item.key}>
               <MenuLink
                 item={item}
                 current={current}
@@ -128,6 +123,18 @@ export function SiteHeader({
               />
             </li>
           ))}
+          {/* 区切りのあとに、家族の道具（年表・あそぶ・かがみ）を小さく控えめに並べる。主は会話の画面の 3 つ。 */}
+          {tools.length > 0 && (
+            <li className="tools-start">
+              <ul className="menu-tools" aria-label="家族の道具">
+                {tools.map((item) => (
+                  <li key={item.key}>
+                    <MenuLink item={item} current={current} />
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )}
         </ul>
       </nav>
       {children}

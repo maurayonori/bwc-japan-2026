@@ -14,25 +14,22 @@ import { externalHref, menuItems, type MenuKey } from "../lib/menu";
 import { emptyWorkspace } from "../lib/workspace";
 
 const PERSONA = "http://127.0.0.1:4317/";
-// かがみの URL は検査用の架空の値（example.com はドキュメント用に予約された名前）
-const KAGAMI = "https://kagami.example.com/";
+const ENV = "NEXT_PUBLIC_PERSONA_URL";
 
-type Links = { persona?: string; kagami?: string };
-const ENV = { persona: "NEXT_PUBLIC_PERSONA_URL", kagami: "NEXT_PUBLIC_KAGAMI_URL" } as const;
-
-function render(current: MenuKey, urls: Links = {}, counts?: { outlook: number; hand: number }) {
-  const before = { persona: process.env[ENV.persona], kagami: process.env[ENV.kagami] };
-  for (const key of ["persona", "kagami"] as const) {
-    if (urls[key] === undefined) delete process.env[ENV[key]];
-    else process.env[ENV[key]] = urls[key];
-  }
+function render(current: MenuKey, persona?: string, counts?: { outlook: number; hand: number }) {
+  const before = process.env[ENV];
+  const kagamiBefore = process.env.NEXT_PUBLIC_KAGAMI_URL;
+  if (persona === undefined) delete process.env[ENV];
+  else process.env[ENV] = persona;
+  // 前に使っていた NEXT_PUBLIC_KAGAMI_URL は、設定されていても読まない
+  process.env.NEXT_PUBLIC_KAGAMI_URL = "https://kagami.example.com/";
   try {
     return renderToStaticMarkup(createElement(SiteHeader, { current, counts }));
   } finally {
-    for (const key of ["persona", "kagami"] as const) {
-      if (before[key] === undefined) delete process.env[ENV[key]];
-      else process.env[ENV[key]] = before[key];
-    }
+    if (before === undefined) delete process.env[ENV];
+    else process.env[ENV] = before;
+    if (kagamiBefore === undefined) delete process.env.NEXT_PUBLIC_KAGAMI_URL;
+    else process.env.NEXT_PUBLIC_KAGAMI_URL = kagamiBefore;
   }
 }
 
@@ -43,59 +40,63 @@ const links = (html: string) =>
     text: m[2].replace(/<[^>]+>/g, ""),
   }));
 
-test("メニューの行き先は 話す・見通し・渡すもの・年表・あそぶ。ペルソナとかがみは URL があるときだけ、この順で", () => {
+test("メニューの行き先は 話す・見通し・渡すもの・年表・あそぶ・かがみ。ペルソナは URL があるときだけ最後に", () => {
   assert.deepEqual(
-    menuItems().map((item) => [item.key, item.label, item.href]),
+    menuItems().map((item) => [item.key, item.label, item.href, item.external ?? false]),
     [
-      ["talk", "話す", "/#talk"],
-      ["outlook", "見通し", "/#outlook"],
-      ["hand", "渡すもの", "/#hand"],
-      ["roadmap", "年表", "/roadmap"],
-      ["play", "あそぶ", "/play"],
+      ["talk", "話す", "/#talk", false],
+      ["outlook", "見通し", "/#outlook", false],
+      ["hand", "渡すもの", "/#hand", false],
+      ["roadmap", "年表", "/roadmap", false],
+      ["play", "あそぶ", "/play", false],
+      ["kagami", "かがみ", "/kagami", false],
     ],
   );
-  const both = menuItems({ kagami: KAGAMI, persona: PERSONA });
-  assert.equal(both.length, 7);
-  assert.deepEqual(both.slice(-2), [
-    { key: "persona", label: "ペルソナ", href: PERSONA, group: "tools", external: true },
-    { key: "kagami", label: "かがみ", href: KAGAMI, group: "tools", external: true },
-  ]);
-  assert.deepEqual(menuItems({ persona: PERSONA }).map((item) => item.key).slice(-1), ["persona"]);
-  assert.deepEqual(menuItems({ kagami: KAGAMI }).map((item) => item.key).slice(-2), ["play", "kagami"]);
+  const withPersona = menuItems({ persona: PERSONA });
+  assert.equal(withPersona.length, 7);
+  assert.deepEqual(withPersona.at(-1), {
+    key: "persona",
+    label: "ペルソナ",
+    href: PERSONA,
+    group: "tools",
+    external: true,
+  });
 });
 
 test("外部リンクの URL は http と https だけを通す。空や読めない値では出さない", () => {
   assert.equal(externalHref(PERSONA), PERSONA);
-  assert.equal(externalHref(" https://kagami.example.com/ "), KAGAMI);
+  assert.equal(externalHref(" https://persona.example.com/ "), "https://persona.example.com/");
   for (const bad of [undefined, "", "  ", "javascript:alert(1)", "ftp://example.com/", "127.0.0.1:4317", "data:text/html,x"])
     assert.equal(externalHref(bad), null, String(bad));
-  assert.equal(menuItems({ persona: "javascript:alert(1)", kagami: "javascript:alert(1)" }).length, 5);
+  assert.equal(menuItems({ persona: "javascript:alert(1)" }).length, 6);
 });
 
-test("NEXT_PUBLIC_PERSONA_URL と NEXT_PUBLIC_KAGAMI_URL があればメニューに出て、無ければ出ない", () => {
+test("かがみはアプリの中のページ。NEXT_PUBLIC_KAGAMI_URL は読まない。ペルソナは URL があるときだけ外部リンク", () => {
   const without = render("talk");
-  for (const word of ["ペルソナ", "かがみ", "4317", "kagami"]) assert.ok(!without.includes(word), word);
-  const withUrls = render("talk", { persona: PERSONA, kagami: KAGAMI });
-  const outside = links(withUrls).filter((link) => link.attrs.includes('target="_blank"'));
+  const kagami = links(without).find((link) => link.text === "かがみ");
+  assert.ok(kagami);
+  assert.equal(kagami.href, "/kagami");
+  assert.ok(!kagami.attrs.includes("target="));
+  assert.ok(!without.includes("kagami.example.com"));
+  assert.ok(!without.includes("ペルソナ"));
+  assert.ok(!without.includes('target="_blank"'));
+  const withUrl = render("talk", PERSONA);
+  const outside = links(withUrl).filter((link) => link.attrs.includes('target="_blank"'));
   assert.deepEqual(
     outside.map((link) => [link.text.replace(/↗|（別のタブで開く）/g, ""), link.href]),
-    [
-      ["ペルソナ", PERSONA],
-      ["かがみ", KAGAMI],
-    ],
+    [["ペルソナ", PERSONA]],
   );
-  for (const link of outside) assert.match(link.attrs, /rel="noopener noreferrer"/);
-  // 片方だけ
-  assert.ok(render("talk", { kagami: KAGAMI }).includes("かがみ"));
-  assert.ok(!render("talk", { kagami: KAGAMI }).includes("ペルソナ"));
+  assert.match(outside[0].attrs, /rel="noopener noreferrer"/);
   // 公開の配置のように値が空なら出さない
-  const empty = render("talk", { persona: "", kagami: "" });
-  assert.ok(!empty.includes("ペルソナ") && !empty.includes("かがみ"));
+  assert.ok(!render("talk", "").includes("ペルソナ"));
+  // かがみのページでは、かがみに印を付ける
+  const here = links(render("kagami")).find((link) => link.href === "/kagami");
+  assert.match(here?.attrs ?? "", /aria-current="page"/);
 });
 
 test("どのページでもメニューは 1 つ。同じ行き先へのリンクを二重に置かない", () => {
-  for (const current of ["talk", "outlook", "hand", "roadmap", "play"] as const) {
-    const html = render(current, { persona: PERSONA, kagami: KAGAMI }, { outlook: 1, hand: 4 });
+  for (const current of ["talk", "outlook", "hand", "roadmap", "play", "kagami"] as const) {
+    const html = render(current, PERSONA, { outlook: 1, hand: 4 });
     assert.equal(html.match(/<nav /g)?.length, 1, current);
     assert.equal(html.match(/aria-label="メニュー"/g)?.length, 1, current);
     const nav = html.slice(html.indexOf("<nav "), html.indexOf("</nav>"));
@@ -108,18 +109,33 @@ test("どのページでもメニューは 1 つ。同じ行き先へのリン�
   }
 });
 
+test("主は 話す・見通し・渡すもの。年表・あそぶ・かがみ（とペルソナ）は区切りのあとの「家族の道具」にまとめる", () => {
+  for (const persona of [undefined, PERSONA]) {
+    const html = render("talk", persona);
+    const nav = html.slice(html.indexOf("<nav "), html.indexOf("</nav>"));
+    const at = nav.indexOf('<ul class="menu-tools" aria-label="家族の道具">');
+    assert.ok(at > 0, "家族の道具のまとまりが無い");
+    const main = links(nav.slice(0, at)).map((link) => link.href);
+    const tools = links(nav.slice(at)).map((link) => link.href);
+    assert.deepEqual(main, ["#talk", "#outlook", "#hand"]);
+    assert.deepEqual(tools, ["/roadmap", "/play", "/kagami", ...(persona ? [PERSONA] : [])]);
+    // 区切りは家族の道具の前に 1 つ
+    assert.equal(nav.match(/class="tools-start"/g)?.length, 1);
+  }
+});
+
 test("会話の画面の中は # だけで移り、ほかのページからは /#outlook で戻る", () => {
-  const home = links(render("outlook", {}, { outlook: 1, hand: 4 }));
+  const home = links(render("outlook", undefined, { outlook: 1, hand: 4 }));
   assert.deepEqual(
     home.map((link) => link.href),
-    ["#talk", "#talk", "#outlook", "#hand", "/roadmap", "/play"],
+    ["#talk", "#talk", "#outlook", "#hand", "/roadmap", "/play", "/kagami"],
   );
   assert.equal(home.find((link) => link.href === "#outlook")?.text, "見通し1");
   assert.equal(home.find((link) => link.href === "#hand")?.text, "渡すもの4");
   const roadmap = links(render("roadmap"));
   assert.deepEqual(
     roadmap.map((link) => link.href),
-    ["/#talk", "/#talk", "/#outlook", "/#hand", "/roadmap", "/play"],
+    ["/#talk", "/#talk", "/#outlook", "/#hand", "/roadmap", "/play", "/kagami"],
   );
   assert.match(roadmap.find((link) => link.href === "/roadmap")?.attrs ?? "", /aria-current="page"/);
 });
