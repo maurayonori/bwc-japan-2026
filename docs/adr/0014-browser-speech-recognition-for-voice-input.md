@@ -18,7 +18,7 @@
 4. **自動で送信しない。** 送信は本人が「ここから整理する」を押したとき。押すと録音、もう一度押すか Esc で止める（`stop`。それまでの分は確定させる）。認識が途中で終わったら（`onend`）待機に戻し、自動で再開しない。送信を始めたときと、会話の画面を離れたときは `abort` で結果を捨て、あとから届いた文字が次の下書きに混ざらないようにする。
 5. **エラーは日本語で伝え、文字でも入力できることを添える。** `not-allowed` と `service-not-allowed`、`no-speech`、`audio-capture`、`network` に文を用意し、ほかは共通の文にする。こちらから止めたとき（`aborted`）は何も出さない。エラーでアプリを止めない。
 6. **音声の送り先を、送る前に伝える。** マイクを初めて押したときは、一言（音声はブラウザの音声認識サービスへ送られる、Chrome では Google、実名や病名は話さず架空の内容で試す）を出し、録音は次に押したときから始める。一言を出したことはページを開いている間だけ覚え、保存しない。「保存とプライバシー」にも同じことを書く。
-7. **このサイト自身にだけマイクを許す。** `next.config.ts` の `Permissions-Policy` は `microphone=()`（すべて禁止）だったので、`microphone=(self)` にした。カメラと位置は禁止のまま。`X-Frame-Options: DENY` も変えないので、他のサイトの枠の中では使えない。CSP は置いておらず、`vercel.json` にもヘッダは無い。
+7. **このサイト自身にだけマイクを許す。** `next.config.ts` の `Permissions-Policy` は `microphone=()`（すべて禁止）だったので、`microphone=(self)` にした。カメラと位置は禁止のまま（2026-11-07 追記: かがみのため、[ADR 0016](0016-kagami-recording-on-this-device-only.md) でカメラもこのサイト自身にだけ許し、`camera=(self), microphone=(self), geolocation=()` にした。マイクはかがみの録画の音声にも使う）。`X-Frame-Options: DENY` も変えないので、他のサイトの枠の中では使えない。CSP は置いておらず、`vercel.json` にもヘッダは無い。
 8. **判定と文字の扱いは `lib/voice.ts` に、部品は `app/voice-button.tsx` に置く。** TypeScript の DOM の型に `SpeechRecognition` が無いので、使う分だけを `lib/voice.ts` で定義する（`any` は使わない）。
 
 ## 確かめた事実

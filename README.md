@@ -123,6 +123,7 @@ Codex には、仕様への批判レビューと 11/5 の課題の比較も任�
 ## データ
 
 - 初期状態ではブラウザのメモリの中だけに置きます。「このブラウザに保存して、次回つづける」を選ぶと localStorage に残ります
+- メニューの「かがみ」で撮った映像は、このタブのメモリにだけ置き、サーバーへ送りません。タブを閉じると消えます。残すときは端末に保存します。カメラとマイクは、応答のヘッダーでこのサイト自身にだけ許しています（`Permissions-Policy: camera=(self), microphone=(self), geolocation=()`、[ADR 0016](docs/adr/0016-kagami-recording-on-this-device-only.md)）
 - 会話を送ると、その会話とメモをサーバー経由で Anthropic へ送ります。API キーはサーバーだけで読みます
 - デモと公開データの人物と金額は、すべて架空です
 
@@ -154,7 +155,7 @@ npm run check:public   # 公開前の検査（鍵の形、.env、.vercel など�
 
 ## OSS
 
-[Next.js](https://github.com/vercel/next.js)、[React](https://github.com/facebook/react)、[Zod](https://github.com/colinhacks/zod)、[tsx](https://github.com/privatenumber/tsx)、[@types](https://github.com/DefinitelyTyped/DefinitelyTyped) は MIT、[AI SDK と Anthropic プロバイダー](https://github.com/vercel/ai)、[TypeScript](https://github.com/microsoft/TypeScript) は Apache-2.0 です。バージョンと依存関係は `package-lock.json`、ライセンスの本文は各パッケージにあります。画像・フォントなどの外部素材は使っていません。プロジェクト自体のライセンスは未決定です（#6）。
+[Next.js](https://github.com/vercel/next.js)、[React](https://github.com/facebook/react)、[Zod](https://github.com/colinhacks/zod)、[tsx](https://github.com/privatenumber/tsx)、[@types](https://github.com/DefinitelyTyped/DefinitelyTyped) は MIT、[AI SDK と Anthropic プロバイダー](https://github.com/vercel/ai)、[TypeScript](https://github.com/microsoft/TypeScript)、ブラウザでの検査に使う [Playwright](https://github.com/microsoft/playwright)（開発用）は Apache-2.0 です。バージョンと依存関係は `package-lock.json`、ライセンスの本文は各パッケージにあります。画像・フォントなどの外部素材は使っていません。プロジェクト自体のライセンスは未決定です（#6）。
 
 ## ライセンス
 
