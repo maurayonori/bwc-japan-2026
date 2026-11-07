@@ -27,13 +27,16 @@ after(async () => {
 const PRIVACY = "映像はこの端末の外に出ません。タブを閉じると消えます。残すときは保存してください。";
 
 // カメラから得たストリームを window.__streams に控える（止めたかどうかを確かめるため）。
+// getUserMedia を呼んだ回数を window.__cameraCalls に数える（押す前にカメラを開かないことを確かめるため）。
 const KEEP_STREAMS = `
   (() => {
     const media = navigator.mediaDevices;
     if (!media) return;
     const original = media.getUserMedia.bind(media);
     window.__streams = [];
+    window.__cameraCalls = 0;
     media.getUserMedia = function (constraints) {
+      window.__cameraCalls++;
       return original(constraints).then(function (stream) {
         window.__streams.push(stream);
         return stream;
@@ -68,6 +71,90 @@ const COUNT_WRITES = `
   })();
 `;
 const writes = (page: Page) => page.evaluate(`window.__writes`) as Promise<string[]>;
+
+// タブが隠れたことにする・戻ったことにする。
+const HIDE = `(() => {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+  document.dispatchEvent(new Event("visibilitychange"));
+})()`;
+const SHOW = `(() => {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+  document.dispatchEvent(new Event("visibilitychange"));
+})()`;
+
+// 1 本目のストリームのトラックの状態（live か ended）。
+const trackStates = (page: Page, index = 0) =>
+  page.evaluate(`window.__streams[${index}].getTracks().map((t) => t.readyState)`) as Promise<string[]>;
+
+// 録画を見張り、ブラウザからの知らせを止めておけるようにする（ブラウザによって知らせの来方が違っても、同じ条件で確かめるため）。
+// - window.__recorders: 作られた MediaRecorder
+// - window.__hold = true にしてから作った録画は、ブラウザからの知らせ（dataavailable・stop）を画面に渡さず控え、
+//   recorder.__flush() で順に渡す。検査が自分で出す知らせ（isTrusted が false）はそのまま渡す
+// - window.__log: 画面が受け取った止まった知らせ（recorder.stop）と、トラックを止めた呼び出し（track.stop）の順
+// - window.__ticks: 動いている 0.25 秒ごとのタイマー（録画中の秒を進めるもの）
+const CONTROL_RECORDERS = `
+  (() => {
+    const Original = window.MediaRecorder;
+    window.__recorders = [];
+    window.__log = [];
+    window.__hold = false;
+    function Recorder(stream, options) {
+      const recorder = options ? new Original(stream, options) : new Original(stream);
+      const hold = window.__hold === true;
+      const held = [];
+      for (const type of ["dataavailable", "stop"]) {
+        recorder.addEventListener(type, function (event) {
+          if (hold && event.isTrusted) {
+            event.stopImmediatePropagation();
+            held.push(type === "stop" ? new Event("stop") : new BlobEvent("dataavailable", { data: event.data }));
+            return;
+          }
+          if (type === "stop") window.__log.push("recorder.stop");
+        });
+      }
+      recorder.__flush = function () {
+        while (held.length) recorder.dispatchEvent(held.shift());
+      };
+      window.__recorders.push(recorder);
+      return recorder;
+    }
+    Recorder.prototype = Original.prototype;
+    Recorder.isTypeSupported = Original.isTypeSupported.bind(Original);
+    window.MediaRecorder = Recorder;
+    const stopTrack = MediaStreamTrack.prototype.stop;
+    MediaStreamTrack.prototype.stop = function () {
+      window.__log.push("track.stop");
+      return stopTrack.call(this);
+    };
+    window.__ticks = new Set();
+    const setTick = window.setInterval.bind(window);
+    const clearTick = window.clearInterval.bind(window);
+    window.setInterval = function (fn, ms, ...rest) {
+      const id = setTick(fn, ms, ...rest);
+      if (ms === 250) window.__ticks.add(id);
+      return id;
+    };
+    window.clearInterval = function (id) {
+      window.__ticks.delete(id);
+      return clearTick(id);
+    };
+  })();
+`;
+
+// 撮ったところまでの代わりに、擬似のかたまり（FAKE_BYTES バイト）を画面に渡す。
+const FAKE_BYTES = 4321;
+const feed = (page: Page, index = 0) =>
+  page.evaluate(
+    `window.__recorders[${index}].dispatchEvent(new BlobEvent("dataavailable", { data: new Blob([new Uint8Array(${FAKE_BYTES})], { type: "video/webm" }) }))`,
+  );
+
+// 画面が止まった知らせを受けてから、トラックを止めたか（知らせより先に止めていないか）。
+async function stoppedAfterNotice(page: Page) {
+  const log = (await page.evaluate(`window.__log`)) as string[];
+  const notice = log.indexOf("recorder.stop");
+  const track = log.indexOf("track.stop");
+  assert.ok(notice >= 0 && track > notice, `止まった知らせより先にトラックを止めた: ${JSON.stringify(log)}`);
+}
 
 // blob: と data: 以外の通信を数える（映像がこの端末の外に出ないこと）。
 function watchRequests(page: Page) {
@@ -181,16 +268,20 @@ test("撮る・止める・消音のプレビュー・再生・端末に保存�
     acceptDownloads: true,
   });
   await context.addInitScript(COUNT_WRITES);
+  await context.addInitScript(KEEP_STREAMS);
   const { page, errors } = await newPage(context);
   await page.goto(`${base}/kagami`);
   await page.waitForLoadState("networkidle");
   await page.getByText(PRIVACY).waitFor();
-  // 開いただけではカメラをつけない
+  await page.waitForTimeout(300);
+  // 開いただけではカメラをつけない（getUserMedia を 1 回も呼ばない）
+  assert.equal(await page.evaluate(`window.__cameraCalls`), 0, "押す前にカメラを開いた");
   assert.equal(await page.locator("video.kagami-video").count(), 0);
 
   // ここから「消す」まで、通信を 1 つの見張りで記録する
   const network = watchAll(page);
   await cameraOn(page);
+  assert.equal(await page.evaluate(`window.__cameraCalls`), 1);
   assert.equal(await page.getByText("マイクを使えないので").count(), 0);
   await page.getByRole("button", { name: "録画を始める" }).click();
   await page.locator(".kagami-rec").waitFor();
@@ -284,10 +375,7 @@ test("タブが隠れたら、録画を止めてそこまでを残し、カメ�
   await page.locator(".kagami-rec").waitFor();
   await page.waitForTimeout(1600);
   // タブが隠れたことにする
-  await page.evaluate(`(() => {
-    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
-    document.dispatchEvent(new Event("visibilitychange"));
-  })()`);
+  await page.evaluate(HIDE);
   await page.getByText("タブを離れたので、録画とカメラを止めました。撮ったところまでは残っています。").waitFor();
   await page.locator(".kagami-item").first().waitFor();
   assert.equal(await page.locator(".kagami-item").count(), 1);
@@ -304,10 +392,7 @@ test("タブが隠れたら、録画を止めてそこまでを残し、カメ�
   const played = await playFor(page.locator(".kagami-item video").first());
   assert.ok(played.time > 0.2, String(played.time));
   // 戻ったら、もう一度押してつける
-  await page.evaluate(`(() => {
-    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
-    document.dispatchEvent(new Event("visibilitychange"));
-  })()`);
+  await page.evaluate(SHOW);
   await page.getByRole("button", { name: "残して、続けて撮る" }).click();
   await cameraOn(page);
   await page.getByRole("button", { name: "録画を始める" }).waitFor();
@@ -439,8 +524,8 @@ test("マイクが拒否されたら映像だけで撮る。isTypeSupported が�
   await page.goto(`${base}/kagami`);
   await cameraOn(page);
   await page.getByText("マイクを使えないので、映像だけを録ります。").waitFor();
-  // 前のカメラを頼んで開き、向きが分からないときは前のカメラとして鏡のように見せる
-  assert.match((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
+  // 前のカメラを頼んで開いても、トラックの設定に向きが無ければ（偽のカメラ）分からないとして、鏡写しにしない
+  assert.doesNotMatch((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
   // カメラが 1 つなら切り替えのボタンは出さない
   assert.equal(await page.getByRole("button", { name: /カメラにする$/ }).count(), 0);
   await record(page, 1200);
@@ -475,7 +560,8 @@ test("カメラが 2 つあれば deviceId で切り替える。取得元が変�
     await page.goto(`${base}/kagami`);
     await cameraOn(page);
     const first = (await page.evaluate(`window.__streams[0].getVideoTracks()[0].getSettings().deviceId`)) as string;
-    assert.match((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
+    // 向きが分からないカメラは、最初に開いたときも切り替えたあとも鏡写しにしない
+    assert.doesNotMatch((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
     // 偽のカメラは向きを持たないので「ほかのカメラ」
     await page.getByRole("button", { name: "ほかのカメラにする" }).click();
     await page.waitForFunction(`window.__streams.length === 2 && window.__streams[1].getVideoTracks()[0].readyState === "live"`);
@@ -557,10 +643,7 @@ test("カメラを取る途中で画面を離れたら取り直さず、タブ�
   await page.waitForURL(`${base}/kagami`);
   await page.evaluate(`window.__mode = "late"`);
   await page.getByRole("button", { name: "カメラをつける" }).click();
-  await page.evaluate(`(() => {
-    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
-    document.dispatchEvent(new Event("visibilitychange"));
-  })()`);
+  await page.evaluate(HIDE);
   await page.waitForFunction(`window.__streams.length === 1`);
   await page.waitForTimeout(300);
   const states = (await page.evaluate(`window.__streams[0].getTracks().map((t) => t.readyState)`)) as string[];
@@ -597,36 +680,52 @@ test("カメラが途中で切れたら、録っていたところまでを残�
   await context.close();
 });
 
-test("録画がエラーで止まったら、録画中の表示とタイマーを片付け、撮ったところまでを 1 本だけ残す", async () => {
+test("トラックの設定が前のカメラなら鏡のように見せ、うしろのカメラなら返さない", async () => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
-  // 作られた MediaRecorder を控える（エラーを起こすため）
+  // 偽のカメラは向きを持たないので、トラックの設定に向きを足す
   await context.addInitScript(`
     (() => {
-      const Original = window.MediaRecorder;
-      window.__recorders = [];
-      function Recorder(stream, options) {
-        const recorder = options ? new Original(stream, options) : new Original(stream);
-        window.__recorders.push(recorder);
-        return recorder;
-      }
-      Recorder.prototype = Original.prototype;
-      Recorder.isTypeSupported = Original.isTypeSupported.bind(Original);
-      window.MediaRecorder = Recorder;
+      const original = MediaStreamTrack.prototype.getSettings;
+      window.__facing = "user";
+      MediaStreamTrack.prototype.getSettings = function () {
+        const settings = original.call(this);
+        return this.kind === "video" ? Object.assign({}, settings, { facingMode: window.__facing }) : settings;
+      };
     })();
   `);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await cameraOn(page);
+  assert.match((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
+  await page.getByRole("button", { name: "カメラを止める" }).click();
+  await page.evaluate(`window.__facing = "environment"`);
+  await cameraOn(page);
+  assert.doesNotMatch((await page.locator("video.kagami-video").getAttribute("class")) ?? "", /mirror/);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("録画がエラーで止まったら、録画中の秒をその場で止め、残りを受け取ってから 1 本だけ残す。次の録画を始められる", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  await context.addInitScript(CONTROL_RECORDERS);
   const { page, errors } = await newPage(context);
   await page.goto(`${base}/kagami`);
   await cameraOn(page);
   await page.getByRole("button", { name: "録画を始める" }).click();
   await page.locator(".kagami-rec").waitFor();
   await page.waitForTimeout(1600);
-  await page.evaluate(`window.__recorders[0].dispatchEvent(new Event("error"))`);
+  // エラーを受けたその場で、録画中の秒を進めるタイマーを止める
+  const ticks = await page.evaluate(`(() => {
+    const before = window.__ticks.size;
+    window.__recorders[0].dispatchEvent(new Event("error"));
+    return [before, window.__ticks.size];
+  })()`);
+  assert.deepEqual(ticks, [1, 0]);
   await page.getByText("録画が途中で止まりました。撮ったところまでは残っています。").waitFor();
-  // 録画中の表示が消え、タイマーも止まる（経過時間の表示が無い）
   assert.equal(await page.locator(".kagami-rec").count(), 0);
-  await page.waitForFunction(`window.__recorders[0].state === "inactive"`);
-  await page.waitForTimeout(600);
-  // 止めたときの知らせが遅れて来ても、2 本にならない
+  assert.equal(await page.evaluate(`window.__recorders[0].state`), "inactive");
+  // エラーの待ち時間（1.5 秒）を過ぎても 2 本にならない
+  await page.waitForTimeout(1700);
   assert.equal(await page.locator(".kagami-item").count(), 1);
   await page.locator('video[aria-label="いま撮った映像"]').waitFor();
   // 止めて残りを受け取ってから残すので、ほぼ空にならない（約 1.6 秒で約 110KB）
@@ -634,23 +733,195 @@ test("録画がエラーで止まったら、録画中の表示とタイマー�
   assert.ok(errorSize > 60_000, String(errorSize));
   // 次の録画を始められる
   await page.getByRole("button", { name: "残して、続けて撮る" }).click();
-  await page.getByRole("button", { name: "録画を始める" }).waitFor();
-
-  // 止まった知らせが来ない環境でも、1.5 秒で「録画中」を片付ける
-  await page.getByRole("button", { name: "録画を始める" }).click();
-  await page.locator(".kagami-rec").waitFor();
-  await page.waitForTimeout(1300);
-  await page.evaluate(`(() => {
-    const recorder = window.__recorders[1];
-    recorder.stop = function () {};
-    recorder.dispatchEvent(new Event("error"));
-  })()`);
-  await page.waitForTimeout(500);
-  assert.equal(await page.locator(".kagami-rec").count(), 1, "知らせを待つあいだに片付けた");
-  await page.locator(".kagami-rec").waitFor({ state: "detached", timeout: 3000 });
-  await page.getByText("録画が途中で止まりました。").waitFor();
+  await record(page, 1000);
   assert.equal(await page.locator(".kagami-item").count(), 2);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
+test("録画のエラーで録画は止まったが止まった知らせが来ないときも、1.5 秒で片付けて 1 本だけ残す。遅れて知らせが来ても 2 本にならない", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  await context.addInitScript(CONTROL_RECORDERS);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await cameraOn(page);
+  // ブラウザからの知らせを控える（このブラウザで録画中にかたまりが届くかどうかによらず、同じ条件にする）
+  await page.evaluate(`window.__hold = true`);
+  await page.getByRole("button", { name: "録画を始める" }).click();
+  await page.locator(".kagami-rec").waitFor();
+  await feed(page);
+  const after = await page.evaluate(`(() => {
+    const recorder = window.__recorders[0];
+    const before = window.__ticks.size;
+    recorder.dispatchEvent(new Event("error"));
+    return { before, ticks: window.__ticks.size, state: recorder.state };
+  })()`);
+  // エラーのその場で、録画中の秒を止め、録画も止まる（止まった知らせだけが来ない）
+  assert.deepEqual(after, { before: 1, ticks: 0, state: "inactive" });
+  await page.locator(".kagami-rec").waitFor({ state: "detached", timeout: 3000 });
+  await page.getByText("録画が途中で止まりました。撮ったところまでは残っています。").waitFor();
+  assert.equal(await page.locator(".kagami-item").count(), 1);
+  assert.equal(await firstClipSize(page), FAKE_BYTES);
+  // 遅れて止まった知らせ（とかたまり）が来ても、2 本にならない
+  await page.evaluate(`(() => {
+    const recorder = window.__recorders[0];
+    recorder.__flush();
+    recorder.dispatchEvent(new Event("stop"));
+  })()`);
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator(".kagami-item").count(), 1);
+  // 次の録画を始められる
+  await page.evaluate(`window.__hold = false`);
+  await page.getByRole("button", { name: "残して、続けて撮る" }).click();
+  await record(page, 1000);
+  assert.equal(await page.locator(".kagami-item").count(), 2);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("録画のエラーのあと録画を止められなければ、管理の外で録り続けさせずにカメラのトラックを止め、「カメラをつける」からやり直せる", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  await context.addInitScript(KEEP_STREAMS);
+  await context.addInitScript(CONTROL_RECORDERS);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await cameraOn(page);
+  await page.evaluate(`window.__hold = true`);
+  await page.getByRole("button", { name: "録画を始める" }).click();
+  await page.locator(".kagami-rec").waitFor();
+  // 止める呼び出しが効かない録画にしてから、エラーを出す
+  const after = await page.evaluate(`(() => {
+    const recorder = window.__recorders[0];
+    recorder.stop = function () {};
+    const before = window.__ticks.size;
+    recorder.dispatchEvent(new Event("error"));
+    return { before, ticks: window.__ticks.size, state: recorder.state };
+  })()`);
+  assert.deepEqual(after, { before: 1, ticks: 0, state: "recording" });
+  await page
+    .getByText("録画を止められなかったので、カメラを止めました。もう一度「カメラをつける」を押してください。")
+    .waitFor({ timeout: 3000 });
+  assert.equal(await page.locator(".kagami-rec").count(), 0);
+  // カメラとマイクのトラックがすべて止まる（録画は入力を失って終わる）
+  const states = await trackStates(page);
+  assert.ok(states.length >= 2 && states.every((s) => s === "ended"), JSON.stringify(states));
+  assert.equal(await page.locator("video.kagami-video").count(), 0);
+  assert.equal(await page.locator(".kagami-item").count(), 0);
+  // 「カメラをつける」からやり直せる（前の録画の参照が残っていない）
+  await page.evaluate(`window.__hold = false`);
+  await cameraOn(page);
+  await record(page, 1000);
+  assert.equal(await page.locator(".kagami-item").count(), 1);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("タブが隠れて録画を止めたあと止まった知らせが来なくても、3 秒で同じ後始末をしてカメラも止める。次の録画を始められ、遅れた知らせで 2 本にならない", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  await context.addInitScript(KEEP_STREAMS);
+  await context.addInitScript(CONTROL_RECORDERS);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await cameraOn(page);
+  await page.evaluate(`window.__hold = true`);
+  await page.getByRole("button", { name: "録画を始める" }).click();
+  await page.locator(".kagami-rec").waitFor();
+  await feed(page);
+  await page.evaluate(HIDE);
+  await page.getByText("タブを離れたので、録画とカメラを止めました。撮ったところまでは残っています。").waitFor();
+  // 止まった知らせを待つあいだは、トラックを止めない（最後のかたまりを受け取るため）
+  assert.equal(await page.evaluate(`window.__recorders[0].state`), "inactive");
+  assert.ok((await trackStates(page)).every((s) => s === "live"));
+  // 知らせが来なくても、3 秒で録画中の表示・参照・タイマーを片付け、トラックも止める
+  await page.locator(".kagami-rec").waitFor({ state: "detached", timeout: 4500 });
+  const states = await trackStates(page);
+  assert.ok(states.length >= 2 && states.every((s) => s === "ended"), JSON.stringify(states));
+  assert.equal(await page.locator(".kagami-item").count(), 1);
+  assert.equal(await firstClipSize(page), FAKE_BYTES);
+  // 戻って、カメラをつけ直すと次の録画を始められる
+  await page.evaluate(SHOW);
+  await page.evaluate(`window.__hold = false`);
+  await page.getByRole("button", { name: "残して、続けて撮る" }).click();
+  await cameraOn(page);
+  await record(page, 1000);
+  assert.equal(await page.locator(".kagami-item").count(), 2);
+  // 前の録画の止まった知らせが遅れて来ても、2 本のまま
+  await page.evaluate(`(() => {
+    const recorder = window.__recorders[0];
+    recorder.__flush();
+    recorder.dispatchEvent(new Event("stop"));
+  })()`);
+  await page.waitForTimeout(300);
+  assert.equal(await page.locator(".kagami-item").count(), 2);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("録画を止めた直後にタブが隠れても、止まった知らせ（最後のかたまり）を受けてからカメラのトラックを止める", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  await context.addInitScript(KEEP_STREAMS);
+  await context.addInitScript(CONTROL_RECORDERS);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await cameraOn(page);
+  await page.evaluate(`window.__hold = true`);
+  await page.getByRole("button", { name: "録画を始める" }).click();
+  await page.locator(".kagami-rec").waitFor();
+  await page.waitForTimeout(1200);
+  // 「録画を止める」とタブが隠れるのを続けて起こす。止まった知らせはまだ渡さない
+  const now = (await page.evaluate(`(() => {
+    document.querySelector("button.kagami-stop").click();
+    ${HIDE};
+    return { state: window.__recorders[0].state, tracks: window.__streams[0].getTracks().map((t) => t.readyState) };
+  })()`)) as { state: string; tracks: string[] };
+  // stop() で state はすぐ inactive になるが、知らせを受けるまではトラックを止めない
+  assert.equal(now.state, "inactive");
+  assert.ok(now.tracks.length >= 2 && now.tracks.every((s) => s === "live"), JSON.stringify(now.tracks));
+  await page.getByText("タブを離れたので、カメラを止めました。").waitFor();
+  assert.ok((await trackStates(page)).every((s) => s === "live"));
+  // 止まった知らせを渡すと、残してからトラックを止める
+  await page.evaluate(`window.__recorders[0].__flush()`);
+  await page.locator(".kagami-item").first().waitFor();
+  await stoppedAfterNotice(page);
+  const states = await trackStates(page);
+  assert.ok(states.every((s) => s === "ended"), JSON.stringify(states));
+  assert.equal(await page.locator(".kagami-item").count(), 1);
+  assert.ok((await firstClipSize(page)) > 1000);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("録画を止めた直後にメニューで移っても、止まった知らせ（最後のかたまり）を受けてからカメラのトラックを止め、撮ったものは残る", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, permissions: ["camera", "microphone"] });
+  await context.addInitScript(KEEP_STREAMS);
+  await context.addInitScript(CONTROL_RECORDERS);
+  const { page, errors } = await newPage(context);
+  await page.goto(`${base}/kagami`);
+  await cameraOn(page);
+  await page.evaluate(`window.__hold = true`);
+  await page.getByRole("button", { name: "録画を始める" }).click();
+  await page.locator(".kagami-rec").waitFor();
+  await page.waitForTimeout(1200);
+  await page.getByRole("button", { name: "録画を止める" }).click();
+  const menu = page.locator('nav[aria-label="メニュー"]');
+  await menu.getByRole("link", { name: "年表" }).click();
+  await page.waitForURL(`${base}/roadmap`);
+  await page.waitForSelector("#cond:not(:empty)");
+  // かがみの画面は閉じたが、止まった知らせはまだ来ていないので、トラックを止めていない
+  assert.deepEqual(await page.evaluate(`window.__log`), []);
+  assert.ok((await trackStates(page)).every((s) => s === "live"));
+  // 止まった知らせを渡すと、残してからトラックを止める
+  await page.evaluate(`window.__recorders[0].__flush()`);
+  await page.waitForFunction(`window.__log.includes("track.stop")`);
+  await stoppedAfterNotice(page);
+  const states = await trackStates(page);
+  assert.ok(states.every((s) => s === "ended"), JSON.stringify(states));
+  // かがみに戻ると、撮ったものが残っている
+  await menu.getByRole("link", { name: "かがみ" }).click();
+  await page.waitForURL(`${base}/kagami`);
+  await page.locator(".kagami-item").first().waitFor();
+  assert.equal(await page.locator(".kagami-item").count(), 1);
+  assert.ok((await firstClipSize(page)) > 1000);
+  assert.deepEqual(errors, []);
+  await context.close();
+});

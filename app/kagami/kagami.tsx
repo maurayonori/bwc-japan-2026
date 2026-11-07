@@ -30,6 +30,19 @@ type Camera = "off" | "starting" | "live" | "unavailable";
 // カメラを開く頼み方。最初は前のカメラを希望し、切り替えは deviceId で別のカメラを指定する。
 type Target = { facingMode: Facing } | { deviceId: string };
 
+// 録画を止めてから、止まった知らせ（onstop）を待つ長さ。来なければ、待ったあとで後始末する。
+const STOP_WAIT_MS = 3000;
+// エラーのときに待つ長さ。
+const ERROR_WAIT_MS = 1500;
+
+// いまの録画。止めたあとも、後始末が済むまで残す（そのあいだは「止める途中」）。
+// stop() を呼ぶと state はすぐ inactive になるが、最後のかたまりと止まった知らせは後から来るため。
+type Take = {
+  rec: MediaRecorder;
+  // 録画を止めて、止まった知らせを待つ。来なければ waitMs のあとで後始末する。何度呼んでもよい。
+  halt: (waitMs: number) => void;
+};
+
 const NO_CLIPS: readonly Clip[] = [];
 
 function errorName(error: unknown): string {
@@ -49,10 +62,8 @@ export function Kagami() {
   const clips = useSyncExternalStore(subscribeClips, getClips, () => NO_CLIPS);
   const [camera, setCamera] = useState<Camera>("off");
   const [reason, setReason] = useState("");
-  // 取得したカメラの向き。鏡写しに使う（トラックの設定に無ければ、頼んだ向きから推す）
+  // 取得したカメラの向き（トラックの設定で確かめられたものだけ）。鏡写しと切り替えの文言に使う。
   const [facing, setFacing] = useState<Facing | null>(null);
-  // トラックの設定で確かめられた向き。切り替えのボタンの文言に使う（推した向きで「うしろ」とは書かない）
-  const [knownFacing, setKnownFacing] = useState<Facing | null>(null);
   const [audio, setAudio] = useState(true);
   // 切り替えたときに使う、いまと別のカメラの deviceId
   const [otherCamera, setOtherCamera] = useState<string | null>(null);
@@ -62,30 +73,24 @@ export function Kagami() {
   const [note, setNote] = useState("");
   const live = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
-  const recorder = useRef<MediaRecorder | null>(null);
+  const take = useRef<Take | null>(null);
   const timer = useRef<number | null>(null);
   const mounted = useRef(true);
   // カメラを開く要求の番号。画面を離れた・タブが隠れた・止めた・別の要求に替わったときに進め、古い要求の結果を使わない。
   const request = useRef(0);
   // 開いたことのあるカメラの向き（deviceId ごと、トラックの設定で確かめられたものだけ）。切り替えの文言に使う。
   const facingById = useRef(new Map<string, Facing>());
-  // 録画を止めたあとで止めるカメラ。録画の最後のかたまりを受け取ってから止める（先に止めると、残すものが短くなる）。
+  // 録画の後始末が済んでから止めるカメラ。最後のかたまりを受け取ってから止める（先に止めると、残すものが短くなる）。
   const release = useRef<MediaStream | null>(null);
 
-  // 録っていれば止めて、終わってからカメラを止める。録っていなければ、すぐ止める。
+  // 録画の途中か、止めて後始末を待っているあいだなら、録画を止めて後始末のあとでカメラを止める。
+  // 録画が無ければ、すぐ止める。後始末は、止まった知らせが来なくても 3 秒で必ず行う（そのときにカメラも止める）。
   function stopRecordingThenRelease(media: MediaStream | null) {
     if (!media) return;
-    const rec = recorder.current;
-    if (rec && rec.state === "recording") {
+    const current = take.current;
+    if (current) {
       release.current = media;
-      rec.stop();
-      // 録画の終わりの知らせが来ない環境でも、カメラを点けたままにしない。
-      window.setTimeout(() => {
-        if (release.current === media) {
-          stopStream(media);
-          release.current = null;
-        }
-      }, 3000);
+      current.halt(STOP_WAIT_MS);
     } else {
       stopStream(media);
     }
@@ -104,7 +109,7 @@ export function Kagami() {
       mounted.current = false;
       request.current++;
       if (timer.current !== null) window.clearInterval(timer.current);
-      // 録っている途中で離れたら、そこまでを残す（止めた分はメモリに入る）。カメラは録画が終わってから止める。
+      // 録っている途中か止める途中で離れたら、そこまでを残す（メモリに入る）。カメラは録画の後始末のあとで止める。
       stopRecordingThenRelease(stream.current);
       stream.current = null;
     };
@@ -124,7 +129,7 @@ export function Kagami() {
       if (document.visibilityState !== "hidden") return;
       // 開いている途中の要求も無効にする（あとから返ってきたカメラは、すぐ止める）。
       request.current++;
-      const wasRecording = recorder.current?.state === "recording";
+      const wasRecording = take.current?.rec.state === "recording";
       const active = stream.current !== null || cameraNow.current === "starting";
       if (!active) return;
       stopRecordingThenRelease(stream.current);
@@ -195,9 +200,9 @@ export function Kagami() {
     stream.current = media;
     const settings = media.getVideoTracks()[0]?.getSettings?.() ?? {};
     // 表示と鏡写しは、取得したトラックの設定から決める（facingMode は希望でしかないため）。
-    setFacing(facingOf(settings.facingMode, "facingMode" in target ? target.facingMode : null));
-    const known = facingOf(settings.facingMode, null);
-    setKnownFacing(known);
+    // 設定に向きが無ければ、頼んだ向きで代用せず「分からない」とする（最初と切り替えたあとで扱いを変えない）。
+    const known = facingOf(settings.facingMode);
+    setFacing(known);
     if (known && settings.deviceId) facingById.current.set(settings.deviceId, known);
     setAudio(withAudio);
     setCamera("live");
@@ -222,7 +227,8 @@ export function Kagami() {
 
   function start() {
     const media = stream.current;
-    if (!media || recording) return;
+    // 前の録画の後始末が済むまでは、次を始めない。
+    if (!media || recording || take.current) return;
     // isTypeSupported が無いブラウザでは、形式を MediaRecorder に任せる。
     const type =
       typeof MediaRecorder.isTypeSupported === "function"
@@ -241,21 +247,26 @@ export function Kagami() {
     rec.ondataavailable = (event) => {
       if (event.data.size > 0) chunks.push(event.data);
     };
-    // 録画の後始末。止めたとき・エラーのとき・どちらが先に来ても 1 回だけ行う。
+    let failed = false;
     let finished = false;
-    const finish = (failed: boolean) => {
-      if (finished) return;
-      finished = true;
-      if (rec.state === "recording") {
-        try {
-          rec.stop();
-        } catch {
-          // 止められなくても、後始末は続ける
-        }
-      }
+    // 止まった知らせを待つあいだの、待ち時間のタイマー
+    let waiting: number | null = null;
+    const stopTimer = () => {
       if (timer.current !== null) window.clearInterval(timer.current);
       timer.current = null;
-      if (recorder.current === rec) recorder.current = null;
+    };
+    // 録画の後始末。止まった知らせ（onstop）と待ち時間の終わりのどちらから呼ばれても、1 回だけ行う。
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (waiting !== null) window.clearTimeout(waiting);
+      stopTimer();
+      if (take.current?.rec === rec) take.current = null;
+      // 止められなかった録画を、管理の外で録り続けさせない。カメラのトラックを止めて終わらせる。
+      const stuck = rec.state !== "inactive";
+      const cameraStopped = stuck && stream.current === rec.stream;
+      if (stuck) stopStream(rec.stream);
+      if (cameraStopped) stream.current = null;
       // 録画が終わったので、止めると決めていたカメラを止める。
       if (release.current) {
         stopStream(release.current);
@@ -264,44 +275,54 @@ export function Kagami() {
       const blobType = rec.mimeType || type || "video/webm";
       // 実際に録った長さを出す（上限で止めたときも 2:00 に丸めない）。
       const durationMs = performance.now() - began;
-      if (chunks.length === 0) {
-        if (mounted.current) {
-          setRecording(false);
-          setNote(
-            failed
-              ? "録画が途中で止まりました。もう一度撮ってください。"
-              : "録画が空でした。もう一度撮ってください。",
-          );
-        }
-        return;
-      }
-      const blob = new Blob(chunks, { type: blobType });
-      const clip = addClip(blob, {
-        name: clipFileName(at, blobType),
-        at: at.getTime(),
-        durationMs,
-        source: "camera",
-      });
-      if (mounted.current) {
-        setRecording(false);
-        setLatest(clip.id);
-        if (failed) setNote("録画が途中で止まりました。撮ったところまでは残っています。");
+      const clip =
+        chunks.length > 0
+          ? addClip(new Blob(chunks, { type: blobType }), {
+              name: clipFileName(at, blobType),
+              at: at.getTime(),
+              durationMs,
+              source: "camera",
+            })
+          : null;
+      if (!mounted.current) return;
+      setRecording(false);
+      if (clip) setLatest(clip.id);
+      if (cameraStopped) {
+        setCamera("off");
+        setNote(
+          clip
+            ? "録画を止められなかったので、カメラを止めました。撮ったところまでは残っています。"
+            : "録画を止められなかったので、カメラを止めました。もう一度「カメラをつける」を押してください。",
+        );
+      } else if (!clip) {
+        setNote(
+          failed
+            ? "録画が途中で止まりました。もう一度撮ってください。"
+            : "録画が空でした。もう一度撮ってください。",
+        );
+      } else if (failed) {
+        setNote("録画が途中で止まりました。撮ったところまでは残っています。");
       }
     };
-    // エラーのときは止めて、残りのかたまりを受け取ってから後始末する（すぐに後始末すると、残すものがほぼ空になる）。
-    // 止まった知らせが来ない環境でも「録画中」のまま止まらないよう、1.5 秒で必ず後始末する。
-    let failed = false;
-    rec.onstop = () => finish(failed);
-    rec.onerror = () => {
-      failed = true;
-      if (rec.state === "recording") {
+    // 止める。録画中の秒はここで止め、残りのかたまりと止まった知らせを待ってから後始末する（すぐに後始末すると、残すものが短くなる）。
+    // 知らせが来ない環境でも「録画中」のまま止まらないよう、待ち時間のあとで必ず後始末する。
+    // 後始末が済んだあと（遅れて来たエラーなど）は何もしない（次の録画のタイマーを止めないため）。
+    const halt = (waitMs: number) => {
+      if (finished) return;
+      stopTimer();
+      if (rec.state !== "inactive") {
         try {
           rec.stop();
         } catch {
-          // 止められなければ、下の待ち時間のあとで後始末する
+          // 止められなければ、待ったあとの後始末でカメラを止める
         }
       }
-      window.setTimeout(() => finish(true), 1500);
+      if (waiting === null) waiting = window.setTimeout(finish, waitMs);
+    };
+    rec.onstop = () => finish();
+    rec.onerror = () => {
+      failed = true;
+      halt(ERROR_WAIT_MS);
     };
     try {
       rec.start(1000);
@@ -309,7 +330,7 @@ export function Kagami() {
       setNote("録画を始められませんでした。カメラをつけ直して、もう一度試してください。");
       return;
     }
-    recorder.current = rec;
+    take.current = { rec, halt };
     setRecording(true);
     setElapsed(0);
     setLatest(null);
@@ -317,15 +338,15 @@ export function Kagami() {
     timer.current = window.setInterval(() => {
       const ms = performance.now() - began;
       setElapsed(ms);
-      if (reachedLimit(ms) && rec.state === "recording") {
-        rec.stop();
+      if (reachedLimit(ms)) {
+        halt(STOP_WAIT_MS);
         setNote(`1 本は ${formatElapsed(MAX_RECORDING_MS)} までなので、止めました。`);
       }
     }, 250);
   }
 
   function stop() {
-    if (recorder.current?.state === "recording") recorder.current.stop();
+    take.current?.halt(STOP_WAIT_MS);
   }
 
   // 撮り直す: いま撮ったものを消して、撮る画面に戻る。
@@ -435,7 +456,7 @@ export function Kagami() {
                     onClick={() => void open({ deviceId: otherCamera })}
                     disabled={recording}
                   >
-                    {switchLabel(knownFacing, facingById.current.get(otherCamera) ?? null)}
+                    {switchLabel(facing, facingById.current.get(otherCamera) ?? null)}
                   </button>
                 )}
                 <button type="button" className="text-link" onClick={close} disabled={recording}>

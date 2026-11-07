@@ -27,11 +27,10 @@ export function cameraFailure(name: string): { fallback: boolean; message: strin
 
 export type Facing = "user" | "environment";
 
-// 取得したカメラの向き。トラックの設定（getSettings の facingMode）を先に見る。
-// 設定に無ければ（PC のカメラなど）、向きを頼んで開いたときはその向き、deviceId で開いたときは分からない（null）。
-export function facingOf(settingsFacing: string | undefined, requested: Facing | null): Facing | null {
-  if (settingsFacing === "user" || settingsFacing === "environment") return settingsFacing;
-  return requested;
+// 取得したカメラの向き。トラックの設定（getSettings の facingMode）だけから決める。
+// 設定に無ければ（PC のカメラなど）分からない（null）。頼んだ向きでは代用しない（同じカメラでも、最初と切り替えたあとで扱いが変わるため）。
+export function facingOf(settingsFacing: string | undefined): Facing | null {
+  return settingsFacing === "user" || settingsFacing === "environment" ? settingsFacing : null;
 }
 
 // 前のカメラは鏡のように左右を返して見せる。

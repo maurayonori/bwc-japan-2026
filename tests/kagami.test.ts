@@ -56,12 +56,13 @@ test("カメラを開けないとき、拒否とカメラが無いときだけ�
   }
 });
 
-test("カメラの向きはトラックの設定から決め、無ければ頼んだ向き。前のカメラだけ鏡写し", () => {
-  assert.equal(facingOf("environment", "user"), "environment");
-  assert.equal(facingOf("user", null), "user");
-  assert.equal(facingOf(undefined, "user"), "user");
-  assert.equal(facingOf(undefined, null), null);
-  assert.equal(facingOf("left", null), null);
+test("カメラの向きはトラックの設定だけから決め、無ければ分からない。前のカメラだけ鏡写し", () => {
+  assert.equal(facingOf("environment"), "environment");
+  assert.equal(facingOf("user"), "user");
+  // 設定に向きが無いカメラは、前のカメラを頼んで開いても「分からない」（切り替えたあとと同じ扱い）
+  assert.equal(facingOf(undefined), null);
+  assert.equal(facingOf(""), null);
+  assert.equal(facingOf("left"), null);
   assert.equal(mirrored("user"), true);
   assert.equal(mirrored("environment"), false);
   assert.equal(mirrored(null), false);
