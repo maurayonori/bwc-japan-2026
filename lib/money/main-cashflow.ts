@@ -6,6 +6,8 @@
 // 入力は、カードの計算（Calculation）でも検査に渡す道具の記録（input と output だけ）でも使えるよう、
 // 出力の形で道具を見分ける。
 
+import { cashflowOutputSchema } from "./schema";
+
 interface ToolLike {
   input: unknown;
   output?: unknown;
@@ -21,11 +23,10 @@ const numbersOf = (value: unknown, keys: readonly string[]): number[] =>
       )
     : [];
 
-// 見通しの結果か（what_to_confirm を持つ）。
+// 見通しの結果か。保存データの形（cashflowOutputSchema）に合わせ、what_to_confirm の無い旧形式も見通しとして数える
+// （#87 の後退の直し。旧形式を数えないと、持ち出しで別のカードの見通しを本線に選んでしまう）。
 export const isCashflowOutput = (output: unknown): boolean =>
-  isRecord(output) &&
-  "what_to_confirm" in output &&
-  Array.isArray(output.scenarios);
+  cashflowOutputSchema.safeParse(output).success;
 
 // 内訳の計算が出した額。高額療養費は窓口で払う額と上限の無いときの負担、食事代は多めと少なめの合計。
 // 保険診療分と食事代を 1 つの入出金にまとめた見通し（例: 入院費 115,690 円）も拾えるよう、その和も入れる。
