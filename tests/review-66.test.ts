@@ -280,3 +280,24 @@ test("Codex④: 筋書きを見分ける部分が短くても（「半々」）�
   assert.deepEqual(check("窓口で上限が使える前提で半々の場合、手元に要る額は210,180円から230,000円です。", [calc]), []);
   assert.equal(check("窓口で上限が使える前提で半々の場合、手元に要る額は127,240円から230,000円です。", [calc]).length, 1);
 });
+
+// ===== #67 の直しの確認（Codex）で一部だけ直っていた 2 件（#71 で直す） =====
+
+test("Codex 再確認1: 資金を足す動き（追加・用意など）がある文は、活用形によらず条件の文として置き換えない", () => {
+  for (const text of [
+    "手元の20万円に10,180円を追加すると、半々の場合も足ります。",
+    "10,180円を追加することで、半々の場合も足ります。",
+  ])
+    assert.equal(fixGapDirection(text, [monthCalc]).replaced, 0, text);
+  assert.equal(fixGapDirection("手元の20万円では、分かれる場合に 10,180 円足ります。", [monthCalc]).replaced, 1);
+});
+
+test("Codex 再確認2: 利用者の文に家族と「私が／私は」の両方があれば、済ませた人を判別できないとして置き換えない", async () => {
+  for (const said of ["夫は私が留守の間に、保険会社に連絡しました。", "夫は私が不在のときに、保険会社に連絡しました。"]) {
+    const result = await runChat({
+      model: mock(replyStep("ご主人が保険会社に連絡しました。")),
+      input: { messages: [{ id: "u1", role: "user", text: said }], cards: [] },
+    });
+    assert.match(result.reply, /ご主人が保険会社に連絡しました。/, said);
+  }
+});
