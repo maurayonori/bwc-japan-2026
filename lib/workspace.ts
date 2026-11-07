@@ -246,15 +246,15 @@ function verifiedForExport(
   messages: readonly Message[],
 ): Card {
   if (card.edited || card.kind === "memory") return card;
+  const others = cards
+    .filter((item) => item.id !== card.id)
+    .flatMap((item) => item.money?.calculations ?? []);
   const args = {
     // 要る額の範囲は「最新の計算」と照らすので、そのカード自身の計算を最後に置く（4 回目の指摘④）。
     // 選んだあとに条件を変えた、別のカードの計算で照らさないため。
-    toolEvents: [
-      ...cards
-        .filter((item) => item.id !== card.id)
-        .flatMap((item) => item.money?.calculations ?? []),
-      ...(card.money?.calculations ?? []),
-    ],
+    toolEvents: [...others, ...(card.money?.calculations ?? [])],
+    // 本線の見通しは、そのカード自身の計算から選ぶ（自身に見通しが無いときだけ、ほかのカードまでさかのぼる。#85）。
+    currentFrom: others.length,
     // 会話が渡されないときも、カードの根拠の引用（本人の発言の原文）は使う。
     userTexts: [
       ...messages.filter((message) => message.role === "user").map((message) => message.text),
@@ -269,7 +269,7 @@ function verifiedForExport(
   const mask = (text: string) =>
     maskProblems({
       ...args,
-      text: fixGapDirection(text, args.toolEvents).text,
+      text: fixGapDirection(text, args.toolEvents, args.currentFrom).text,
     }).text;
   return {
     ...card,
