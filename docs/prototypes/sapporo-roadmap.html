@@ -96,6 +96,9 @@ body { overflow-x: hidden; }
 .rmp .settings label { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
 .rmp .settings input, .rmp .settings select { width: 100%; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--text); }
 .rmp .settings .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.rmp .settings .remember { display: grid; gap: 4px; }
+.rmp .settings .remember label { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--text); }
+.rmp .settings .remember input { width: 18px; height: 18px; flex: none; padding: 0; accent-color: var(--accent); }
 .rmp .btn { display: inline-block; padding: 5px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--text); }
 .rmp .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); font-weight: 600; font-size: 13px; line-height: 1.8; }
 
@@ -253,7 +256,7 @@ body { overflow-x: hidden; }
 
   <section id="settings-view" hidden aria-labelledby="h-settings">
     <h2 id="h-settings">設定</h2>
-    <p class="small muted">年表の条件を変えます。値はこのブラウザの中だけに保存し、外へ送りません。初期値の日付と区はすべて架空です。<span id="storage-note"></span></p>
+    <p class="small muted">年表の条件を変えます。値はこの画面の中だけで使い、外へ送りません。初期値の日付と区はすべて架空です。</p>
     <form id="settings-form" class="settings" autocomplete="off" novalidate>
       <fieldset>
         <legend>上の子</legend>
@@ -272,6 +275,10 @@ body { overflow-x: hidden; }
         <label>復職予定日（任意）<input type="date" id="s-work" min="2015-01-01" max="2042-12-31"></label>
       </fieldset>
       <p class="small">どちらかの子の日付を空にすると、1 人分の年表になります。</p>
+      <div class="remember">
+        <label><input type="checkbox" id="s-remember">このブラウザに保存して、次回つづける</label>
+        <p class="small muted">初期状態では、この画面を閉じると設定とチェックは消えます。「このブラウザに保存」を選ぶと、この端末のブラウザに残ります。共有端末では保存を選ばないでください。サーバーへは何も送りません。<span id="storage-note"></span></p>
+      </div>
       <p id="settings-msg" class="small" role="status"></p>
       <div class="actions">
         <a class="btn primary" href="#roadmap" id="back-main">年表に戻る</a>
@@ -281,7 +288,7 @@ body { overflow-x: hidden; }
   </section>
 
   <footer>
-    このページは「さきよみ」の提出物ではない試作です。医療の助言、給付の可否・額・時期の判断、保険や金融商品のすすめ、連絡や申請の代行はしません。初期値の子ども 2 人・日付・区はすべて架空です。設定とチェックはこのブラウザの中だけで使い、外へ送りません。
+    このページは「さきよみ」の提出物ではない試作です。医療の助言、給付の可否・額・時期の判断、保険や金融商品のすすめ、連絡や申請の代行はしません。初期値の子ども 2 人・日付・区はすべて架空です。設定とチェックは、設定で「このブラウザに保存」を選んだときだけこの端末のブラウザに残します。サーバーへは何も送りません。
   </footer>
 </div>
 
@@ -904,7 +911,10 @@ function startRoadmap() {
   var KEY = 'sapporo-roadmap:v2';
   var WARDS = DATA.wards.map(function (w) { return w.name; });
   var state = { settings: normalizeSettings(DEFAULT_SETTINGS), done: {}, view: 'all' };
-  var canStore = false;
+  // 既定はメモリだけ。「このブラウザに保存して、次回つづける」を選んだときだけ localStorage に書く（README のプライバシーの項）
+  var remember = false;
+  var storageOk = true; // localStorage が使えるか（読めない・書けない環境では保存を選べない）
+  var loadNote = '';
   var ITEM_IDS = {}; DATA.items.forEach(function (it) { ITEM_IDS[it.id] = it; });
   var q = /[?&]today=(\d{4}-\d{2}-\d{2})/.exec(location.search);
   var TODAY = q && parseDay(q[1]) != null ? parseDay(q[1]) : todayJst(Date.now());
@@ -933,27 +943,55 @@ function startRoadmap() {
   function $(id) { return document.getElementById(id); }
   function relDays(n, t) { var d = n - t; return d === 0 ? '今日' : d > 0 ? 'あと ' + d + ' 日' : (-d) + ' 日前'; }
 
-  // ---- 保存（使えなくても動く。外へは送らない） ----
-  function load() {
-    try {
-      var raw = window.localStorage.getItem(KEY);
-      canStore = true;
-      if (!raw) return;
-      var s = JSON.parse(raw);
-      if (s && typeof s === 'object') {
-        if (s.settings && typeof s.settings === 'object') state.settings = normalizeSettings(s.settings);
-        if (s.done && typeof s.done === 'object') Object.keys(s.done).forEach(function (k) { var m = /^([ab]):(.+)$/.exec(k); if (m && ITEM_IDS[m[2]] && s.done[k] === true) state.done[k] = true; });
-        if (['all', 'a', 'b'].indexOf(s.view) >= 0) state.view = s.view;
-      }
-    } catch (e) { canStore = false; }
+  // ---- 保存（既定はメモリだけ。保存を選んだときだけこのブラウザに残す。外へは送らない） ----
+  function apply(s) {
+    if (!s || typeof s !== 'object') return;
+    if (s.settings && typeof s.settings === 'object') state.settings = normalizeSettings(s.settings);
+    state.done = {};
+    if (s.done && typeof s.done === 'object') Object.keys(s.done).forEach(function (k) { var m = /^([ab]):(.+)$/.exec(k); if (m && ITEM_IDS[m[2]] && s.done[k] === true) state.done[k] = true; });
+    if (['all', 'a', 'b'].indexOf(s.view) >= 0) state.view = s.view;
   }
+  function snapshot() { return { settings: state.settings, done: state.done, view: state.view }; }
+  function load() {
+    var raw = null;
+    try { raw = window.localStorage.getItem(KEY); } catch (e) { storageOk = false; }
+    // さきよみの中で別のページへ移って戻ったときは、このタブのメモリに写した状態から続ける（再読み込みや画面を閉じると消える）
+    var kept = window.SAKIYOMI_ROADMAP_KEPT;
+    if (kept && typeof kept === 'object') { apply(kept.state); remember = kept.remember === true && storageOk; return; }
+    if (!raw) return;
+    // 保存した値があるときは、それを読み、保存を選んだ状態で始める
+    try { apply(JSON.parse(raw)); remember = true; }
+    catch (e) { loadNote = '保存した値を読み込めませんでした。元のデータは消していません。'; }
+  }
+  // 変わるたびにこのタブのメモリへ写す。保存を選んでいるときだけ localStorage にも書く
   function save() {
-    if (!canStore) return;
-    try { window.localStorage.setItem(KEY, JSON.stringify({ settings: state.settings, done: state.done, view: state.view })); }
-    catch (e) { canStore = false; storageNote(); }
+    window.SAKIYOMI_ROADMAP_KEPT = { state: JSON.parse(JSON.stringify(snapshot())), remember: remember };
+    if (!remember) return;
+    try { window.localStorage.setItem(KEY, JSON.stringify(snapshot())); }
+    catch (e) { storageOk = false; remember = false; window.SAKIYOMI_ROADMAP_KEPT.remember = false; loadNote = 'このブラウザに保存できませんでした。閉じると設定とチェックは初期値に戻ります。'; storageNote(); }
+  }
+  // 保存を選ぶ・やめる。やめたら、保存した値を消す
+  function changeRemember(value) {
+    if (value) {
+      remember = true;
+      save();
+      showSettingsMsg(remember ? '保存しました（このブラウザの中だけ）。' : '');
+      return;
+    }
+    try { window.localStorage.removeItem(KEY); }
+    catch (e) {
+      $('s-remember').checked = true;
+      showSettingsMsg('保存した値を消せませんでした。ブラウザのサイトデータの設定から消去してください。');
+      return;
+    }
+    remember = false;
+    save();
+    showSettingsMsg('このブラウザに保存した値を消しました。この画面を閉じると、設定とチェックは初期値に戻ります。');
   }
   function storageNote() {
-    $('storage-note').textContent = canStore ? '' : 'このブラウザでは保存できないので、閉じると設定とチェックは初期値に戻ります。';
+    $('storage-note').textContent = storageOk ? '' : 'このブラウザでは保存できないので、閉じると設定とチェックは初期値に戻ります。';
+    $('s-remember').checked = remember;
+    $('s-remember').disabled = !storageOk;
   }
   function wardOf() { return DATA.wards.filter(function (w) { return w.name === state.settings.ward; })[0] || null; }
 
@@ -973,18 +1011,19 @@ function startRoadmap() {
 
   // ---- 設定画面 ----
   var FIELDS = { elderBirth: 's-elderBirth', elderNursery: 's-elderNursery', youngerDue: 's-youngerDue', youngerNursery: 's-youngerNursery', ward: 's-ward', work: 's-work' };
-  function writeForm() { Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).value = state.settings[k] || ''; }); }
+  function writeForm() { Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).value = state.settings[k] || ''; }); $('s-remember').checked = remember; }
   function readForm() { var s = {}; Object.keys(FIELDS).forEach(function (k) { s[k] = $(FIELDS[k]).value.trim(); }); return normalizeSettings(s); }
   function showSettingsMsg(extra) {
     var errs = settingsErrors(state.settings, WARDS);
     var m = $('settings-msg');
     m.className = 'small' + (errs.length ? ' error' : '');
-    m.textContent = errs.length ? errs.join(' ') : (extra || '') + (isDefaultSettings(state.settings) ? 'いまは初期値（架空の例）です。' : '');
+    m.textContent = errs.length ? errs.join(' ') : (loadNote ? loadNote + ' ' : '') + (extra || '') + (isDefaultSettings(state.settings) ? 'いまは初期値（架空の例）です。' : '');
   }
   function onSettingsChange() {
     state.settings = readForm();
     save();
-    showSettingsMsg(canStore ? '保存しました（このブラウザの中だけ）。' : '');
+    // 「保存しました」は、保存を選んでいるときだけ出す
+    showSettingsMsg(remember ? '保存しました（このブラウザの中だけ）。' : '');
   }
 
   // ---- 描画 ----
@@ -1394,6 +1433,7 @@ function startRoadmap() {
     var sel = $('s-ward');
     DATA.wards.forEach(function (w) { sel.appendChild(el('option', { value: w.name, text: w.name })); });
     Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).addEventListener('change', onSettingsChange); });
+    $('s-remember').addEventListener('change', function () { changeRemember(this.checked); });
     $('s-elderNursery').addEventListener('input', function () { if (/^\d{4}-\d{2}$/.test(this.value.trim()) || this.value === '') onSettingsChange(); });
     $('s-youngerNursery').addEventListener('input', function () { if (/^\d{4}-\d{2}$/.test(this.value.trim()) || this.value === '') onSettingsChange(); });
     $('b-reset').addEventListener('click', function () {

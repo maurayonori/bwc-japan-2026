@@ -425,3 +425,86 @@ test("年表は /roadmap のページとして出る（iframe なし、X-Frame-O
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+test("年表の設定とチェックは、保存を選んだときだけこのブラウザに残る（既定はメモリだけ）", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("request", (r) => {
+    if (!r.url().startsWith(base)) errors.push(`外への通信 ${r.url()}`);
+  });
+  const KEY = "sapporo-roadmap:v2";
+  const stored = () => page.evaluate((k) => localStorage.getItem(k), KEY);
+  const elder = 'a-sapporo-procedures-shussho-todoke';
+  const elderTitle = async () => (await page.getAttribute(`.el[data-id="${elder}"]`, "title")) ?? "";
+  const openRoadmap = async () => {
+    await page.goto(`${base}/roadmap?today=2026-11-07`);
+    await page.waitForSelector("#cond:not(:empty)");
+  };
+  const openSettings = async () => {
+    await page.click("#nav-link");
+    await page.waitForSelector("#settings-view:not([hidden])");
+  };
+  const backToRoadmap = async () => {
+    await page.click("#back-main");
+    await page.waitForSelector("#main-view:not([hidden])");
+  };
+  const changeBirth = async (value: string) => {
+    await page.fill("#s-elderBirth", value);
+    await page.dispatchEvent("#s-elderBirth", "change");
+  };
+  const checkDone = async () => {
+    await page.locator(`.el[data-id="${elder}"]`).click();
+    await page.check(`#done-${elder}`);
+  };
+
+  // 初めて開いて生年月日を変えても、localStorage に残らない。「済んだ」も同じ
+  await openRoadmap();
+  await openSettings();
+  assert.equal(await page.isChecked("#s-remember"), false);
+  await changeBirth("2025-12-01");
+  assert.equal(await stored(), null);
+  assert.doesNotMatch((await page.textContent("#settings-msg")) ?? "", /保存しました/);
+  await backToRoadmap();
+  assert.match(await elderTitle(), /2025\/12\/14/);
+  await checkDone();
+  assert.equal(await page.evaluate(() => localStorage.length), 0);
+  // さきよみの中で別のページへ移って戻っても、このタブのメモリには残る
+  await menu(page, "見通し");
+  await page.waitForURL(`${base}/#outlook`);
+  await menu(page, "年表");
+  await page.waitForURL(`${base}/roadmap`);
+  await page.waitForSelector("#cond:not(:empty)");
+  assert.match(await elderTitle(), /2025\/12\/14/);
+  assert.equal(await stored(), null);
+  // 読み込み直すと初期値に戻る
+  await openRoadmap();
+  assert.match(await elderTitle(), /2025\/11\/20/);
+
+  // 保存を選ぶと残る。読み込み直しても、保存を選んだ状態で始まる
+  await openSettings();
+  await changeBirth("2025-12-01");
+  await page.check("#s-remember");
+  assert.match((await page.textContent("#settings-msg")) ?? "", /保存しました（このブラウザの中だけ）/);
+  assert.equal(JSON.parse((await stored()) ?? "{}").settings.elderBirth, "2025-12-01");
+  await backToRoadmap();
+  await checkDone();
+  assert.equal(JSON.parse((await stored()) ?? "{}").done[`a:${elder.slice(2)}`], true);
+  await openRoadmap();
+  assert.match(await elderTitle(), /2025\/12\/14/);
+  await openSettings();
+  assert.equal(await page.isChecked("#s-remember"), true);
+
+  // やめると消える。そのあと変えても残らない
+  await page.uncheck("#s-remember");
+  assert.equal(await stored(), null);
+  await changeBirth("2025-10-01");
+  assert.equal(await stored(), null);
+  assert.doesNotMatch((await page.textContent("#settings-msg")) ?? "", /保存しました/);
+  await openRoadmap();
+  assert.match(await elderTitle(), /2025\/11\/20/);
+  assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
+  assert.deepEqual(errors, []);
+  await context.close();
+});

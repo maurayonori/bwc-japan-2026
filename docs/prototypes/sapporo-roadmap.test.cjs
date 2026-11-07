@@ -246,7 +246,7 @@ const mainHtml = html.slice(html.indexOf('<body>'), html.indexOf('<section id="s
 assert.ok(mainHtml.includes('<div id="main-view">'));
 assert.ok(!/<input|<select|<textarea/.test(mainHtml), 'メイン画面に入力欄がある');
 const settingsHtml = html.slice(html.indexOf('<section id="settings-view"'), html.indexOf('</section>', html.indexOf('<section id="settings-view"')));
-for (const id of ['s-elderBirth', 's-elderNursery', 's-youngerDue', 's-youngerNursery', 's-ward', 's-work', 'b-reset']) assert.ok(settingsHtml.includes(`id="${id}"`), id);
+for (const id of ['s-elderBirth', 's-elderNursery', 's-youngerDue', 's-youngerNursery', 's-ward', 's-work', 's-remember', 'b-reset']) assert.ok(settingsHtml.includes(`id="${id}"`), id);
 
 // 初期値（すべて架空）: 上の子は 2026-11-07 の時点で 1 歳
 const today = d('2026-11-07');
@@ -396,12 +396,29 @@ async function browserChecks() {
     await page.waitForSelector('#main-view:not([hidden])');
     assert.match(await titleA(), /2025\/12\/14/);
     assert.ok((await page.textContent('#cond')).endsWith('あなたの設定'));
-    // 再読み込みしても残る
+    // 保存を選ばなければ、このブラウザに残さない（再読み込みで初期値に戻る）
+    const stored = () => page.evaluate(() => localStorage.getItem('sapporo-roadmap:v2'));
+    assert.equal(await stored(), null);
+    await page.reload();
+    assert.match(await titleA(), /2025\/11\/20/);
+    // 保存を選ぶと、再読み込みしても残る
+    await page.evaluate(() => { location.hash = '#settings'; });
+    await page.waitForSelector('#settings-view:not([hidden])');
+    assert.equal(await page.isChecked('#s-remember'), false);
+    await page.fill('#s-elderBirth', '2025-12-01');
+    await page.dispatchEvent('#s-elderBirth', 'change');
+    assert.doesNotMatch(await page.textContent('#settings-msg'), /保存しました/);
+    await page.check('#s-remember');
+    assert.match(await page.textContent('#settings-msg'), /保存しました（このブラウザの中だけ）/);
+    assert.equal(JSON.parse(await stored()).settings.elderBirth, '2025-12-01');
+    await page.click('#back-main');
+    await page.waitForSelector('#main-view:not([hidden])');
     await page.reload();
     assert.match(await titleA(), /2025\/12\/14/);
     // 初期値に戻す
     await page.evaluate(() => { location.hash = '#settings'; });
     await page.waitForSelector('#settings-view:not([hidden])');
+    assert.equal(await page.isChecked('#s-remember'), true);
     assert.equal(await page.inputValue('#s-elderBirth'), '2025-12-01');
     await page.click('#b-reset');
     assert.equal(await page.inputValue('#s-elderBirth'), '2025-11-07');
@@ -418,9 +435,19 @@ async function browserChecks() {
     await page.waitForSelector('#main-view:not([hidden])');
     assert.equal(await page.evaluate(() => document.querySelectorAll('.el[data-id^="b-"]').length), 0);
     assert.equal(await page.textContent('#views'), '');
+    // 保存をやめると、保存した値を消す
+    await page.evaluate(() => { location.hash = '#settings'; });
+    await page.waitForSelector('#settings-view:not([hidden])');
+    assert.equal(JSON.parse(await stored()).settings.youngerDue, '');
+    await page.uncheck('#s-remember');
+    assert.equal(await stored(), null);
+    await page.fill('#s-elderBirth', '2025-10-01');
+    await page.dispatchEvent('#s-elderBirth', 'change');
+    assert.equal(await stored(), null);
+    assert.doesNotMatch(await page.textContent('#settings-msg'), /保存しました/);
     assert.deepEqual(errors, []);
     await ctx.close();
-    console.log('OK（ブラウザ）: メイン画面に入力欄なし・上の子 1 歳・各子の詳細へのリンク・ID の重複なし・設定の変更と再読み込みと初期値に戻す・1 人分');
+    console.log('OK（ブラウザ）: メイン画面に入力欄なし・上の子 1 歳・各子の詳細へのリンク・ID の重複なし・設定の変更・保存を選んだときだけ残す・やめたら消す・初期値に戻す・1 人分');
   } finally {
     await browser.close();
   }
