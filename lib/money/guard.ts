@@ -836,7 +836,8 @@ const ACTION_GROUP: Record<string, string> = {
   連絡: "contact",
   問い合わせ: "contact",
   電話: "contact",
-  手配: "apply",
+  // 「タクシーを手配しました」は、保険の申請をした根拠にしない（#78 の最後の回）。
+  手配: "arrange",
   送信: "send",
   送付: "send",
   予約: "reserve",
@@ -883,11 +884,13 @@ const SELF_DENIED = /(?:私|わたし|僕|ぼく|自分)は(?:まだ)?[^。！�
 function reportsIn(userTexts: readonly string[]): Set<string> {
   const reports = new Set<string>();
   for (const sentence of userTexts.flatMap((text) => text.match(/[^。！？\n]+[。！？]?/g) ?? [])) {
-    const done = USER_DONE_CLAIM.exec(sentence);
-    if (done && AMBIGUOUS_REPORT.test(sentence) && !SELF_DENIED.test(sentence))
-      reports.add(`ambiguous:${ACTION_GROUP[done[1]]}`);
-    const actor = done ? actorOf(sentence, "card", done.index) : null;
-    if (done && actor) reports.add(`${actor}:${ACTION_GROUP[done[1]]}`);
+    // 1 文に報告が 2 つ以上あっても（「電話しましたし、申請もしました」）、すべて拾い、それぞれの済ませた人を読む（#78 の最後の回）。
+    for (const done of sentence.matchAll(new RegExp(USER_DONE_CLAIM.source, "g"))) {
+      if (AMBIGUOUS_REPORT.test(sentence) && !SELF_DENIED.test(sentence))
+        reports.add(`ambiguous:${ACTION_GROUP[done[1]]}`);
+      const actor = actorOf(sentence, "card", done.index);
+      if (actor) reports.add(`${actor}:${ACTION_GROUP[done[1]]}`);
+    }
   }
   return reports;
 }
@@ -987,11 +990,14 @@ const UNDECIDABLE_GAP = /れば|たら|ても|でも|かどうか|か[、。？?
 // 「10,180円を補っておくと」「追加することで」。
 // 条件の「と」は、読点や空白が無くても拾う（「追加すると半々の場合も」。#78）。動詞の終わり（す・る・く・む・つ・う など）の
 // すぐあとの「と」だけにし、「不要だと」「と考え」「といった」は条件にしない。「足すと」も拾う（#78 の後退の直し）。
+// 「足さずに済むと思います」は条件にしない（「足さ」は候補から外し、「と思」も条件にしない）。「追加するともう」
+// 「といっそう」は条件として拾う。除外するのは「とは限らない」「といった」「という」「と考え」「と思」「として」だけ。
+// 「追加したときは」「用意したとき」も条件として拾う（#78 の最後の回）。
 const FUND_CONDITION =
-  /(?:追加|用意|足(?=[すしせさ])|補|準備|工面|借り|借入|立て替)[^。！？\n、]{0,8}?(?:ば|[るすくうつぬむぶぐ]と(?!考|いっ|いう|して|は|も)|たら|なら|ことで)/;
+  /(?:追加|用意|足(?=[すしせ])|補|準備|工面|借り|借入|立て替)[^。！？\n、]{0,8}?(?:ば|[るすくうつぬむぶぐ]と(?!は限|いった|いう|考|思|して)|たら|なら|ことで|とき)/;
 // 資金を足すことを打ち消す文（「追加の用意はいりません」）は、条件の文とみなさず、向きを照らす（#76）。
 const FUND_NEGATED =
-  /(?:追加|用意|補|準備|工面|借り|借入|足さ)[^。！？\n]{0,12}?(?:いりません|いらない|要りません|要らない|不要|必要(?:は|も|が|では)?(?:ありません|ない)|しなくて|せずに|せず|なくても)(?!か)/;
+  /(?:追加|用意|補|準備|工面|借り|借入|足さ)[^。！？\n]{0,12}?(?:いりません|いらない|要りません|要らない|不要|必要(?:は|も|が|では)?(?:ありません|ない)|しなくて|せずに|せず|ずに|なくても)(?!か(?:[、。？?]|どうか|を))/;
 
 interface Gap {
   name: string;
