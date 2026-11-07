@@ -1,7 +1,8 @@
 import { calcDate } from "./money/business-days";
-import { showDate, yenRange } from "./money/format";
+import { showDate, yen, yenRange } from "./money/format";
 import { kougakuGendo } from "./money/kougaku";
 import { simulateCashflow } from "./money/ledger";
+import type { WhatToConfirm } from "./money/schema";
 import { mealCost } from "./money/meals";
 import { type Proposal, type Workspace } from "./workspace";
 
@@ -12,7 +13,10 @@ const COPAY_LOW = 240_000;
 const COPAY_HIGH = 300_000;
 
 // 数字は手で書かず、本番と同じ計算関数で作る。文章の数字も、その結果を埋める。
-function exampleMoneyCard(messageId: string, quote: string): Proposal {
+function exampleMoney(
+  messageId: string,
+  quote: string,
+): { card: Proposal; confirm: WhatToConfirm } {
   const kougakuInput = {
     treatment_month: "2026-11",
     income_category: "ウ",
@@ -74,13 +78,15 @@ function exampleMoneyCard(messageId: string, quote: string): Proposal {
   };
   const cashflow = simulateCashflow(cashflowInput);
   const [withCap, withoutCap] = cashflow.scenarios;
-  return {
+  if (!cashflow.what_to_confirm) throw new Error("no-what-to-confirm");
+  const card: Proposal = {
     id: "hospital-money",
     kind: "money",
     title: "退院の日までに、手元に要る額",
     body: [
       `窓口で上限が適用されれば、${showDate(DISCHARGE)}に手元に要る額は ${yenRange(withCap.low_case.need, withCap.high_case.need)} です。上限が適用されず、いったん 3 割を払うなら ${yenRange(withoutCap.low_case.need, withoutCap.high_case.need)} です。`,
-      "差を生んでいるのは、窓口で上限が適用されるかどうかと、病院の概算の幅です。給付金は、まだ数えていません。[F02]",
+      "幅を一番大きく動かすのは、窓口で上限が適用されるかです。[F02]",
+      "給付金は、まだ数えていません。",
     ].join("\n"),
     nextStep: "病院の会計で、窓口で上限を適用できるかを聞く。",
     uncertainty:
@@ -99,7 +105,10 @@ function exampleMoneyCard(messageId: string, quote: string): Proposal {
       ],
     },
   };
+  return { card, confirm: cashflow.what_to_confirm };
 }
+
+const HOSPITAL_DESK_QUOTE = "病院からは3割負担で24万〜30万円と聞いた。";
 
 // 架空の体験例。AIがその場で生成した回答としては表示しない。
 export function exampleWorkspace(): Workspace {
@@ -112,6 +121,8 @@ export function exampleWorkspace(): Workspace {
   const moneyQuote =
     "11/16から11/30まで入院の予定で、協会けんぽ、標準報酬月額は34万円。病院からは3割負担で24万〜30万円と聞いた。";
   const fourth = `${moneyQuote}給付金はまだ数えないで、手元にいくら要るかを見たい。`;
+  const money = exampleMoney("example-4", moneyQuote);
+  const [top] = money.confirm.factors;
   return {
     version: 2,
     mode: "example",
@@ -123,7 +134,11 @@ export function exampleWorkspace(): Workspace {
       {
         id: "example-reply",
         role: "assistant",
-        text: "朝の引き継ぎメモと、保険会社へ聞く文章を用意しました。今日の出来事は、話した言葉のまま残しています。手元に要る額は、話してくれた概算で計算して表にしました。まず朝のメモを読み返せば、家族に渡す準備ができます。",
+        text: [
+          "朝の引き継ぎメモと、保険会社と病院の会計へ聞く文章を用意しました。今日の出来事は、話した言葉のまま残しています。手元に要る額は、話してくれた概算で計算して表にしました。",
+          `まず確かめる 1 つは、窓口で上限が適用されるかです。病院の会計に聞くと、要る額の幅は ${yen(money.confirm.width)}から ${yen(top.width_if_resolved)}に縮みます。`,
+        ].join("\n"),
+        tools: ["kougaku_gendo", "meal_cost", "calc_date", "simulate_cashflow"],
       },
     ],
     cards: [
@@ -187,7 +202,21 @@ export function exampleWorkspace(): Workspace {
         included: false,
       },
       {
-        ...exampleMoneyCard("example-4", moneyQuote),
+        ...money.card,
+        edited: false,
+        done: false,
+        included: false,
+      },
+      // 「まず確かめる 1 つ」を聞く相手に見せる質問文。cards[3] がお金のカードのままになるよう、末尾に置く。
+      {
+        id: "hospital-desk",
+        kind: "contact",
+        title: "病院の会計に、このまま聞く",
+        body: "11/16から11/30まで入院する予定です。病院からは、3割負担で24万〜30万円と聞いています。\n入院費の支払いで、高額療養費の上限を窓口で適用してもらえますか。\n適用してもらうために、入院の前に用意しておくもの（マイナ保険証や限度額適用認定証など）があれば教えてください。\nこの概算に含まれない費用（食事代や差額ベッド代など）があれば、あわせて教えてください。",
+        nextStep: "病院の会計で、この質問文を見せて聞く。",
+        uncertainty:
+          "窓口で上限が適用されるかは、マイナ保険証で限度額の情報を確かめられるか、限度額適用認定証があるかで変わります。[F02]",
+        evidence: [{ messageId: "example-4", quote: HOSPITAL_DESK_QUOTE }],
         edited: false,
         done: false,
         included: false,

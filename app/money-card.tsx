@@ -17,6 +17,7 @@ import {
   readingGuide,
   showDate,
   stepText,
+  toolTraceText,
   yen,
   yenRange,
   type CashflowScenario,
@@ -28,6 +29,7 @@ import type {
   MealOutput,
   Money,
   MoneyWarning,
+  WhatToConfirm,
 } from "@/lib/money/schema";
 import "./money.css";
 
@@ -37,6 +39,7 @@ const CITATION = /(\[F\d{2}(?:\s*[,、]\s*F\d{2})*\])/;
 const WEEKEND_REASONS = ["土曜日", "日曜日"];
 const MAX_SKIPPED_SHOWN = 6;
 const HINT_AFTER_SECONDS = 5;
+const OTHER_FACTORS_SHOWN = 3;
 
 function Citation({ id }: { id: string }) {
   const fact = FACTS.find((item) => item.id === id);
@@ -403,8 +406,214 @@ function CashflowBlock({ output }: { output: CashflowOutput }) {
   );
 }
 
-export function MoneyDetails({ money, text }: { money: Money; text: string }) {
+// 聞く相手にそのまま見せる質問文。会話で作った「確かめる・頼む」の文章を使う。
+export interface AskQuestion {
+  title: string;
+  body: string;
+}
+
+// 「病院の会計に、このまま聞く」から、聞く相手の名前だけを取り出す。
+function askWhom(title: string): string {
+  return title.replace(/に、?\s*このまま聞く$/, "") || title;
+}
+
+function Bar({
+  label,
+  value,
+  ratio,
+  after = false,
+}: {
+  label: string;
+  value: number;
+  ratio: number;
+  after?: boolean;
+}) {
+  // 0 でなければ、細くても見えるようにする。
+  const percent = ratio > 0 ? Math.max(ratio * 100, 1.5) : 0;
+  return (
+    <div className="money-bar-row">
+      <span className="money-bar-label">{label}</span>
+      <span className="money-bar" aria-hidden="true">
+        <span
+          className={`money-bar-fill${after ? " after" : ""}`}
+          style={{ width: `${Math.min(percent, 100)}%` }}
+        />
+      </span>
+      <span className="money-bar-value">{yen(value)}</span>
+    </div>
+  );
+}
+
+function OtherFactors({ confirm }: { confirm: WhatToConfirm }) {
+  const others = confirm.factors.slice(1, 1 + OTHER_FACTORS_SHOWN);
+  const hidden =
+    confirm.factors.length - 1 - others.length + confirm.omitted_factors;
+  if (others.length === 0 && hidden === 0) return null;
+  return (
+    <details>
+      <summary>ほかの不明点</summary>
+      {others.map((factor, index) => (
+        <div key={`${factor.kind}-${index}`} className="money-confirm-other">
+          <p>{factor.name}</p>
+          <Bar
+            label="確かめると残る幅"
+            value={factor.width_if_resolved}
+            ratio={
+              confirm.width > 0 ? factor.width_if_resolved / confirm.width : 0
+            }
+            after
+          />
+        </div>
+      ))}
+      {hidden > 0 && (
+        <p className="money-muted">
+          ほかに {hidden} 件の不明点があります。幅の縮み方が小さいか、組み合わせが多くなるので、ここには並べていません。
+        </p>
+      )}
+    </details>
+  );
+}
+
+// 要る額の幅と、その幅を一番縮める確認を 1 つ。順位も額も、サーバーの計算結果だけを使う。
+export function ConfirmBlock({
+  output,
+  question,
+  onAsk,
+  disabled = false,
+}: {
+  output: CashflowOutput;
+  question?: AskQuestion | null;
+  onAsk?: (text: string) => void;
+  disabled?: boolean;
+}) {
+  const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+  const confirm = output.what_to_confirm;
+  if (!confirm) return null;
+  const [top] = confirm.factors;
+  const { width } = confirm;
+  async function copyQuestion(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopy("copied");
+    } catch {
+      setCopy("failed");
+    }
+  }
+  return (
+    <section className="money-block money-confirm decision">
+      <h4>まず確かめる 1{"\u00a0"}つ</h4>
+      {top && width > 0 && <p className="money-confirm-name">{top.name}</p>}
+      <p className="decision-range">
+        <span className="money-muted">手元に要る額の幅</span>{" "}
+        <strong>{yenRange(confirm.need_low, confirm.need_high)}</strong>
+        {width > 0 && <span className="money-muted">（幅 {yen(width)}）</span>}
+      </p>
+      {confirm.shortfall_low !== null && confirm.shortfall_high !== null && (
+        <p className="money-muted">
+          手元のお金と比べて足りない額:{" "}
+          {yenRange(confirm.shortfall_low, confirm.shortfall_high)}
+        </p>
+      )}
+      {width === 0 ? (
+        <p>幅はありません。</p>
+      ) : !top ? (
+        <p>残る幅は、確かめた額の幅です。</p>
+      ) : (
+        <div className="decision-check">
+          <div className="money-bars">
+            <Bar label="いまの幅" value={width} ratio={1} />
+            <Bar
+              label="確かめると残る幅"
+              value={top.width_if_resolved}
+              ratio={top.width_if_resolved / width}
+              after
+            />
+          </div>
+          {top.shrink === 0 && (
+            <p className="money-muted">
+              この不明点だけが分かっても、答えによっては幅が縮みません。
+            </p>
+          )}
+          <Table
+            headers={["答え", "要る額"]}
+            rows={top.branches.map((branch) => [
+              branch.name,
+              yenRange(branch.need_low, branch.need_high),
+            ])}
+          />
+          {question ? (
+            <div className="money-confirm-ask">
+              <p>
+                <span className="money-muted">聞く相手</span>{" "}
+                {askWhom(question.title)}
+              </p>
+              <button
+                type="button"
+                className="secondary money-copy"
+                onClick={() => void copyQuestion(question.body)}
+              >
+                {copy === "copied" ? "✓ コピーしました" : "質問文をコピー"}
+              </button>
+              {copy === "failed" && (
+                <p className="money-muted" role="status">
+                  コピーできませんでした。下の質問文を選んでコピーしてください。
+                </p>
+              )}
+              <details open={copy === "failed"}>
+                <summary>質問文を見る</summary>
+                <p className="money-question">{question.body}</p>
+              </details>
+            </div>
+          ) : (
+            onAsk && (
+              <div className="money-confirm-ask">
+                <button
+                  type="button"
+                  className="secondary money-copy"
+                  disabled={disabled}
+                  onClick={() =>
+                    onAsk(`「${top.name}」を確かめる質問文を作って`)
+                  }
+                >
+                  質問文を作ってもらう
+                </button>
+                <p className="money-muted">
+                  会話の入力欄に下書きを入れます。送るかどうかは自分で決められます。
+                </p>
+              </div>
+            )
+          )}
+        </div>
+      )}
+      <OtherFactors confirm={confirm} />
+      <details>
+        <summary>読み方</summary>
+        <Lines items={confirm.reading_guide} />
+      </details>
+    </section>
+  );
+}
+
+export function MoneyDetails({
+  money,
+  text,
+  question,
+  onAsk,
+  disabled,
+}: {
+  money: Money;
+  text: string;
+  question?: AskQuestion | null;
+  onAsk?: (text: string) => void;
+  disabled?: boolean;
+}) {
   const calculations = inDisplayOrder(money.calculations);
+  // 見通しが 2 つ以上あるときは、あとで計算したほうの順位を出す。
+  const latest = calculations.findLast(
+    (calculation) =>
+      calculation.name === "simulate_cashflow" &&
+      calculation.output.what_to_confirm !== undefined,
+  );
   const notIncluded = [
     ...new Set(
       calculations.flatMap((calculation) =>
@@ -417,6 +626,14 @@ export function MoneyDetails({ money, text }: { money: Money; text: string }) {
   const sources = moneySources(money, text);
   return (
     <div className="money">
+      {latest?.name === "simulate_cashflow" && (
+        <ConfirmBlock
+          output={latest.output}
+          question={question}
+          onAsk={onAsk}
+          disabled={disabled}
+        />
+      )}
       {calculations.map((calculation, index) => {
         switch (calculation.name) {
           case "simulate_cashflow":
@@ -478,6 +695,14 @@ export function WarningList({
         ))}
       </ul>
     </div>
+  );
+}
+
+// 返答の下に、この返答で呼んだ計算を出す。表の数字がプログラムの計算であることを、目で確かめられるように。
+export function ToolTrace({ tools }: { tools?: readonly string[] }) {
+  if (!tools?.length) return null;
+  return (
+    <p className="tool-trace">この返答で呼んだ計算: {toolTraceText(tools)}</p>
   );
 }
 

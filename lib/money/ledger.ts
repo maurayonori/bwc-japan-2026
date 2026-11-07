@@ -1,3 +1,4 @@
+import { rankUncertainties, type NeedRangeOf } from "./confirm";
 import { weekdayOf } from "./dates";
 import type { CashflowOutput } from "./schema";
 import {
@@ -166,6 +167,12 @@ function sum(
     .reduce((total, event) => total + event[key], 0);
 }
 
+// 「まず確かめる 1 つ」の順位づけに渡す、要る額の下限と上限。見通しと同じ trace で計算する。
+const needRange: NeedRangeOf = (events) => ({
+  need_low: trace(events, null, lowAmount).need,
+  need_high: trace(events, null, highAmount).need,
+});
+
 function simulateScenario(scenario: LedgerScenario, cash: number | null) {
   const { events } = scenario;
   return {
@@ -213,5 +220,6 @@ export function simulateCashflow(input: CashflowInput): CashflowOutput {
       need_high_difference: scenario.high_case.need - first.high_case.need,
     })),
     reading_guide: READING_GUIDE,
+    what_to_confirm: rankUncertainties(input, needRange),
   };
 }

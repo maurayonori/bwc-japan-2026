@@ -23,6 +23,8 @@ export const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
   text: z.string().min(1).max(4000),
   warnings: z.array(warningSchema).max(MAX_WARNINGS).optional(),
+  // この返答で呼んだ計算の名前（画面の「この返答で呼んだ計算」）。前の保存データには無い。
+  tools: z.array(z.string()).max(40).optional(),
 });
 export const proposalSchema = z.object({
   id,
@@ -52,6 +54,7 @@ export const replySchema = z.object({
   reply: z.string().min(1).max(1800),
   cards: z.array(proposalSchema).max(5),
   warnings: z.array(warningSchema).max(MAX_WARNINGS).optional(),
+  tools: z.array(z.string()).max(40).optional(),
 });
 export const workspaceSchema = z.object({
   version: z.literal(2),
@@ -187,7 +190,7 @@ export function exportMemo(cards: Card[]): string {
   const selected = cards.filter((card) => card.included);
   if (selected.length === 0) return "";
   return [
-    "家族のしおり",
+    "さきよみ — 渡すもの",
     "渡す前の確認用メモです。未確認の内容は各項目に記載しています。",
     ...selected.map((card) =>
       [

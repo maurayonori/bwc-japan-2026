@@ -440,6 +440,27 @@ h2 {
 .memo-heading {
   padding: 20px 2px 17px;
 }
+/* 右列は 2 段。上が見通し（要る額の幅と、まず確かめる 1 つ）、下が渡すもの。 */
+.preparation {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+.foresight .cards {
+  margin-top: 17px;
+}
+.foresight .memo-card.money {
+  border-top-width: 4px;
+}
+.foresight-empty {
+  margin-top: 17px;
+  padding: 20px 18px;
+  border: 1px dashed #cfd8c6;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
 .draft-label {
   font-size: 10px;
   color: #89947f;
@@ -1065,6 +1086,12 @@ dialog::backdrop {
   .draft-label {
     display: block;
     font-size: 9px;
+  }
+  /* 見出しが 2 行に折れないよう、添え書きは見出しの下に回す。 */
+  .foresight .section-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
   .empty-board {
     padding: 25px 0;
