@@ -65,9 +65,19 @@ test("カメラの向きはトラックの設定から決め、無ければ頼�
   assert.equal(mirrored("user"), true);
   assert.equal(mirrored("environment"), false);
   assert.equal(mirrored(null), false);
-  assert.equal(switchLabel("user"), "うしろのカメラにする");
-  assert.equal(switchLabel("environment"), "前のカメラにする");
-  assert.equal(switchLabel(null), "ほかのカメラにする");
+});
+
+test("切り替えの文言は、切り替える先の向きが確かでいまと違うときだけ「前／うしろ」。分からない・同じ向きなら「ほかのカメラ」", () => {
+  // 先の向きが確かめられている
+  assert.equal(switchLabel("user", "environment"), "うしろのカメラにする");
+  assert.equal(switchLabel("environment", "user"), "前のカメラにする");
+  assert.equal(switchLabel(null, "environment"), "うしろのカメラにする");
+  // 先の向きが分からない（まだ開いていない、設定に向きが無い）
+  assert.equal(switchLabel("user", null), "ほかのカメラにする");
+  assert.equal(switchLabel("environment", null), "ほかのカメラにする");
+  assert.equal(switchLabel(null, null), "ほかのカメラにする");
+  // 並びが「前・背面 1・背面 2」で、背面 1 から背面 2 へ切り替える
+  assert.equal(switchLabel("environment", "environment"), "ほかのカメラにする");
 });
 
 test("切り替えは deviceId で、いまと別のカメラを並びの順に選ぶ", () => {
@@ -95,6 +105,11 @@ test("選んだファイルは、MIME が動画ならそのまま、空なら拡
   assert.equal(videoTypeOf("noext", ""), null);
   assert.equal(videoTypeOf("photo.jpg", "image/jpeg"), null);
   assert.equal(videoTypeOf("a.mp4", "application/octet-stream"), null);
+  // 表に無い名前（Object の持ち物）を受け入れない
+  assert.equal(videoTypeOf("x.constructor", ""), null);
+  assert.equal(videoTypeOf("x.__proto__", ""), null);
+  assert.equal(videoTypeOf("x.toString", ""), null);
+  assert.equal(videoTypeOf("x.hasOwnProperty", ""), null);
 });
 
 test("録画の形式は、このブラウザで録れるものを上から選ぶ。音声が無いときは映像だけの形式", () => {

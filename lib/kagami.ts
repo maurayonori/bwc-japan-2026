@@ -46,9 +46,10 @@ export function nextCamera(deviceIds: readonly string[], currentId: string | und
   return next === currentId ? null : next;
 }
 
-export function switchLabel(facing: Facing | null): string {
-  if (facing === "user") return "うしろのカメラにする";
-  if (facing === "environment") return "前のカメラにする";
+// 切り替えのボタンの文言。切り替える先の向きが確かめられていて（前に開いたときのトラックの設定）、いまと違うときだけ
+// 「前／うしろのカメラにする」と書く。分からないとき、同じ向きのカメラが並ぶときは「ほかのカメラにする」。
+export function switchLabel(current: Facing | null, target: Facing | null): string {
+  if (target && target !== current) return target === "user" ? "前のカメラにする" : "うしろのカメラにする";
   return "ほかのカメラにする";
 }
 
@@ -67,7 +68,9 @@ export function videoTypeOf(name: string, type: string): string | null {
   if (type !== "") return null;
   const dot = name.lastIndexOf(".");
   if (dot < 0) return null;
-  return VIDEO_EXTENSIONS[name.slice(dot + 1).toLowerCase()] ?? null;
+  // constructor や __proto__ のような、表に無い名前を受け入れない。
+  const extension = name.slice(dot + 1).toLowerCase();
+  return Object.hasOwn(VIDEO_EXTENSIONS, extension) ? VIDEO_EXTENSIONS[extension] : null;
 }
 
 // 録画の形式の候補。上から順に、このブラウザで録れるものを使う。

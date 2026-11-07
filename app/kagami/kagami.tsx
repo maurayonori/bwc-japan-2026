@@ -67,6 +67,29 @@ export function Kagami() {
   const mounted = useRef(true);
   // カメラを開く要求の番号。画面を離れた・タブが隠れた・止めた・別の要求に替わったときに進め、古い要求の結果を使わない。
   const request = useRef(0);
+  // 開いたことのあるカメラの向き（deviceId ごと、トラックの設定で確かめられたものだけ）。切り替えの文言に使う。
+  const facingById = useRef(new Map<string, Facing>());
+  // 録画を止めたあとで止めるカメラ。録画の最後のかたまりを受け取ってから止める（先に止めると、残すものが短くなる）。
+  const release = useRef<MediaStream | null>(null);
+
+  // 録っていれば止めて、終わってからカメラを止める。録っていなければ、すぐ止める。
+  function stopRecordingThenRelease(media: MediaStream | null) {
+    if (!media) return;
+    const rec = recorder.current;
+    if (rec && rec.state === "recording") {
+      release.current = media;
+      rec.stop();
+      // 録画の終わりの知らせが来ない環境でも、カメラを点けたままにしない。
+      window.setTimeout(() => {
+        if (release.current === media) {
+          stopStream(media);
+          release.current = null;
+        }
+      }, 3000);
+    } else {
+      stopStream(media);
+    }
+  }
   const cameraNow = useRef<Camera>("off");
   const latestClip = clips.find((clip) => clip.id === latest) ?? null;
 
@@ -81,9 +104,8 @@ export function Kagami() {
       mounted.current = false;
       request.current++;
       if (timer.current !== null) window.clearInterval(timer.current);
-      // 録っている途中で離れたら、そこまでを残す（止めた分はメモリに入る）。
-      if (recorder.current?.state === "recording") recorder.current.stop();
-      stopStream(stream.current);
+      // 録っている途中で離れたら、そこまでを残す（止めた分はメモリに入る）。カメラは録画が終わってから止める。
+      stopRecordingThenRelease(stream.current);
       stream.current = null;
     };
   }, []);
@@ -103,10 +125,9 @@ export function Kagami() {
       // 開いている途中の要求も無効にする（あとから返ってきたカメラは、すぐ止める）。
       request.current++;
       const wasRecording = recorder.current?.state === "recording";
-      if (wasRecording) recorder.current?.stop();
       const active = stream.current !== null || cameraNow.current === "starting";
       if (!active) return;
-      stopStream(stream.current);
+      stopRecordingThenRelease(stream.current);
       stream.current = null;
       setCamera((now) => (now === "unavailable" ? now : "off"));
       setNote(
@@ -122,8 +143,7 @@ export function Kagami() {
   // カメラが途中で切れたとき（外れた、ほかのアプリに取られたなど）。録っていればそこまでを残し、「カメラをつける」に戻す。
   function lost(media: MediaStream) {
     if (stream.current !== media) return;
-    if (recorder.current?.state === "recording") recorder.current.stop();
-    stopStream(media);
+    stopRecordingThenRelease(media);
     stream.current = null;
     if (!mounted.current) return;
     setCamera("off");
@@ -136,6 +156,8 @@ export function Kagami() {
     const stale = () => !mounted.current || request.current !== id;
     stopStream(stream.current);
     stream.current = null;
+    // 新しいカメラに対する切り替え先が決まるまで、切り替えのボタンを出さない（同じカメラを開き直さないため）。
+    setOtherCamera(null);
     setCamera("starting");
     setNote("");
     const video: MediaTrackConstraints =
@@ -174,7 +196,9 @@ export function Kagami() {
     const settings = media.getVideoTracks()[0]?.getSettings?.() ?? {};
     // 表示と鏡写しは、取得したトラックの設定から決める（facingMode は希望でしかないため）。
     setFacing(facingOf(settings.facingMode, "facingMode" in target ? target.facingMode : null));
-    setKnownFacing(facingOf(settings.facingMode, null));
+    const known = facingOf(settings.facingMode, null);
+    setKnownFacing(known);
+    if (known && settings.deviceId) facingById.current.set(settings.deviceId, known);
     setAudio(withAudio);
     setCamera("live");
     for (const track of media.getTracks()) track.addEventListener("ended", () => lost(media));
@@ -217,17 +241,37 @@ export function Kagami() {
     rec.ondataavailable = (event) => {
       if (event.data.size > 0) chunks.push(event.data);
     };
-    rec.onstop = () => {
+    // 録画の後始末。止めたとき・エラーのとき・どちらが先に来ても 1 回だけ行う。
+    let finished = false;
+    const finish = (failed: boolean) => {
+      if (finished) return;
+      finished = true;
+      if (rec.state === "recording") {
+        try {
+          rec.stop();
+        } catch {
+          // 止められなくても、後始末は続ける
+        }
+      }
+      if (timer.current !== null) window.clearInterval(timer.current);
+      timer.current = null;
+      if (recorder.current === rec) recorder.current = null;
+      // 録画が終わったので、止めると決めていたカメラを止める。
+      if (release.current) {
+        stopStream(release.current);
+        release.current = null;
+      }
       const blobType = rec.mimeType || type || "video/webm";
       // 実際に録った長さを出す（上限で止めたときも 2:00 に丸めない）。
       const durationMs = performance.now() - began;
-      if (timer.current !== null) window.clearInterval(timer.current);
-      timer.current = null;
-      recorder.current = null;
       if (chunks.length === 0) {
         if (mounted.current) {
           setRecording(false);
-          setNote("録画が空でした。もう一度撮ってください。");
+          setNote(
+            failed
+              ? "録画が途中で止まりました。もう一度撮ってください。"
+              : "録画が空でした。もう一度撮ってください。",
+          );
         }
         return;
       }
@@ -241,10 +285,23 @@ export function Kagami() {
       if (mounted.current) {
         setRecording(false);
         setLatest(clip.id);
+        if (failed) setNote("録画が途中で止まりました。撮ったところまでは残っています。");
       }
     };
+    // エラーのときは止めて、残りのかたまりを受け取ってから後始末する（すぐに後始末すると、残すものがほぼ空になる）。
+    // 止まった知らせが来ない環境でも「録画中」のまま止まらないよう、1.5 秒で必ず後始末する。
+    let failed = false;
+    rec.onstop = () => finish(failed);
     rec.onerror = () => {
-      if (mounted.current) setNote("録画が途中で止まりました。撮ったところまでは残っています。");
+      failed = true;
+      if (rec.state === "recording") {
+        try {
+          rec.stop();
+        } catch {
+          // 止められなければ、下の待ち時間のあとで後始末する
+        }
+      }
+      window.setTimeout(() => finish(true), 1500);
     };
     try {
       rec.start(1000);
@@ -378,7 +435,7 @@ export function Kagami() {
                     onClick={() => void open({ deviceId: otherCamera })}
                     disabled={recording}
                   >
-                    {switchLabel(knownFacing)}
+                    {switchLabel(knownFacing, facingById.current.get(otherCamera) ?? null)}
                   </button>
                 )}
                 <button type="button" className="text-link" onClick={close} disabled={recording}>
