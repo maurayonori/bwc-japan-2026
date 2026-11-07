@@ -679,3 +679,55 @@ test("動きを減らす設定では、会話の自動スクロールを滑ら�
   assert.ok(behaviors.every((b) => b === "auto"), JSON.stringify(behaviors));
   await context.close();
 });
+
+test("年表の設定とチェックは、保存を選んだときだけブラウザに残す。選ぶまではタブの中だけで、やめると消える", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const KEY = "sapporo-roadmap:v2";
+  const stored = () => page.evaluate((key) => localStorage.getItem(key), KEY);
+  const openSettings = async () => {
+    await page.evaluate(() => {
+      location.hash = "#settings";
+    });
+    await page.waitForSelector("#settings-view:not([hidden])");
+  };
+  await page.goto(`${base}/roadmap`);
+  await page.waitForSelector("#cond:not(:empty)");
+  // 1. 初めて開いて生年月日を変えても、ブラウザに残さない
+  await openSettings();
+  assert.equal(await page.isChecked("#s-remember"), false);
+  await page.fill("#s-elderBirth", "2025-12-01");
+  await page.dispatchEvent("#s-elderBirth", "change");
+  assert.equal(await stored(), null);
+  assert.doesNotMatch(await page.textContent("#settings-msg") ?? "", /保存しました/);
+  assert.equal(await page.evaluate(() => localStorage.length + sessionStorage.length), 0);
+  // タブの中では残る（メニューで移って戻っても）
+  await menu(page, "話す");
+  await page.waitForSelector("main.talk");
+  await menu(page, "年表");
+  await page.waitForURL(`${base}/roadmap`);
+  await page.waitForSelector("#cond:not(:empty)");
+  await openSettings();
+  assert.equal(await page.inputValue("#s-elderBirth"), "2025-12-01");
+  assert.equal(await stored(), null);
+  // 2. 保存を選ぶと残り、再読み込みしても選んだ状態で始まる
+  await page.check("#s-remember");
+  assert.match(await page.textContent("#settings-msg") ?? "", /保存しました（このブラウザの中だけ）。/);
+  const saved = JSON.parse((await stored()) ?? "null") as { settings: { elderBirth: string } } | null;
+  assert.equal(saved?.settings.elderBirth, "2025-12-01");
+  await page.reload();
+  await page.waitForSelector("#settings-view:not([hidden])");
+  assert.equal(await page.isChecked("#s-remember"), true);
+  assert.equal(await page.inputValue("#s-elderBirth"), "2025-12-01");
+  // 3. やめると消える
+  await page.uncheck("#s-remember");
+  assert.equal(await stored(), null);
+  assert.doesNotMatch(await page.textContent("#settings-msg") ?? "", /保存しました/);
+  await page.fill("#s-elderBirth", "2025-11-07");
+  await page.dispatchEvent("#s-elderBirth", "change");
+  assert.equal(await stored(), null);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
