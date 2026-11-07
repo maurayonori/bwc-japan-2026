@@ -309,20 +309,6 @@ export function sentences(text) {
   return out;
 }
 
-// 名前の末尾の補足（全角の括弧）を外した短い名前。年表のラベルに使う
-export function shortName(name) {
-  if (!name.endsWith("）")) return name;
-  let depth = 0;
-  for (let j = name.length - 1; j >= 0; j--) {
-    if (name[j] === "）") depth++;
-    else if (name[j] === "（") {
-      depth--;
-      if (depth === 0) return j > 0 ? name.slice(0, j).trim() : name;
-    }
-  }
-  return name;
-}
-
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const httpsUrl = (u, where) => {
   if (typeof u !== "string" || !/^https:\/\/[^\s"'<>]+$/.test(u))
@@ -343,7 +329,6 @@ function compactItem(it) {
     domain: it.domain,
     muni: it.municipality,
     name: it.name,
-    short: shortName(it.name),
     age: [e.age_months?.from ?? 0, e.age_months?.to ?? null],
     work: e.work_status ?? null,
     nursery: e.nursery ?? null,

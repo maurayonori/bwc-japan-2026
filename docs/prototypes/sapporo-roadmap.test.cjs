@@ -91,18 +91,17 @@ assert.equal(item(plan('2026-09-01', '2026-09-02'), 'sapporo-procedures-jido-tea
 const ex = plan('2026-08-31', '2026-11-07', { nursery: '2027-04', work: '2027-04-05' });
 assert.equal(item(ex, 'sapporo-procedures-shussho-todoke').status.key, 'overdue');
 assert.equal(item(ex, 'sapporo-procedures-jido-teate').status.text, '締切を 53 日過ぎた');
-assert.deepEqual(ex.now.overdue.map((p) => p.id).sort(), [
+assert.deepEqual(ex.items.filter((p) => p.status.key === 'overdue').map((p) => p.id).sort(), [
+  'national-procedures-kenpo-hifuyosha-tsuika',
   'national-procedures-sango-papa-ikukyu',
   'national-procedures-shusseigo-kyugyo-shien',
   'sapporo-procedures-jido-teate',
   'sapporo-procedures-kokuho-kanyu',
   'sapporo-procedures-shussho-todoke',
 ]);
-assert.equal(ex.now.older, 1); // 63 日前に締切を過ぎた被扶養者の届は 60 日より前
 // 済んだ項目は期限切れにしない
 const done = plan('2026-08-31', '2026-11-07', { done: { 'sapporo-procedures-shussho-todoke': true } });
 assert.equal(item(done, 'sapporo-procedures-shussho-todoke').status.key, 'done');
-assert.ok(!done.now.overdue.some((p) => p.id === 'sapporo-procedures-shussho-todoke'));
 // 締切の当日はまだ過ぎていない。翌日に過ぎる
 const due = item(plan('2026-08-31', '2026-11-30'), 'sapporo-procedures-hoikusho-4gatsu-nyusho-r9');
 assert.equal(due.status.key, 'open');
@@ -123,7 +122,6 @@ const kaoawase = item(noNursery, 'sapporo-childcare-kosapo-kaoawase');
 assert.equal(kaoawase.due, null);
 assert.equal(kaoawase.noDate, '入園予定月を入れると期日が出ます');
 assert.equal(kaoawase.status.key, 'nodate');
-assert.ok(!noNursery.entries.some((e) => e.id === 'sapporo-childcare-kosapo-kaoawase'));
 assert.equal(iso(item(ex, 'sapporo-childcare-kosapo-kaoawase').due), '2027-03-02'); // 2027-04-01 の 30 日前
 
 // recommended_lead_days と prep_days から「いつまでに・いつから」
@@ -149,17 +147,93 @@ assert.equal(c.classAge(d('2026-04-01'), 2027), 1);
 assert.equal(c.classAge(d('2026-04-02'), 2027), 0);
 assert.ok(ex.events.bands.some((b) => b.text.startsWith('0 歳児クラス') && iso(b.start) === '2027-04-01' && iso(b.end) === '2028-03-31'));
 
-// いま: 今日から 60 日の日付だけを、日付の順に
-const soon = ex.now.soon.map((e) => `${iso(e.date)} ${e.type} ${e.id}`);
-for (const want of [
-  '2026-11-30 deadline sapporo-procedures-hoikusho-4gatsu-nyusho-r9',
-  '2026-12-11 event child-allowance-sapporo-payment-day',
-  '2026-12-15 prep sapporo-childcare-daredemo-tsuen',
-  '2027-01-01 guide sapporo-childcare-byouji-teote-account',
-]) assert.ok(soon.includes(want), want);
-assert.ok(ex.now.soon.every((e) => e.date >= d('2026-11-07') && e.date <= d('2027-01-06')));
-assert.deepEqual(ex.now.soon.map((e) => e.date), ex.now.soon.map((e) => e.date).sort((a, b) => a - b));
 assert.equal(c.todayJst(Date.UTC(2026, 10, 6, 15, 0)), d('2026-11-07')); // UTC 15 時は JST の翌日 0 時
+
+// 小学校入学: 満 6 歳になった日の翌日以後の最初の 4 月 1 日（4 月 1 日生まれは上の学年）
+assert.equal(iso(c.schoolEntry(d('2020-04-01'))), '2026-04-01');
+assert.equal(iso(c.schoolEntry(d('2020-04-02'))), '2027-04-01');
+assert.equal(iso(c.schoolEntry(d('2020-01-15'))), '2026-04-01');
+assert.equal(iso(c.schoolEntry(d('2026-08-31'))), '2033-04-01');
+assert.equal(iso(c.schoolEntry(d('2028-02-29'))), '2034-04-01');
+assert.equal(ex.milestones.at(-1).key, 'school');
+
+// 年表のラベル: 括弧の中を外し、22 文字を超えたら省く。幅の見積もりは全角を半角より広く
+assert.equal(c.roadmapLabel('産後パパ育休（出生時育児休業）の申出（出生後 8 週間以内に 4 週間まで）'), '産後パパ育休の申出');
+assert.equal(c.roadmapLabel('児童手当（3 歳未満）は月 15,000 円', true), '児童手当（3 歳未満）は月 15,000 円');
+const long = c.roadmapLabel('病児・病後児保育（こどもデイサービス）の予約システム「テオテ」のアカウント作成');
+assert.equal(Array.from(long).length, 22);
+assert.ok(long.endsWith('…'));
+assert.ok(c.textWidth('あいう') > c.textWidth('abc'));
+assert.equal(c.textWidth(''), 2);
+
+// 段ずらし: 前の段の右端 + すき間より右から始まる最初の段に入れる
+const ends = [];
+assert.equal(c.packRow(ends, 0, 100), 0);
+assert.equal(c.packRow(ends, 50, 120), 1); // 0 段目と重なる
+assert.equal(c.packRow(ends, 100 + c.GAP, 200), 0); // すき間ちょうどなら同じ段
+assert.equal(c.packRow(ends, 100 + c.GAP + 1, 210), 2); // 0 段目は 200 まで埋まった。1 段目も 120 + GAP > 107
+assert.deepEqual(ends, [200, 120, 210]);
+
+// 年表の棒と点: 準備を始める日から期限までが棒、1 日だけのものは点
+const L = c.layoutRoadmap(ex);
+const els = (id) => L.lanes.flatMap((l) => l.els).filter((g) => g.id === id);
+const one = (id) => { const list = els(id); assert.equal(list.length, 1, id); return list[0]; };
+let g = one('sapporo-childcare-daredemo-tsuen'); // prep_days あり
+assert.deepEqual([g.kind, iso(g.a), iso(g.z), g.mark], ['bar', '2026-12-15', '2027-01-14', 'gd']);
+g = one('national-procedures-sango-papa-ikukyu'); // 公式の締切と prep_days
+assert.deepEqual([g.kind, iso(g.a), iso(g.z), g.mark, g.past, g.over], ['bar', '2026-10-12', '2026-10-26', 'dl', true, true]);
+g = one('sapporo-procedures-shussho-todoke'); // 受付が始まる日から締切まで
+assert.deepEqual([g.kind, iso(g.a), iso(g.z), g.mark, g.past], ['bar', '2026-08-31', '2026-09-13', 'dl', true]);
+g = one('sapporo-procedures-hoikusho-4gatsu-nyusho-r9'); // 1 日だけ
+assert.deepEqual([g.kind, iso(g.a), g.mark, g.past, g.nc], ['point', '2026-11-30', 'dl', false, true]);
+g = one('sapporo-procedures-kodomo-iryohi'); // 締切なし: 始まる日の点。対象の期間中は薄くしない
+assert.deepEqual([g.kind, iso(g.a), g.mark, g.past, g.nc], ['point', '2026-08-31', 'st', false, true]);
+g = one('sapporo-childcare-kosapo-kaoawase'); // before_milestone: 目安の日から入園予定月まで
+assert.deepEqual([g.kind, iso(g.a), iso(g.z), g.mark], ['bar', '2027-03-02', '2027-04-01', 'gd']);
+assert.equal(els('sapporo-vaccines-influenza-first').length, 5); // 毎年の受けられる時期（入学まで）
+assert.equal(els('sapporo-vaccines-influenza-second').length, 0); // 接種日を聞かないので置かない
+assert.ok(L.lanes.find((l) => l.key === 'vaccines').els.every((x) => x.mark !== 'dl')); // 予防接種に締切の印を付けない
+assert.deepEqual(Array.from(L.lanes, (l) => l.key), ['milestone', 'procedures', 'vaccines', 'childcare_registration', 'events']);
+// 入園予定月が無ければ before_milestone は置かず、何件出るかを返す
+const L0 = c.layoutRoadmap(noNursery);
+assert.deepEqual(Array.from(L0.skipped.filter((s) => s.milestone === 'nursery_start'), (s) => s.id), ['sapporo-childcare-kosapo-kaoawase']);
+assert.ok(!L0.lanes.flatMap((l) => l.els).some((x) => x.id === 'sapporo-childcare-kosapo-kaoawase'));
+// マイルストーン: 4 日しか離れていない入園予定月と復職予定日は、段を分ける
+const ms = L.lanes[0];
+const nursery = ms.els.find((x) => x.id === 'ms-nursery');
+const work = ms.els.find((x) => x.id === 'ms-work');
+assert.equal(work.a - nursery.a, 4);
+assert.notEqual(nursery.row, work.row);
+assert.deepEqual(ms.els.map((x) => x.id).filter((id) => /^ms-(birth|m1|m5|m6|m12|nursery|work|school)$/.test(id)).length, 8);
+// 範囲は誕生から小学校入学まで。今日の線もその中
+assert.ok(L.r0 <= ex.ctx.birth && L.r1 >= ex.ctx.school && L.today > 0 && L.today < L.width);
+
+// 段ずらしと文字の重なり: いろいろな入力で、同じ段の印・棒・ラベル（見積もり幅）が重ならず、
+// ラベルと印がその要素の幅の中に収まる
+function checkLayout(layout, label) {
+  for (const lane of layout.lanes) {
+    const bad = c.overlaps(lane);
+    assert.equal(bad.length, 0, `${label} ${lane.key}: ${JSON.stringify(bad)}`);
+    for (const x of lane.els) {
+      assert.ok(Number.isInteger(x.row) && x.row >= 0 && x.row < lane.rows, `${label} ${x.id} の段`);
+      if (x.label) assert.ok(x.labelX >= x.x0 && x.labelX + x.labelW <= x.x1, `${label} ${x.id} のラベル`);
+      assert.ok(x.xa >= x.x0 - 0 && x.xz <= x.x1, `${label} ${x.id} の印`);
+    }
+  }
+}
+checkLayout(L, '架空の例');
+checkLayout(L0, '入園予定月なし');
+let seed = 20261107;
+const rand = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+for (let k = 0; k < 150; k++) {
+  const b = d('2015-01-01') + rand(365 * 21);
+  const today = b + rand(365 * 8) - 200;
+  const extra = {};
+  if (rand(2)) { const nm = c.ymd(c.addMonths(b, 3 + rand(40))); extra.nursery = `${nm.y}-${String(nm.m).padStart(2, '0')}`; }
+  if (rand(2)) extra.work = iso(b + 150 + rand(700));
+  const pl = c.planAll(data, { birth: iso(b), ...extra }, today);
+  checkLayout(c.layoutRoadmap(pl), `${iso(b)} ${JSON.stringify(extra)} 今日 ${iso(today)}`);
+}
 
 (async () => {
   const build = await import(pathToFileURL(path.join(__dirname, '..', '..', 'scripts', 'build-sapporo-roadmap.mjs')).href);
@@ -177,7 +251,6 @@ assert.equal(c.todayJst(Date.UTC(2026, 10, 6, 15, 0)), d('2026-11-07')); // UTC 
     '  num: 19.3',
   ].join('\n'));
   assert.deepEqual(y, { events: [{ id: 'a', note: "one: two, three's", plain: '行の 続き', flow: { from: 5, to: null }, list: ['育休中', '復職予定'], empty: null, num: 19.3 }] });
-  assert.equal(build.shortName('子どもショートステイ（保護者の病気（入院など）のとき）'), '子どもショートステイ');
   assert.deepEqual(build.sentences('要確認: A（B。C）。必要なもの: D。'), ['要確認: A（B。C）。', '必要なもの: D。']);
   // 埋め込みデータが YAML から作り直したものと一致し、data/items/ の全項目がある
   assert.deepEqual(data, build.buildData());
@@ -190,7 +263,7 @@ assert.equal(c.todayJst(Date.UTC(2026, 10, 6, 15, 0)), d('2026-11-07')); // UTC 
     assert.equal(pl.items.length, yaml.items.length);
     for (const e of data.events) assert.ok(pl.events.placed[e.id] || pl.events.undated.some((u) => u.id === e.id && u.reason), e.id);
   }
-  console.log('OK: 月末の誕生日・祝日と土日と年末年始・支給予定日・閉庁日の締切・期限切れ・予防接種の扱い・入園予定月なし・目安と準備の日・いまの並び・YAML と埋め込みの一致');
+  console.log('OK: 月末の誕生日・祝日と土日と年末年始・支給予定日・閉庁日の締切・期限切れ・予防接種の扱い・入園予定月なし・目安と準備の日・就学・年表の棒と点・段ずらしと文字の重なり・YAML と埋め込みの一致');
 })().catch((e) => {
   console.error(e);
   process.exit(1);
