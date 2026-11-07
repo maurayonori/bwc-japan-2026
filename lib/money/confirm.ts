@@ -10,6 +10,7 @@ import type { WhatToConfirm } from "./schema";
 // 入出金の不明点は 6 つまで。筋書き 4 本 × 枝 3 つの 6 乗で、組み合わせは 2,916 通りまでに収まる。
 const MAX_EVENT_FACTORS = 6;
 const KIND_ORDER = ["scenario", "income", "amount"] as const;
+// 筋書きが 3 本以上のときの呼び名。2 本のときは、筋書きの名前から作る（scenarioFactorName）。
 const SCENARIO_FACTOR_NAME = "どの筋書きになるか";
 
 // 画面の「読み方」にもそのまま出すので、項目名を使わずに書く。
@@ -227,6 +228,14 @@ function inRankOrder(factors: readonly Ranked[]): Factor[] {
     .map(({ order: _order, ...factor }) => factor);
 }
 
+// 何を確かめるのかが読んで分かるよう、筋書きが 2 本なら名前をそのまま並べる（例:『A』か『B』か）。
+// 3 本以上は並べると長くなるので、まとめて呼ぶ。名前はプログラムが作り、Claude には作らせない。
+function scenarioFactorName(scenarios: CashflowInput["scenarios"]): string {
+  return scenarios.length === 2
+    ? `『${scenarios[0].name}』か『${scenarios[1].name}』か`
+    : SCENARIO_FACTOR_NAME;
+}
+
 export function rankUncertainties(
   input: CashflowInput,
   needRange: NeedRangeOf,
@@ -244,7 +253,7 @@ export function rankUncertainties(
       ? [
           toFactor(
             "scenario",
-            SCENARIO_FACTOR_NAME,
+            scenarioFactorName(input.scenarios),
             null,
             -1,
             input.scenarios.map((scenario, index) => ({
