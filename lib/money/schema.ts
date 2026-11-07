@@ -200,7 +200,7 @@ export const calculationSchema = z.discriminatedUnion("name", [
 export const moneySchema = z.object({
   calculations: z.array(calculationSchema).min(1).max(MAX_CALCULATIONS),
   // 内訳を計算し直したあとに見通しを計算し直せなかったとき、残っている見通しは前の条件での計算（#77）。
-  // サーバーへは送らない。次に見通しを計算し直すと、この項目の無いお金の項目で置き換わる。
+  // 見通しの計算し直しが成功した回でだけ外れる（それまでは回をまたいで引き継ぐ）。
   stale_cashflow: z.literal(true).optional(),
 });
 
@@ -209,6 +209,8 @@ export const moneyRequestSchema = z.object({
   calculations: z
     .array(z.object({ name: z.enum(TOOL_NAMES), input: toolInputSchema }))
     .max(MAX_CALCULATIONS),
+  // 前の回の印。サーバーが引き継ぎ、照合の根拠から古い見通しを外すために送る（#77）。
+  stale_cashflow: z.literal(true).optional(),
 });
 
 export const MAX_WARNINGS = 20;

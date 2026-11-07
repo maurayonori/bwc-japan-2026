@@ -5,6 +5,7 @@ import { FACTS } from "@/lib/money/facts";
 import {
   CERTAINTY_TEXT,
   paydayTable,
+  RECALC_REQUEST,
   STALE_CASHFLOW_NOTE,
   DIRECTION_TEXT,
   KOUGAKU_ROWS,
@@ -623,7 +624,7 @@ export function ConfirmBlock({
               yenRange(branch.need_low, branch.need_high),
             ])}
           />
-          {question ? (
+          {stale ? null : question ? (
             <div className="money-confirm-ask">
               <p>
                 <span className="money-muted">聞く相手</span>{" "}
@@ -665,6 +666,25 @@ export function ConfirmBlock({
               </div>
             )
           )}
+        </div>
+      )}
+      {stale && (
+        // 前の条件での順位から質問文を作らない。次の行動は、計算し直すように頼むこと（#77）。
+        <div className="money-confirm-ask">
+          {onAsk && (
+            <button
+              type="button"
+              className="secondary money-copy"
+              disabled={disabled}
+              onClick={() => onAsk(RECALC_REQUEST)}
+            >
+              計算し直すように頼む
+            </button>
+          )}
+          <p className="money-muted">
+            この順位は前の条件での計算です。計算し直すまで、質問文は作りません。
+            {onAsk && "会話の入力欄に下書きを入れます。送るかどうかは自分で決められます。"}
+          </p>
         </div>
       )}
       <OtherFactors confirm={confirm} />

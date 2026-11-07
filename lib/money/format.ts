@@ -196,12 +196,13 @@ const CERTAINTY_ORDER = ["confirmed", "estimate", "assumption"] as const;
 
 type LedgerPath = CashflowScenario["low_case"];
 
-// その場合の額に入っている確かさを、確かめた額・見積もり・仮定の順に並べる（例: 入院費は確かめた額、食事代は見積もり）。
-// 支払いと、その場合に数えた入金の両方を見る。0 円で数えた入金は、額を動かさないので入れない。
-function certaintyText(path: LedgerPath): string {
-  const counted = path.rows.filter(
-    (row) => row.direction === "out" || row.amount > 0,
-  );
+// その行の額に入っている確かさを、確かめた額・見積もり・仮定の順に並べる（例: 入院費は確かめた額、食事代は見積もり）。
+// 支払いと、その行の場合（少なめと多めの両方）に数えた入金を見る。0 円で数えた入金は、額を動かさないので入れない。
+// 入金に幅があると、少なめの場合だけが入金を数えていることがあるので、片方の場合だけでは決めない。
+function certaintyText(...paths: LedgerPath[]): string {
+  const counted = paths
+    .flatMap((path) => path.rows)
+    .filter((row) => row.direction === "out" || row.amount > 0);
   const kinds = CERTAINTY_ORDER.filter((kind) =>
     counted.some((row) => row.certainty === kind),
   ).map((kind) => CERTAINTY_TEXT[kind]);
@@ -221,7 +222,7 @@ export function paydayTable(output: CashflowOutput): {
     yenRange(low.need, high.need),
     high.need_date ? showDate(high.need_date, baseYear) : "なし",
     ...(cash === null ? [] : [cashGapText(cash, low.need, high.need)]),
-    certaintyText(high),
+    certaintyText(low, high),
   ];
   const rows = output.scenarios.flatMap((scenario) => {
     const counted = row(scenario.name, scenario.low_case, scenario.high_case);
@@ -474,6 +475,10 @@ export function inDisplayOrder(
 // 見通しを計算し直せなかったときに、表の上と持ち出しの文に出す（#77）。
 export const STALE_CASHFLOW_NOTE =
   "支払日に要るお金と要る額の幅は、前の条件での計算です。内訳は新しい条件で計算し直しましたが、見通しはまだ計算し直していません。今の額として使わず、「計算し直して」と送ってください。";
+
+// 印があるあいだ、「まず確かめる 1 つ」の代わりに会話の入力欄へ入れる下書き（#77）。
+export const RECALC_REQUEST =
+  "前の条件のままの見通しを、今の条件で計算し直して。";
 
 export function moneyToText(money: Money, text: string): string {
   const calculations = inDisplayOrder(money.calculations);

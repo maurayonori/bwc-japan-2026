@@ -111,6 +111,12 @@ test("見通しを計算し直せなかったときは、古い要る額を今�
   assert.equal((await note.innerText()).trim(), STALE_CASHFLOW_NOTE);
   assert.ok((await page.locator(".money-payday h4").innerText()).includes("（前の条件での計算）"));
   assert.ok((await page.locator(".money-confirm h4").innerText()).includes("（前の条件での計算）"));
+  // （中 4）印があるあいだは、古い順位から質問文を作らず、計算し直すように頼む。
+  const confirm = page.locator(".money-confirm");
+  assert.equal(await confirm.getByRole("button", { name: "質問文を作ってもらう" }).count(), 0);
+  assert.equal(await confirm.getByRole("button", { name: "質問文をコピー" }).count(), 0);
+  await confirm.getByRole("button", { name: "計算し直すように頼む" }).click();
+  await page.waitForFunction(() => (document.querySelector("#thoughts") as HTMLTextAreaElement | null)?.value.includes("計算し直して"));
   assert.deepEqual(errors, []);
   await context.close();
 });
