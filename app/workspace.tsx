@@ -740,20 +740,21 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                 }
               />
               <div className="composer-bottom">
-                {example ? (
-                  <span />
-                ) : (
-                  <button
-                    type="button"
-                    className="text-link"
-                    onClick={toggleExample}
-                    disabled={busy || !hydrated}
-                  >
-                    {workspace.messages.length === 0
-                      ? "まず、架空の体験例を見る"
-                      : "架空の体験例を見る"}
-                  </button>
-                )}
+                {/* 入力欄のそばに置く道具。音声入力などを足すときも、ここに並べる（下書きは draft に入れる）。 */}
+                <div className="composer-tools">
+                  {!example && (
+                    <button
+                      type="button"
+                      className="text-link"
+                      onClick={toggleExample}
+                      disabled={busy || !hydrated}
+                    >
+                      {workspace.messages.length === 0
+                        ? "まず、架空の体験例を見る"
+                        : "架空の体験例を見る"}
+                    </button>
+                  )}
+                </div>
                 {busy ? (
                   <button
                     type="button"
