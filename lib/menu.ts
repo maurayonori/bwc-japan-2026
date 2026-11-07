@@ -1,9 +1,9 @@
 import { VIEW_HASH } from "./views";
 
 // アプリ全体の 1 つのメニュー（#52、ADR 0015）。行き先はここにだけ書き、どのページも同じものを出す。
-// 「話す」「見通し」「渡すもの」はさきよみの会話の画面（/ の # で切り替える）。年表とあそぶは別のページ。
-// ペルソナ（手元で動かす Persona Studio）とかがみは外部リンクで、それぞれ NEXT_PUBLIC_PERSONA_URL・NEXT_PUBLIC_KAGAMI_URL があるときだけ出す。
-// どちらのコードもこのリポジトリには入れない。公開の配置では設定しないので出ない。
+// 「話す」「見通し」「渡すもの」はさきよみの会話の画面（/ の # で切り替える）。年表・あそぶ・かがみは別のページ。
+// ペルソナ（手元で動かす Persona Studio）は外部リンクで、NEXT_PUBLIC_PERSONA_URL があるときだけ出す。
+// そのコードはこのリポジトリには入れない。公開の配置では設定しないので出ない。
 export type MenuKey =
   | "talk"
   | "outlook"
@@ -38,6 +38,8 @@ const BASE_ITEMS: readonly MenuItem[] = [
   { key: "hand", label: "渡すもの", href: `/${VIEW_HASH.hand}`, group: "sakiyomi" },
   { key: "roadmap", label: "年表", href: "/roadmap", group: "tools" },
   { key: "play", label: "あそぶ", href: "/play", group: "tools" },
+  // かがみは、このアプリの中のページ（#54、ADR 0016）。
+  { key: "kagami", label: "かがみ", href: "/kagami", group: "tools" },
 ];
 
 // 外部リンクにしてよい URL だけを通す。http と https 以外（javascript: など）や読めない値は出さない。
@@ -52,11 +54,8 @@ export function externalHref(value: string | undefined): string | null {
   }
 }
 
-// 外部リンクの行き先。出す順もこの並び（ペルソナのあとにかがみ）。
-const EXTERNAL_ITEMS = [
-  { key: "persona", label: "ペルソナ" },
-  { key: "kagami", label: "かがみ" },
-] as const;
+// 外部リンクの行き先。メニューの最後に出す。
+const EXTERNAL_ITEMS = [{ key: "persona", label: "ペルソナ" }] as const;
 
 export type ExternalKey = (typeof EXTERNAL_ITEMS)[number]["key"];
 
