@@ -338,7 +338,7 @@ test("version 1 の保存データを、そのまま読む", () => {
   const storage = memoryStorage({ [STORAGE_KEY]: JSON.stringify(v1) });
   const read = readStoredWorkspace(storage);
   assert.equal(read.unreadable, false);
-  assert.equal(read.workspace?.cards.length, 3);
+  assert.equal(read.workspace?.cards.length, v1.cards.length);
 });
 
 test("新しい形の保存データも読み直せる", () => {
