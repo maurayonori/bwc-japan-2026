@@ -1,5 +1,6 @@
 import type { Card, Message, Proposal } from "../workspace";
 import { asMemory, validateEvidence } from "../workspace";
+import { withMainCashflowLast } from "./main-cashflow";
 import {
   MAX_CALCULATIONS,
   calculationSchema,
@@ -88,16 +89,19 @@ function replaceKey(calculation: Calculation): string {
 }
 
 // 今回の計算を優先し、今回呼ばなかった道具（と診療月）の前回の結果は残す（出典や内訳が表から消えないように）。
+// 見通しが同じ回に複数あるときは、内訳の計算と額が合う見通しを最後（本線）に置く（#82）。
 function combine(
   fresh: readonly Calculation[],
   prior: readonly Calculation[],
 ): Calculation[] {
   const keys = new Set(fresh.map(replaceKey));
   const kept = fresh.slice(-MAX_CALCULATIONS);
-  return [
-    ...prior.filter((calculation) => !keys.has(replaceKey(calculation))),
-    ...kept,
-  ].slice(-MAX_CALCULATIONS);
+  return withMainCashflowLast(
+    [
+      ...prior.filter((calculation) => !keys.has(replaceKey(calculation))),
+      ...kept,
+    ].slice(-MAX_CALCULATIONS),
+  );
 }
 
 // 金額の内訳を出す道具。これが成功したあとに見通しが成功していなければ、残っている見通しは前の条件での計算になる。
