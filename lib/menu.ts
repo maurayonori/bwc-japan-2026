@@ -38,7 +38,7 @@ const BASE_ITEMS: readonly MenuItem[] = [
   { key: "hand", label: "渡すもの", href: `/${VIEW_HASH.hand}`, group: "sakiyomi" },
   { key: "roadmap", label: "年表", href: "/roadmap", group: "tools" },
   { key: "play", label: "あそぶ", href: "/play", group: "tools" },
-  // かがみは、このアプリの中のページ（#54、ADR 0016）。
+  // かがみは、このアプリの中のページ（#54、ADR 0017）。
   { key: "kagami", label: "かがみ", href: "/kagami", group: "tools" },
 ];
 

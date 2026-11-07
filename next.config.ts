@@ -11,7 +11,7 @@ const config: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "same-origin" },
-          // マイクは入力欄の横の音声入力（#45、ADR 0014）とかがみの録画の音声のため、カメラはかがみ（#54、ADR 0016）のため、
+          // マイクは入力欄の横の音声入力（#45、ADR 0014）とかがみの録画の音声のため、カメラはかがみ（#54、ADR 0017）のため、
           // このサイト自身にだけ許す。位置は使わない。X-Frame-Options: DENY なので、他のサイトの枠の中では使えない。
           {
             key: "Permissions-Policy",

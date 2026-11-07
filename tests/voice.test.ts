@@ -336,7 +336,7 @@ test("応答のヘッダは、このサイト自身のマイクを止めない�
   assert.ok(policy);
   assert.match(policy.value, /(^|,\s*)microphone=\(self\)/);
   assert.doesNotMatch(policy.value, /microphone=\(\)/);
-  // カメラはかがみのため、このサイト自身にだけ許す（#54、ADR 0016）。位置は今までどおり止める
+  // カメラはかがみのため、このサイト自身にだけ許す（#54、ADR 0017）。位置は今までどおり止める
   assert.match(policy.value, /(^|,\s*)camera=\(self\)/);
   assert.match(policy.value, /geolocation=\(\)/);
   // マイクを止めうる CSP は置いていない
