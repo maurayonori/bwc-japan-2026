@@ -1,0 +1,298 @@
+/* あそぶ（#52、ADR 0015）。色はさきよみのトークン（--bg・--paper・--ink・--green・--amber）を基準にし、
+   小さな子が見分けやすい濃さまで足した。規則はすべて .play- で始まる名前にし、ほかの画面に漏らさない。 */
+html.play-mode,
+html.play-mode body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+.play-root {
+  --play-green: #3f8f6f;
+  --play-leaf: #86b86b;
+  --play-sun: #f2b84b;
+  --play-coral: #e9765b;
+  --play-sky: #5aa0d6;
+  --play-plum: #a47bc4;
+  --play-fur: #c58b52;
+  --play-blush: #f2a7a0;
+  --play-paper: var(--paper);
+  --play-ink: var(--ink);
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, var(--paper), var(--bg) 70%);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+.play-root svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.play-root button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  transition: none;
+}
+.play-root button:not(:disabled):hover {
+  filter: none;
+}
+
+/* 隅の家。押し続けると輪が満ちる。触れる的は 96px。 */
+.play-root .play-home {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 10;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--paper) 85%, transparent);
+  color: var(--muted);
+  box-shadow: 0 2px 8px #1c352414;
+}
+.play-home-house {
+  position: absolute;
+  inset: 28px;
+}
+.play-ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+.play-ring-track,
+.play-ring-fill {
+  fill: none;
+  stroke-width: 6;
+}
+.play-ring-track {
+  stroke: var(--line);
+}
+.play-ring-fill {
+  stroke: var(--green);
+  stroke-linecap: round;
+}
+
+/* 選ぶ画面: 大きな絵が 3 つ。縦長の画面では縦に、横長では横に並べる。 */
+.play-chooser {
+  position: absolute;
+  inset: 0;
+}
+.play-choices {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-auto-flow: row;
+  place-content: center;
+  place-items: center;
+  gap: 4vmin;
+  padding: 120px 16px 24px;
+}
+.play-choice {
+  display: block;
+  width: min(26vh, 72vw, 260px);
+  height: min(26vh, 72vw, 260px);
+  min-width: 96px;
+  min-height: 96px;
+  padding: 6%;
+  border-radius: 28%;
+  background: var(--paper);
+  border: 3px solid var(--line);
+  box-shadow: 0 6px 18px #1c352414;
+}
+.play-choice:active {
+  transform: scale(0.96);
+}
+@media (orientation: landscape) {
+  .play-choices {
+    grid-auto-flow: column;
+    padding: 24px 24px 24px 128px;
+  }
+  .play-choice {
+    width: min(28vw, 62vh, 280px);
+    height: min(28vw, 62vh, 280px);
+  }
+}
+
+/* 遊びの場所は画面全体。 */
+.play-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* ぽん */
+.play-invite {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140px;
+  height: 140px;
+  margin: -70px 0 0 -70px;
+  border-radius: 50%;
+  background: var(--play-sun);
+  opacity: 0.35;
+  animation: play-breathe 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes play-breathe {
+  50% {
+    transform: scale(1.18);
+    opacity: 0.55;
+  }
+}
+.play-burst {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: play-bloom 1.1s ease-out forwards;
+}
+@keyframes play-bloom {
+  0% {
+    transform: translate(-50%, -50%) scale(0.2) rotate(-20deg);
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.25) rotate(10deg);
+    opacity: 0;
+  }
+}
+
+/* ばあ */
+.play-peek {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: min(78vw, 64vh, 460px);
+  height: min(78vw, 64vh, 460px);
+  transform: translate(-50%, -50%) !important;
+  border-radius: 24px;
+}
+.play-friend {
+  position: absolute;
+  inset: 8%;
+  transform: scale(0.82);
+  transition: transform 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) !important;
+}
+.play-peek.open .play-friend {
+  transform: scale(1);
+}
+.play-cloth {
+  position: absolute;
+  inset: -2%;
+  transform-origin: 50% 0;
+  transition: transform 0.45s ease-in-out !important;
+  filter: drop-shadow(0 6px 10px #1c352426);
+}
+/* めくると、布は上へ巻き上がって細い帯になる。 */
+.play-peek.open .play-cloth {
+  transform: scaleY(0.14);
+}
+
+/* しゃぼん玉 */
+.play-bubble {
+  position: absolute;
+  top: 100%;
+  transform: translate(-50%, 0);
+  border-radius: 50%;
+  animation: play-rise var(--rise) linear var(--ahead) 1 forwards;
+}
+/* globals.css の押したときの 1px の沈みで、位置がずれないようにする。 */
+.play-bubble.still {
+  transform: translate(-50%, -50%) !important;
+  animation: none;
+}
+@keyframes play-rise {
+  from {
+    transform: translate(-50%, 0);
+  }
+  to {
+    transform: translate(-50%, calc(-100dvh - 100%));
+  }
+}
+.play-bubble-body {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px solid currentColor;
+  background:
+    radial-gradient(circle at 32% 30%, #ffffffcc 0 10%, transparent 11%),
+    radial-gradient(circle at 50% 50%, transparent 55%, color-mix(in srgb, currentColor 22%, transparent) 100%);
+  animation: play-sway var(--sway) ease-in-out infinite alternate;
+}
+.play-bubble.still .play-bubble-body {
+  animation: none;
+}
+@keyframes play-sway {
+  from {
+    transform: translateX(-14px);
+  }
+  to {
+    transform: translateX(14px);
+  }
+}
+.play-pop {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  border-radius: 50%;
+  border: 4px solid currentColor;
+  animation: play-burst-ring 0.45s ease-out forwards;
+}
+@keyframes play-burst-ring {
+  to {
+    transform: translate(-50%, -50%) scale(1.4);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+.play-drop {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: currentColor;
+  transform: rotate(var(--turn)) translateY(0);
+  animation: play-fly 0.5s ease-out forwards;
+}
+@keyframes play-fly {
+  to {
+    transform: rotate(var(--turn)) translateY(-70px) scale(0.4);
+    opacity: 0;
+  }
+}
+
+/* 動きを減らす設定: 形は広がらずにその場に出て消え、布は動かずに入れ替わる。 */
+@media (prefers-reduced-motion: reduce) {
+  .play-invite,
+  .play-burst,
+  .play-bubble,
+  .play-bubble-body,
+  .play-pop,
+  .play-drop {
+    animation: none !important;
+  }
+  .play-friend,
+  .play-cloth {
+    transition: none !important;
+  }
+  .play-peek.open .play-cloth {
+    transform: none;
+    opacity: 0;
+  }
+  .play-pop .play-drop {
+    display: none;
+  }
+}
