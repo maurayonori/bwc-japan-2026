@@ -1,5 +1,7 @@
 import { z } from "zod";
+import { todayInJapan } from "./money/dates";
 import { citationsToText, moneyToText } from "./money/format";
+import { maskProblems } from "./money/guard";
 import {
   MAX_WARNINGS,
   moneyRequestSchema,
@@ -235,8 +237,45 @@ function memoryForExport(card: Card): Card {
   return card.body.includes(card.title) ? { ...fixed, title: card.title } : fixed;
 }
 
-export function exportMemo(cards: Card[]): string {
-  const selected = cards.filter((card) => card.included).map(memoryForExport);
+// 持ち出す直前にも、カードの文の金額と日付を、カードの計算・会話・出典と照らし、照らせない部分を伏せる
+// （3 回目の指摘 6）。前の版で保存したカードや、検査より前に作られたカードが、そのまま家族や窓口へ渡らないように。
+// 本人が直したカードは本人の文なので触らない。残しておく言葉は原文なので触らない。
+function verifiedForExport(
+  card: Card,
+  cards: readonly Card[],
+  messages: readonly Message[],
+): Card {
+  if (card.edited || card.kind === "memory") return card;
+  const args = {
+    toolEvents: cards.flatMap((item) => item.money?.calculations ?? []),
+    // 会話が渡されないときも、カードの根拠の引用（本人の発言の原文）は使う。
+    userTexts: [
+      ...messages.filter((message) => message.role === "user").map((message) => message.text),
+      ...cards.flatMap((item) => item.evidence.map((evidence) => evidence.quote)),
+    ],
+    earlierReplies: messages
+      .filter((message) => message.role === "assistant")
+      .map((message) => message.text),
+    today: todayInJapan(),
+  };
+  const mask = (text: string) => maskProblems({ ...args, text }).text;
+  return {
+    ...card,
+    title: mask(card.title),
+    body: mask(card.body),
+    nextStep: mask(card.nextStep),
+    uncertainty: mask(card.uncertainty),
+  };
+}
+
+export function exportMemo(
+  cards: Card[],
+  messages: readonly Message[] = [],
+): string {
+  const selected = cards
+    .filter((card) => card.included)
+    .map(memoryForExport)
+    .map((card) => verifiedForExport(card, cards, messages));
   if (selected.length === 0) return "";
   return [
     "さきよみ — 渡すもの",

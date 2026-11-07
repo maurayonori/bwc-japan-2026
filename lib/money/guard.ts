@@ -129,7 +129,8 @@ const ARABIC_WITH_LARGE = /^(\d[\d,]*(?:\.\d+)?)([万億])$/;
 function valueOf(compact: string, borrowed: string | null): number | null {
   if (ARABIC_ONLY.test(compact))
     return Math.round(
-      Number(compact.replace(/,/g, "")) * (borrowed ? LARGE_UNITS[borrowed] : 1),
+      Number(compact.replace(/,/g, "")) *
+        (borrowed ? { ...SMALL_UNITS, ...LARGE_UNITS }[borrowed] : 1),
     );
   const large = ARABIC_WITH_LARGE.exec(compact);
   if (large)
@@ -175,7 +176,14 @@ function amountsAt(text: string): Found[] {
         next.start ===
           candidate.end + (/^\s*[〜～~]\s*/.exec(normalized.slice(candidate.end))?.[0].length ?? -1);
       if (!adjacent || !ARABIC_ONLY.test(candidate.compact)) return;
-      borrowed = /[万億]$/.exec(next.compact)?.[0] ?? null;
+      // 「1〜2千円」の千も借りる（3 回目の指摘 4）。「1〜2万5千円」は、先頭の大きい単位（万）を借りる。
+      borrowed = /億/.test(next.compact)
+        ? "億"
+        : /万/.test(next.compact)
+          ? "万"
+          : /千$/.test(next.compact)
+            ? "千"
+            : null;
     }
     const value = valueOf(candidate.compact, borrowed);
     if (value === null) return;
@@ -187,13 +195,13 @@ function amountsAt(text: string): Found[] {
     const classic =
       plain !== undefined &&
       !candidate.sign &&
-      (candidate.yen || borrowed !== null) &&
+      (candidate.yen || borrowed === "万") &&
       !/億$/.test(candidate.compact);
     found.push({
       value,
       shown: classic
         ? `${plain}${man ? " 万" : " "}円`
-        : normalized.slice(candidate.start, candidate.end).trim(),
+        : `${normalized.slice(candidate.start, candidate.end).trim()}${borrowed ?? ""}`,
       start: candidate.start,
       end: candidate.end,
     });
@@ -477,8 +485,31 @@ function misleadingShrink(
 
 // 「X 円から Y 円」「X〜Y 円」のつなぎ。
 const RANGE_JOINER = /^\s*(?:[〜～~]|から)\s*$/;
-// 前の条件の額を言う文。範囲の照らし合わせから外す。
+// 幅の縮みを言う部分（「幅は ◯ 円から ◯ 円に縮みます」）。範囲のすぐあとに続く。
+const SHRINK_AFTER = /^\s*(?:に|へ|まで)\s*(?:縮|狭)/;
+// 前の値を言う語。範囲と同じ節（読点で区切った部分）の、範囲より前にあるときだけ照らさない。
 const PAST_MARKER = /前は|前の|以前|これまで|もともと|元の|最初の/;
+// 条件を言う語（「〜場合」「〜なら」「〜とき」）。
+const CONDITION_MARKER = /(?:の)?場合|なら(?:ば)?|とき/g;
+const CLAUSE_BREAK = /[、,]/;
+// 条件と筋書きの名前の言い方をそろえる。
+const canon = (text: string) =>
+  text
+    .replace(/\s+/g, "")
+    .replace(/適用されない|適用できない/g, "使えない")
+    .replace(/適用される|適用できる/g, "使える")
+    .replace(/(?:の)?場合$/, "");
+// 一致した語のすぐあとが否定や問いなら、別の条件として結び付けない（「使えるか分からない」「使えない」）。
+const NEGATED_AFTER = /^(?:か|ない|なく|ず|ません)/;
+
+function containsAffirmed(haystack: string, needle: string): boolean {
+  let from = haystack.indexOf(needle);
+  while (from >= 0) {
+    if (!NEGATED_AFTER.test(haystack.slice(from + needle.length))) return true;
+    from = haystack.indexOf(needle, from + 1);
+  }
+  return false;
+}
 
 function sentenceAround(text: string, start: number, end: number): string {
   let from = start;
@@ -488,26 +519,121 @@ function sentenceAround(text: string, start: number, end: number): string {
   return text.slice(from, to);
 }
 
+interface ScenarioRange {
+  keys: string[];
+  need_low: number;
+  need_high: number;
+}
+
+// 最新の見通しの、筋書きごとの要る額の範囲と、結び付けに使う名前と入出金の label。
+function latestScenarios(toolEvents: readonly GuardToolEvent[]): {
+  confirm: WhatToConfirm;
+  scenarios: ScenarioRange[];
+} | null {
+  for (const event of [...toolEvents].reverse()) {
+    const output = event.output;
+    if (output === null || typeof output !== "object" || !("what_to_confirm" in output))
+      continue;
+    const parsed = whatToConfirmSchema.safeParse(output.what_to_confirm);
+    if (!parsed.success) continue;
+    const confirm = parsed.data;
+    const branches = confirm.factors.find((factor) => factor.kind === "scenario")?.branches ?? [];
+    const input = event.input as { scenarios?: { name?: unknown; events?: { label?: unknown }[] }[] };
+    const inputs = Array.isArray(input?.scenarios) ? input.scenarios : [];
+    const labelsOf = (index: number) =>
+      (inputs[index]?.events ?? [])
+        .map((item) => item.label)
+        .filter((label): label is string => typeof label === "string");
+    // どの筋書きにもある label は、筋書きを区別しないので結び付けに使わない。
+    const shared = new Set(
+      labelsOf(0).filter((label) => inputs.every((_, index) => labelsOf(index).includes(label))),
+    );
+    const scenarios = branches.map((branch, index) => ({
+      keys: [branch.name, ...labelsOf(index).filter((label) => !shared.has(label))]
+        .map(canon)
+        .filter((key) => key.length >= 3),
+      need_low: branch.need_low,
+      need_high: branch.need_high,
+    }));
+    return { confirm, scenarios };
+  }
+  return null;
+}
+
+// 条件の語の前の部分に当たる筋書きを探す。結び付けられなければ null。
+function scenariosFor(condition: string, scenarios: readonly ScenarioRange[]): ScenarioRange[] | null {
+  const said = canon(condition);
+  if (said.length < 3) return null;
+  const matched = scenarios.filter((scenario) =>
+    scenario.keys.some(
+      (key) =>
+        containsAffirmed(key, said) ||
+        key
+          .split(/[・、,／/（）()]/)
+          .some((part) => part.length >= 4 && containsAffirmed(said, part)),
+    ),
+  );
+  return matched.length > 0 ? matched : null;
+}
+
 // 返答が書いた「要る額」の範囲が、最新の計算の範囲（what_to_confirm の need_low〜need_high）と合うかを照らす（#61 の指摘 8）。
 // 数字が 1 つずつ計算にあっても、別の筋書きの額を組み合わせた範囲は、画面の表と食い違うため。
-// 幅の縮み方を言う文（「幅は ◯ 円から ◯ 円に縮みます」）と、前の条件の額を言う文は照らさない。
+// 条件をつけた範囲（「〜場合」「〜なら」）は、その条件に当たる筋書きの範囲と照らす。結び付けられないときは照らさない
+// （取りこぼしを許し、正しい返答を伏せないほうを取る）。幅の縮みを言う部分と、前の値を言う部分は照らさない（3 回目の指摘 1・3）。
 function rangeMismatches(
   text: string,
   toolEvents: readonly GuardToolEvent[],
 ): Unverified[] {
-  const current = confirmsIn(toolEvents).at(-1);
-  if (!current) return [];
+  const latest = latestScenarios(toolEvents);
+  if (!latest) return [];
+  const { confirm } = latest;
   const normalized = normalize(text);
   const amounts = amountsAt(text);
   return amounts.slice(0, -1).flatMap((low, index): Unverified[] => {
     const high = amounts[index + 1];
     if (!RANGE_JOINER.test(normalized.slice(low.end, high.start))) return [];
+    let sentenceStart = low.start;
+    while (sentenceStart > 0 && !SENTENCE_END.test(normalized[sentenceStart - 1]))
+      sentenceStart -= 1;
     const sentence = sentenceAround(normalized, low.start, high.end);
-    if (!sentence.includes("要る額") || sentence.includes("幅")) return [];
-    if (PAST_MARKER.test(sentence)) return [];
+    if (!sentence.includes("要る額")) return [];
+    if (SHRINK_AFTER.test(normalized.slice(high.end))) return [];
+    const before = normalized.slice(sentenceStart, low.start);
+    const clauseStart = Math.max(
+      ...[...before.matchAll(new RegExp(CLAUSE_BREAK, "g"))].map((match) => match.index + 1),
+      0,
+    );
+    if (PAST_MARKER.test(before.slice(clauseStart))) return [];
+    const conditions = [...before.matchAll(CONDITION_MARKER)];
+    const condition = conditions.at(-1);
+    let expected: { need_low: number; need_high: number; name: string | null };
+    if (condition) {
+      // 条件の語の前の部分（読点や前の条件の語のあとから）を、筋書きに結び付ける。
+      const head = before.slice(0, condition.index);
+      const from = Math.max(
+        ...[...head.matchAll(new RegExp(CLAUSE_BREAK, "g"))].map((match) => match.index + 1),
+        ...conditions.slice(0, -1).map((match) => match.index + match[0].length),
+        0,
+      );
+      const said = head.slice(from).replace(/^[はがもで]/, "").trim();
+      const matched = scenariosFor(said, latest.scenarios);
+      if (!matched) return [];
+      expected = {
+        need_low: Math.min(...matched.map((scenario) => scenario.need_low)),
+        need_high: Math.max(...matched.map((scenario) => scenario.need_high)),
+        name: said,
+      };
+    } else {
+      // 範囲のあとにだけ条件の語があれば、どの条件の範囲か分からないので照らさない。
+      if (new RegExp(CONDITION_MARKER.source).test(sentence)) return [];
+      expected = { need_low: confirm.need_low, need_high: confirm.need_high, name: null };
+    }
     const [from, to] = [low.value, high.value].sort((a, b) => a - b);
-    if (from === current.need_low && to === current.need_high) return [];
+    if (from === expected.need_low && to === expected.need_high) return [];
     const shown = `${low.shown}〜${high.shown}`;
+    const where = expected.name
+      ? `「${expected.name}」に当たる筋書きの要る額の範囲`
+      : "いまの計算の要る額の範囲";
     return [
       {
         start: low.start,
@@ -515,7 +641,7 @@ function rangeMismatches(
         warning: {
           kind: "amount",
           shown,
-          message: `「${shown}」は、いまの計算の要る額の範囲（${yen(current.need_low)}〜${yen(current.need_high)}）と合いません。表の筋書きと見比べるか、計算し直すように頼んでください。`,
+          message: `「${shown}」は、${where}（${yen(expected.need_low)}〜${yen(expected.need_high)}）と合いません。表の筋書きと見比べるか、計算し直すように頼んでください。`,
         },
       },
     ];
@@ -592,8 +718,10 @@ export function maskUnverified({
 }
 
 const ELLIPSIS = "…";
-// 途中で切れた数（「11万」「115,6」など）を残さないために、末尾から外す文字。
-const TRAILING_NUMBER = /[\d,.〇一二三四五六七八九十百千万億¥\s]+$/;
+// 途中で切れた数（「11万」「115,6」「１１５，」など）を、数ごと残さないために末尾から外す文字。
+// 全角の数字・区切り・円記号と、範囲の印も含める（3 回目の指摘 5）。
+const TRAILING_NUMBER =
+  /[\d,.０-９，．〇一二三四五六七八九十百千万億¥￥〜～~\s]+$/;
 
 // 伏字・注記・固定の案内で字数が増えても、画面の形の上限に収める（#61 の指摘 3）。
 // 文の終わりで切れるなら、そこで切る。注記は残す。
@@ -624,15 +752,57 @@ const BENEFIT_CLAIMS = [
   // 強調の語が無くても、給付が出ると言い切る文。
   /(?:給付金?|保険金|手当金?|見舞金|一時金)(?:は|が|も)[^。！？\n]{0,12}?(?:支給されます|支払われます|振り込まれます|受けられます|受け取れます|もらえます|出ます|下ります|入ります)(?!か|ように)/,
 ];
-const DONE_CLAIMS = [
-  /(?:申請|連絡|予約|請求|送信|送付|手続き|問い合わせ)(?:は|も|を)?(?:済ませました|済ませておきました|済みです|完了しました|しておきました|しました|行いました)(?!か)/,
-  /代わりに[^。！？\n]{0,12}(?:申請|連絡|予約|請求|送信|送付|手続き)(?:しました|しておきます|します|を済ませ)/,
+const ACTION = "申請|連絡|予約|請求|送信|送付|手続き|問い合わせ";
+const DONE_CLAIM = new RegExp(
+  `(${ACTION})(?:は|も|を)?(?:済ませました|済ませておきました|済みです|完了しました|しておきました|しました|行いました)(?!か)`,
+);
+// アプリが行ったと読める文。「あなたが」などがあっても置き換える（3 回目の指摘 2）。
+const APP_ACTIONS = [
+  new RegExp(`(?:代わりに|こちらで|こちらから)[^。！？\\n]{0,16}?(?:${ACTION})(?:を|は)?(?:しました|しておきました|します|しておきます|済ませ|済み|完了)`),
+  new RegExp(`(?:${ACTION})(?:を|は)?(?:しておきました|済ませておきました|しておきます)`),
 ];
-// 済ませたのがアプリでなく、本人や家族だと読める主語。返答（アプリの声）では「私」はアプリなので含めない。
-const OTHER_ACTOR_IN_REPLY = /(?:あなた|ご本人|本人|ご家族|家族|奥様|ご主人)(?:は|が|も|から)/;
-// カードの文（本人がそのまま使う下書き）では、「私」も本人。
-const OTHER_ACTOR_IN_CARD =
-  /(?:私|わたし|僕|ぼく|自分|あなた|ご本人|本人|ご家族|家族|妻|夫|娘|息子|母|父|奥様|ご主人)(?:は|が|も|から|で)/;
+// 済ませた人。返答（アプリの声）の「私」はアプリ、カード（本人がそのまま使う下書き）の「私」は本人。
+const ACTORS: [RegExp, string][] = [
+  [/^(?:ご本人|本人)/, "self"],
+  [/^(?:奥様|奥さん|家内|妻)/, "wife"],
+  [/^(?:ご主人|旦那さん|旦那|主人|夫)/, "husband"],
+  [/^(?:お母さん|母親|義母|祖母|母)/, "mother"],
+  [/^(?:お父さん|父親|義父|祖父|父)/, "father"],
+  [/^(?:子ども|子供|息子|娘|長男|長女|次男|次女)/, "child"],
+  [/^(?:兄|姉|弟|妹)/, "sibling"],
+  [/^(?:ご家族|家族)/, "family"],
+];
+const ACTOR_AT = /(?:ご本人|本人|奥様|奥さん|家内|妻|ご主人|旦那さん|旦那|主人|夫|お母さん|母親|義母|祖母|母|お父さん|父親|義父|祖父|父|子ども|子供|息子|娘|長男|長女|次男|次女|兄|姉|弟|妹|ご家族|家族|あなた|私|わたし|僕|ぼく|自分)(?:は|が|も|から)/;
+const ACTION_GROUP: Record<string, string> = {
+  申請: "apply",
+  請求: "apply",
+  手続き: "apply",
+  連絡: "contact",
+  問い合わせ: "contact",
+  送信: "send",
+  送付: "send",
+  予約: "reserve",
+};
+
+// 文の中で、済ませた人を読む。書かれていなければ、返答ではアプリ、本人の文では本人。
+function actorOf(sentence: string, voice: "reply" | "card"): string {
+  const found = ACTOR_AT.exec(sentence);
+  if (!found) return voice === "reply" ? "app" : "self";
+  const word = found[0].replace(/(?:は|が|も|から)$/, "");
+  if (word === "あなた") return voice === "reply" ? "self" : "other";
+  if (/^(?:私|わたし|僕|ぼく|自分)$/.test(word)) return voice === "reply" ? "app" : "self";
+  return ACTORS.find(([pattern]) => pattern.test(word))?.[1] ?? "other";
+}
+
+// 本人の発言にある完了の報告（誰が・何を）。
+function reportsIn(userTexts: readonly string[]): Set<string> {
+  const reports = new Set<string>();
+  for (const sentence of userTexts.flatMap((text) => text.match(/[^。！？\n]+[。！？]?/g) ?? [])) {
+    const done = DONE_CLAIM.exec(sentence);
+    if (done) reports.add(`${actorOf(sentence, "card")}:${ACTION_GROUP[done[1]]}`);
+  }
+  return reports;
+}
 export const SOFTENED_CLAIM =
   "（給付が受けられるか、手続きが済んだかは、ここでは確かめられません。加入先や窓口に確かめてください。このアプリは、連絡や申請を代わりに行いません。）";
 export const SOFTENED_TITLE = "給付と手続きは、加入先や窓口で確かめる";
@@ -644,13 +814,22 @@ export interface SoftenOptions {
   userTexts?: readonly string[];
 }
 
-function overclaims(sentence: string, { voice = "reply", userTexts = [] }: SoftenOptions): boolean {
+function overclaims(
+  sentence: string,
+  { voice = "reply", userTexts = [] }: SoftenOptions,
+): boolean {
   if (BENEFIT_CLAIMS.some((pattern) => pattern.test(sentence))) return true;
-  if (!DONE_CLAIMS.some((pattern) => pattern.test(sentence))) return false;
-  if (voice === "reply") return !OTHER_ACTOR_IN_REPLY.test(sentence);
+  const done = DONE_CLAIM.exec(sentence);
+  const appAction = APP_ACTIONS.some((pattern) => pattern.test(sentence));
+  if (!done && !appAction) return false;
+  // 本人の発言をそのまま写した文は、本人の報告なので残す。
   const trimmed = sentence.trim();
   if (trimmed && userTexts.some((text) => text.includes(trimmed))) return false;
-  return !OTHER_ACTOR_IN_CARD.test(sentence);
+  if (appAction || !done) return true;
+  // 本人や家族の完了の報告は、本人が同じこと（同じ人が、同じ手続きを）を話していれば残す。
+  const actor = actorOf(sentence, voice);
+  if (actor === "app" || actor === "other") return true;
+  return !reportsIn(userTexts).has(`${actor}:${ACTION_GROUP[done[1]]}`);
 }
 
 export function softenClaims(

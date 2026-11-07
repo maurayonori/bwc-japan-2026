@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { MockLanguageModelV4 } from "ai/test";
 import { runChat, toResponse } from "../lib/chat";
-import { checkReply, maskUnverified } from "../lib/money/guard";
+import { checkReply, fitLength, maskUnverified } from "../lib/money/guard";
 import { simulateCashflow, type LedgerEvent } from "../lib/money/ledger";
 import { executeTool } from "../lib/money/tools";
 import { buildSystem } from "../lib/prompt";
@@ -346,4 +346,100 @@ test("指摘12: 候補を 6 件に絞るときも、同点は縮む額 → 種�
     confirm.factors.map((factor) => factor.label),
     ["給付1", "給付2", "給付3", "給付4", "給付5", "給付6"],
   );
+});
+
+// ===== 3 回目: 2 回目への外部レビュー（Codex・Cursor）で見つかった誤り =====
+
+// 月またぎで、窓口の上限が使える 2 本と、使えない 1 本の筋書き。
+const monthWithCap = (names: [string, string, string]) =>
+  okEvent("simulate_cashflow", {
+    start_date: today,
+    cash_on_hand: 200_000,
+    scenarios: [scenario(names[0], 127_240), scenario(names[1], 210_180), scenario(names[2], 276_300)],
+  });
+const CAP_NAMES: [string, string, string] = [
+  "窓口で上限が使える・費用が 12 月に寄る",
+  "窓口で上限が使える・費用が半々",
+  "窓口で上限が使えない",
+];
+const CONDITIONAL_REPLY =
+  "窓口で上限が使える場合、手元に要る額は127,240円から210,180円です。上限が使えない場合は276,300円です。";
+
+test("3回目 指摘1: 条件をつけた正しい範囲は、その条件の筋書きの範囲と照らして通す", () => {
+  const calc = monthWithCap(CAP_NAMES);
+  assert.deepEqual(check(CONDITIONAL_REPLY, [calc]), []);
+  assert.equal(maskUnverified({ reply: CONDITIONAL_REPLY, toolEvents: [calc] as never, userTexts: [], today }).masked, 0);
+  // 条件の筋書きと合わない範囲は、これまでどおり指摘する。
+  const wrong = CONDITIONAL_REPLY.replace("210,180円です", "276,300円です");
+  assert.ok(check(wrong, [calc]).some((warning) => warning.shown.includes("127,240") && warning.shown.includes("276,300")));
+  // 条件を筋書きに結び付けられないときは、正しい返答を伏せないほうを取り、指摘しない。
+  const unnamed = monthWithCap(["費用が 12 月に寄る", "費用が半々", "上限なし"]);
+  assert.deepEqual(check(CONDITIONAL_REPLY, [unnamed]), []);
+});
+
+test("3回目 指摘2: 家族の完了報告は、本人が同じことを話していれば残し、アプリが行ったと読める文は置き換える", async () => {
+  const wife = "妻がすでに保険会社に連絡しました。";
+  const said = "私はすでに保険会社に申請しました。";
+  const run = (reply: string, userText: string, cards: Proposal[] = []) =>
+    runChat({
+      model: mock(replyStep(reply, cards)),
+      input: { messages: [{ id: "u1", role: "user", text: userText }], cards: [] },
+    });
+  const family = await run(`${wife}次は病院の会計です。`, wife, [
+    proposal({ id: "c1", kind: "contact", title: "保険会社に、このまま聞く", body: `${wife}必要な書類を教えてください。`, evidence: [{ messageId: "u1", quote: wife }] }),
+  ]);
+  assert.match(family.reply, /妻がすでに保険会社に連絡しました。/);
+  assert.match(family.cards[0].body, /妻がすでに保険会社に連絡しました。/);
+  // 本人の発言を返答で繰り返しても、置き換えない（Cursor の指摘）。
+  assert.match((await run(said, said)).reply, /私はすでに保険会社に申請しました。/);
+  // 「あなたが」があっても、アプリが代わりに行ったと読める文は置き換える。
+  assert.doesNotMatch((await run("あなたが安心できるよう、代わりに保険会社に申請しました。", said)).reply, /申請しました/);
+  assert.doesNotMatch((await run("こちらで申請しておきました。", said)).reply, /しておきました/);
+  // 本人が話していない家族の完了報告は、置き換える。
+  assert.doesNotMatch((await run("妻が保険会社に連絡しました。", "来月入院します。")).reply, /連絡しました/);
+});
+
+test("3回目 指摘3: 「幅」「前は」が文にあっても、要る額の範囲そのものは照らす", () => {
+  const withOld = okEvent("simulate_cashflow", {
+    start_date: today,
+    cash_on_hand: 200_000,
+    scenarios: [scenario("窓口で上限が使える（1 回目の条件）", 115_690), scenario("費用が 12 月に寄る", 127_240), scenario("費用が半々", 210_180)],
+  });
+  assert.equal(check("手元に要る額の幅は127,240円〜210,180円です。", [withOld]).length, 1);
+  assert.equal(check("前は115,690円でしたが、今の要る額は127,240円〜210,180円です。", [withOld]).length, 1);
+  // 幅の縮みを言う部分と、前の値を言う部分は照らさない。
+  assert.deepEqual(check("要る額の幅は 94,490 円から 0 円に縮みます。", [withOld]), []);
+  assert.deepEqual(check("前の要る額は 127,240 円から 210,180 円でした。", [withOld]), []);
+});
+
+test("3回目 指摘4: 「1〜2千円」の左端は、右端の千を借りて 1,000 円と読む", () => {
+  assert.deepEqual(check("文書料は1〜2千円です。", [cashflowOf(1_000, 2_000)]), []);
+  assert.equal(maskUnverified({ reply: "文書料は1〜2千円です。", toolEvents: [cashflowOf(1_000, 2_000)] as never, userTexts: [], today }).masked, 0);
+});
+
+test("3回目 指摘5: 字数の調整で、全角の金額を途中で切らない", () => {
+  const text = "あ".repeat(1795) + "１１５，６９０円です。";
+  const fitted = fitLength(text, 1800);
+  assert.ok(fitted.length <= 1800);
+  assert.doesNotMatch(fitted, /[０-９]/);
+  const half = fitLength("あ".repeat(1790) + "要る額は 11万 5,690 円です。", 1800);
+  assert.doesNotMatch(half, /11万|5,6/);
+});
+
+test("3回目 指摘6: 持ち出しの直前にも検査し、照らせない数字は伏せる。編集したカードはそのまま", () => {
+  const body = "窓口の支払いは12万で足りますか。";
+  const base: Card = {
+    ...proposal({ id: "c1", kind: "contact", title: "病院の会計に、このまま聞く", body }),
+    ...flags,
+    included: true,
+  };
+  const messages = [{ id: "u1", role: "user" as const, text: INPUT.messages[0].text }];
+  const text = exportMemo([base], messages);
+  assert.doesNotMatch(text, /12万/);
+  assert.match(text, /窓口の支払いは/);
+  const edited = exportMemo([{ ...base, edited: true }], messages);
+  assert.match(edited, /12万/);
+  // 本人が話した額は伏せない。
+  const said = exportMemo([{ ...base, body: "窓口の支払いは12万で足りますか。" }], [{ id: "u1", role: "user", text: "窓口で12万と言われた。" }]);
+  assert.match(said, /12万/);
 });

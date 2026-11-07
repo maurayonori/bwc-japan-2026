@@ -303,7 +303,10 @@ export async function runChat({
       earlierReplies: textsOf("assistant"),
       today,
     };
-    const reply = softenClaims(rawReply, { voice: "reply" }).text;
+    const reply = softenClaims(rawReply, {
+      voice: "reply",
+      userTexts: checkArgs.userTexts,
+    }).text;
     const softened = attached.cards.map((card) =>
       softenCard(card, checkArgs.userTexts),
     );
