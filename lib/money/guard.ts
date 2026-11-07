@@ -65,6 +65,10 @@ const NON_YEN_KEYS = new Set([
   "omitted_factors",
 ]);
 
+// 自由文の項目。道具の入力で Claude が自由に書けるのは、段取り・入出金の label と、筋書きの name だけ
+// （出力の rows・scenarios・factors にもそのまま写る）。ほかの文字列の項目（区分の条件、前提、注意など）はプログラムが作る。
+const FREE_TEXT_KEYS = new Set(["label", "name"]);
+
 export interface GuardToolEvent {
   input: unknown;
   output?: unknown;
@@ -295,7 +299,10 @@ function leavesOf(
 ): { numbers: number[]; strings: string[] } {
   if (typeof value === "number")
     return { numbers: NON_YEN_KEYS.has(key) ? [] : [value], strings: [] };
-  if (typeof value === "string") return { numbers: [], strings: [value] };
+  // 道具に渡した名前や説明（label・name など）は Claude が書いた自由文なので、額と日付の根拠にしない（#76）。
+  // 出力にそのまま写された名前（筋書きの名前・行の label）も同じ。区分の条件などの、プログラムが作った文は残す。
+  if (typeof value === "string")
+    return { numbers: [], strings: FREE_TEXT_KEYS.has(key) ? [] : [value] };
   if (value === null || typeof value !== "object")
     return { numbers: [], strings: [] };
   const entries = Array.isArray(value)
@@ -486,6 +493,8 @@ function misleadingShrink(
 
 // 「X 円から Y 円」「X〜Y 円」のつなぎ。
 const RANGE_JOINER = /^\s*(?:[〜～~]|から)\s*$/;
+// 「幅」を言う範囲のすぐあとに続く、変化の語（#76）。
+const WIDTH_CHANGE_AFTER = /^\s*(?:に縮|になり|になる|になっ|に狭|に変わ|に減|まで縮|まで狭|へ)/;
 // 幅の縮みを言う部分（「幅は ◯ 円から ◯ 円に縮みます」）。範囲のすぐあとに続く。
 const SHRINK_AFTER = /^\s*(?:に|へ|まで)\s*(?:縮|狭)/;
 // 前の値を言う語。範囲と同じ節（読点で区切った部分）の、範囲より前にあるときだけ照らさない。
@@ -623,14 +632,14 @@ function rangeMismatches(
     if (SHRINK_AFTER.test(normalized.slice(high.end))) return [];
     const before = normalized.slice(sentenceStart, low.start);
     if (pastRange(before)) return [];
-    // 文の最後の「要る額」から範囲までに「幅」があり、「X 円から Y 円」と書いた範囲は、幅が変わることを言う文
-    // （「要る額の幅は149,060円から0円になります」）なので、要る額の範囲とは照らさない（#71）。
-    // 一つずつの額の照合は残る。「要る額の幅は X〜Y 円です」は要る額の範囲として照らす。
+    // 文の最後の「要る額」から範囲までに「幅」があり、範囲のすぐあとに変化の語が続く文
+    // （「要る額の幅は149,060円から0円になります」）は、幅が変わることを言う文なので、要る額の範囲とは照らさない（#71）。
+    // 変化の語が無い「今の要る額の幅は、X 円から Y 円までです」は、要る額の範囲として照らす（#76）。一つずつの額の照合は残る。
     const lastNeed = before.lastIndexOf("要る額");
     if (
       lastNeed >= 0 &&
       before.slice(lastNeed).includes("幅") &&
-      normalized.slice(low.end, high.start).includes("から")
+      WIDTH_CHANGE_AFTER.test(normalized.slice(high.end))
     )
       return [];
     const conditions = [...before.matchAll(CONDITION_MARKER)];
@@ -780,8 +789,12 @@ const BENEFIT_CLAIMS = [
   /(?:必ず|確実に|間違いなく|絶対に?)[^。！？\n]{0,24}?(?:受けられ|受け取れ|もらえ|支給され|支払われ|振り込まれ|戻ってき|戻ります|下ります|下りる|出ます|入ります)/,
   // 強調の語が無くても、給付が出ると言い切る文。
   /(?:給付金?|保険金|手当金?|見舞金|一時金)(?:は|が|も)[^。！？\n]{0,12}?(?:支給されます|支払われます|振り込まれます|受けられます|受け取れます|もらえます|出ます|下ります|入ります)(?!か|ように)/,
+  // 給付が決まっていると言い切る文（「給付は確定しています」）（#76）。
+  /(?:給付金?|保険金|手当金?|見舞金|一時金|払い戻し)(?:は|が|も)[^。！？\n]{0,12}?(?:確定しています|確定しました|確定です|決まっています|決定しています|決定しました)(?!か)/,
+  // 主語を書かずに「必ず支給されます」と言い切る文（#76）。
+  /^\s*(?:必ず|確実に|間違いなく|絶対に?)?\s*(?:支給されます|支払われます|振り込まれます|給付されます)(?!か)/,
 ];
-const ACTION = "申請|連絡|予約|請求|送信|送付|手続き|問い合わせ";
+const ACTION = "申請|連絡|予約|請求|送信|送付|手続き|問い合わせ|電話|手配";
 const DONE_CLAIM = new RegExp(
   `(${ACTION})(?:は|も|を)?(?:済ませました|済ませておきました|済みです|完了しました|しておきました|しました|行いました)(?!か)`,
 );
@@ -808,6 +821,8 @@ const ACTION_GROUP: Record<string, string> = {
   手続き: "apply",
   連絡: "contact",
   問い合わせ: "contact",
+  電話: "contact",
+  手配: "apply",
   送信: "send",
   送付: "send",
   予約: "reserve",
@@ -841,7 +856,13 @@ function actorOf(sentence: string, voice: "reply" | "card", at: number): string 
 // 家族を言う主語と、本人を言う主語（本人の発言の中で）。
 const FAMILY_SUBJECT =
   /(?:奥様|奥さん|家内|妻|ご主人|旦那|主人|夫|お母さん|母親|義母|祖母|母|お父さん|父親|義父|祖父|父|子ども|子供|息子|娘|長男|長女|次男|次女|兄|姉|弟|妹|ご家族|家族)(?:は|が|も|から)/;
-const SELF_SUBJECT = /(?:私|わたし|僕|ぼく|自分)(?:は|が)/;
+// 済ませた人を判別できない形は「（家族）は私が…（間に・ときに・うちに）」だけ（#76）。
+// 「夫は私が留守の間に、保険会社に連絡しました。」
+const AMBIGUOUS_REPORT = new RegExp(
+  `${FAMILY_SUBJECT.source.replace("(?:は|が|も|から)", "は")}[^。！？\\n]*?(?:私|わたし|僕|ぼく|自分)が[^。！？\\n]*?(?:間に|あいだに|ときに|時に|うちに)`,
+);
+// 本人がした・していないと明示した文（「私はまだ連絡していません」）は、判別できるので例外にしない（#76）。
+const SELF_DENIED = /(?:私|わたし|僕|ぼく|自分)は(?:まだ)?[^。！？\n]*?(?:ていません|ていない|してない|しません|しておりません)/;
 
 // 本人の発言にある完了の報告（誰が・何を）。家族と本人の両方が主語に出てくる報告
 // （「夫は私が留守の間に、保険会社に連絡しました。」）は、済ませた人を判別できないので「ambiguous:手続き」として持つ（#71）。
@@ -849,7 +870,7 @@ function reportsIn(userTexts: readonly string[]): Set<string> {
   const reports = new Set<string>();
   for (const sentence of userTexts.flatMap((text) => text.match(/[^。！？\n]+[。！？]?/g) ?? [])) {
     const done = DONE_CLAIM.exec(sentence);
-    if (done && FAMILY_SUBJECT.test(sentence) && SELF_SUBJECT.test(sentence))
+    if (done && AMBIGUOUS_REPORT.test(sentence) && !SELF_DENIED.test(sentence))
       reports.add(`ambiguous:${ACTION_GROUP[done[1]]}`);
     const actor = done ? actorOf(sentence, "card", done.index) : null;
     if (done && actor) reports.add(`${actor}:${ACTION_GROUP[done[1]]}`);
@@ -867,6 +888,20 @@ export interface SoftenOptions {
   userTexts?: readonly string[];
 }
 
+const PURPOSE_AFTER = /^[^、。！？\n]*?(?:よう|ため|ので|間に|あいだに|ときに|うちに)/;
+
+function otherActorDid(sentence: string, voice: "reply" | "card"): boolean {
+  const mentions = [...sentence.matchAll(new RegExp(ACTOR_AT.source, "g"))].filter(
+    (mention) => !PURPOSE_AFTER.test(sentence.slice(mention.index + mention[0].length)),
+  );
+  const last = mentions.at(-1);
+  if (!last) return false;
+  const word = last[0].replace(/(?:は|が|も|から)$/, "");
+  if (word === "あなた") return voice === "reply";
+  if (/^(?:私|わたし|僕|ぼく|自分)$/.test(word)) return voice === "card";
+  return ACTORS.some(([pattern]) => pattern.test(word));
+}
+
 function overclaims(
   sentence: string,
   { voice = "reply", userTexts = [] }: SoftenOptions,
@@ -878,7 +913,10 @@ function overclaims(
   // 本人の発言をそのまま写した文は、本人の報告なので残す。
   const trimmed = sentence.trim();
   if (trimmed && userTexts.some((text) => text.includes(trimmed))) return false;
-  if (appAction || !done) return true;
+  // 利用者や家族が主語の文（「夫が電話しておきました」）は、アプリが行ったと読めないので置き換えない（#76）。
+  // 「あなたが安心できるよう、代わりに…」のように、主語のすぐあとに目的や理由の節が続くものは主語とみなさない。
+  if (appAction) return !otherActorDid(sentence, voice);
+  if (!done) return true;
   // 本人や家族の完了の報告は、本人が同じこと（同じ人が、同じ手続きを）を話していれば残す。
   const actor = actorOf(sentence, voice, done.index);
   // 済ませた人を判別できなければ、置き換えない（ADR 0018: 迷ったら伏せない・置き換えない側に倒す）。
@@ -919,9 +957,15 @@ export function softenTitle(title: string, options: SoftenOptions = {}): string 
 const SHORT_WORDS = /足りません|足りない|足りなく|足らない|足らず|不足/;
 const ENOUGH_WORDS = /足ります|足りる|足りています|間に合います|間に合う|収まります|収まる|残ります|残る|余ります|余る/;
 
-// 資金を足す動き（「追加すると」「用意することで」など）がある文も、活用形によらず条件の文として扱う（#71）。
-const UNDECIDABLE_GAP =
-  /れば|たら|ても|でも|かどうか|か[、。？?]|ますか|でしょうか|追加|用意|足す|足し|足せ|補う|補え|補い|補填|準備|工面|借り|借入|立て替/;
+// 条件や問いの形の文（「追加すれば」「足りるかどうか」）は、向きを判別できないので置き換えない（#67）。
+const UNDECIDABLE_GAP = /れば|たら|ても|でも|かどうか|か[、。？?]|ますか|でしょうか/;
+// 資金を足す動詞のあとに条件の語（ば・と・たら・なら・ことで）が続く文も、条件の文とみなす（#76）。
+// 「10,180円を補っておくと」「追加することで」。
+const FUND_CONDITION =
+  /(?:追加|用意|足す|足し|足せ|補|準備|工面|借り|借入|立て替)[^。！？\n、]{0,8}?(?:ば|と[、,]|と\s|たら|なら|ことで)/;
+// 資金を足すことを打ち消す文（「追加の用意はいりません」）は、条件の文とみなさず、向きを照らす（#76）。
+const FUND_NEGATED =
+  /(?:追加|用意|補|準備|工面|借り|借入|足さ)[^。！？\n]{0,12}?(?:いりません|いらない|要りません|要らない|不要|必要(?:は|も)?(?:ありません|ない)|しなくて|せずに|せず|なくても)/;
 
 interface Gap {
   name: string;
@@ -963,7 +1007,11 @@ export function fixGapDirection(
     if (saysShort === saysEnough) return sentence;
     // 準備の方法を言う条件の文（「追加すれば」「用意したら」）と、問いの形の文（「足りるかどうか」）は、
     // 向きを判別できないので置き換えない（#67 の Codex②）。
-    if (UNDECIDABLE_GAP.test(sentence)) return sentence;
+    if (
+      !FUND_NEGATED.test(sentence) &&
+      (UNDECIDABLE_GAP.test(sentence) || FUND_CONDITION.test(sentence))
+    )
+      return sentence;
     for (const { value } of amountsIn(sentence)) {
       if (value <= 0) continue;
       const shortOf = short(value);
