@@ -94,6 +94,8 @@ body { overflow-x: hidden; }
 .rmp .settings fieldset { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 10px 14px 12px; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; }
 .rmp .settings legend { font-weight: 700; padding: 0 4px; }
 .rmp .settings label { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color: var(--muted); min-width: 0; }
+.rmp .settings label.remember { display: flex; align-items: center; gap: 8px; color: var(--text); }
+.rmp .settings label.remember input { width: auto; }
 .rmp .settings input, .rmp .settings select { width: 100%; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--text); }
 .rmp .settings .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .rmp .btn { display: inline-block; padding: 5px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); text-decoration: none; color: var(--text); }
@@ -253,7 +255,7 @@ body { overflow-x: hidden; }
 
   <section id="settings-view" hidden aria-labelledby="h-settings">
     <h2 id="h-settings">設定</h2>
-    <p class="small muted">年表の条件を変えます。値はこのブラウザの中だけに保存し、外へ送りません。初期値の日付と区はすべて架空です。<span id="storage-note"></span></p>
+    <p class="small muted">年表の条件を変えます。値は外へ送りません。初期状態ではこのタブの中だけで使い、下の「このブラウザに保存して、次回つづける」を選んだときだけこのブラウザに残します。初期値の日付と区はすべて架空です。<span id="storage-note"></span></p>
     <form id="settings-form" class="settings" autocomplete="off" novalidate>
       <fieldset>
         <legend>上の子</legend>
@@ -272,6 +274,7 @@ body { overflow-x: hidden; }
         <label>復職予定日（任意）<input type="date" id="s-work" min="2015-01-01" max="2042-12-31"></label>
       </fieldset>
       <p class="small">どちらかの子の日付を空にすると、1 人分の年表になります。</p>
+      <label class="remember"><input type="checkbox" id="s-remember"> このブラウザに保存して、次回つづける</label>
       <p id="settings-msg" class="small" role="status"></p>
       <div class="actions">
         <a class="btn primary" href="#roadmap" id="back-main">年表に戻る</a>
@@ -904,7 +907,11 @@ function startRoadmap() {
   var KEY = 'sapporo-roadmap:v2';
   var WARDS = DATA.wards.map(function (w) { return w.name; });
   var state = { settings: normalizeSettings(DEFAULT_SETTINGS), done: {}, view: 'all' };
-  var canStore = false;
+  // 保存を選んでいるか（初期状態は選んでいない）と、このブラウザで保存領域を使えるか。
+  var remember = false;
+  var canStore = true;
+  // 保存を選んでいないときの置き場所。このタブのメモリだけ（さきよみのメニューで移って戻っても残り、タブを閉じると消える）。
+  var MEMORY = '__sapporoRoadmapMemory';
   var ITEM_IDS = {}; DATA.items.forEach(function (it) { ITEM_IDS[it.id] = it; });
   var q = /[?&]today=(\d{4}-\d{2}-\d{2})/.exec(location.search);
   var TODAY = q && parseDay(q[1]) != null ? parseDay(q[1]) : todayJst(Date.now());
@@ -934,26 +941,41 @@ function startRoadmap() {
   function relDays(n, t) { var d = n - t; return d === 0 ? '今日' : d > 0 ? 'あと ' + d + ' 日' : (-d) + ' 日前'; }
 
   // ---- 保存（使えなくても動く。外へは送らない） ----
+  // 初期状態はこのタブのメモリだけ。「このブラウザに保存して、次回つづける」を選んだときだけ localStorage に書く。
+  // すでに保存した値があれば、それを読んで選んだ状態で始める。選ぶのをやめたら消す。
+  function apply(s) {
+    if (!s || typeof s !== 'object') return;
+    if (s.settings && typeof s.settings === 'object') state.settings = normalizeSettings(s.settings);
+    if (s.done && typeof s.done === 'object') Object.keys(s.done).forEach(function (k) { var m = /^([ab]):(.+)$/.exec(k); if (m && ITEM_IDS[m[2]] && s.done[k] === true) state.done[k] = true; });
+    if (['all', 'a', 'b'].indexOf(s.view) >= 0) state.view = s.view;
+  }
+  function snapshot() { return { settings: state.settings, done: state.done, view: state.view }; }
   function load() {
-    try {
-      var raw = window.localStorage.getItem(KEY);
-      canStore = true;
-      if (!raw) return;
-      var s = JSON.parse(raw);
-      if (s && typeof s === 'object') {
-        if (s.settings && typeof s.settings === 'object') state.settings = normalizeSettings(s.settings);
-        if (s.done && typeof s.done === 'object') Object.keys(s.done).forEach(function (k) { var m = /^([ab]):(.+)$/.exec(k); if (m && ITEM_IDS[m[2]] && s.done[k] === true) state.done[k] = true; });
-        if (['all', 'a', 'b'].indexOf(s.view) >= 0) state.view = s.view;
-      }
-    } catch (e) { canStore = false; }
+    var raw = null;
+    try { raw = window.localStorage.getItem(KEY); } catch (e) { canStore = false; }
+    if (raw) {
+      try { apply(JSON.parse(raw)); remember = true; return; } catch (e) { /* 読めない値は使わない */ }
+    }
+    apply(window[MEMORY]);
   }
   function save() {
-    if (!canStore) return;
-    try { window.localStorage.setItem(KEY, JSON.stringify({ settings: state.settings, done: state.done, view: state.view })); }
-    catch (e) { canStore = false; storageNote(); }
+    window[MEMORY] = JSON.parse(JSON.stringify(snapshot()));
+    if (!remember || !canStore) return;
+    try { window.localStorage.setItem(KEY, JSON.stringify(snapshot())); }
+    catch (e) { canStore = false; remember = false; storageNote(); }
+  }
+  function forget() {
+    try { window.localStorage.removeItem(KEY); } catch (e) { /* 消せなくても、これ以上は書かない */ }
   }
   function storageNote() {
     $('storage-note').textContent = canStore ? '' : 'このブラウザでは保存できないので、閉じると設定とチェックは初期値に戻ります。';
+    $('s-remember').checked = remember;
+    $('s-remember').disabled = !canStore;
+  }
+  function onRememberChange() {
+    remember = $('s-remember').checked && canStore;
+    if (remember) save(); else forget();
+    showSettingsMsg(remember ? '保存しました（このブラウザの中だけ）。' : '');
   }
   function wardOf() { return DATA.wards.filter(function (w) { return w.name === state.settings.ward; })[0] || null; }
 
@@ -984,7 +1006,7 @@ function startRoadmap() {
   function onSettingsChange() {
     state.settings = readForm();
     save();
-    showSettingsMsg(canStore ? '保存しました（このブラウザの中だけ）。' : '');
+    showSettingsMsg(remember ? '保存しました（このブラウザの中だけ）。' : '');
   }
 
   // ---- 描画 ----
@@ -1394,6 +1416,7 @@ function startRoadmap() {
     var sel = $('s-ward');
     DATA.wards.forEach(function (w) { sel.appendChild(el('option', { value: w.name, text: w.name })); });
     Object.keys(FIELDS).forEach(function (k) { $(FIELDS[k]).addEventListener('change', onSettingsChange); });
+    $('s-remember').addEventListener('change', onRememberChange);
     $('s-elderNursery').addEventListener('input', function () { if (/^\d{4}-\d{2}$/.test(this.value.trim()) || this.value === '') onSettingsChange(); });
     $('s-youngerNursery').addEventListener('input', function () { if (/^\d{4}-\d{2}$/.test(this.value.trim()) || this.value === '') onSettingsChange(); });
     $('b-reset').addEventListener('click', function () {

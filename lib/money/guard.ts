@@ -322,6 +322,9 @@ interface CheckArgs {
   // 会話の前の返答（assistant の発言）。
   earlierReplies?: readonly string[];
   today: string;
+  // toolEvents のうち、今回の回の記録が始まる位置（前の回のカードの計算はその前）。本線の見通しを
+  // 今回の回から選ぶために使う（#85）。前の回の記録も、照らす根拠としては残す。
+  currentFrom?: number;
 }
 
 interface Allowed {
@@ -541,11 +544,11 @@ interface ScenarioRange {
 
 // 本線の見通し（同じ回に複数あれば、内訳の計算と額が合う最後のもの。#82）の、筋書きごとの要る額の範囲と、
 // 結び付けに使う名前と入出金の label。本線の結果が読めなければ、それより前の見通しをさかのぼる。
-function latestScenarios(toolEvents: readonly GuardToolEvent[]): {
+function latestScenarios(toolEvents: readonly GuardToolEvent[], from = 0): {
   confirm: WhatToConfirm;
   scenarios: ScenarioRange[];
 } | null {
-  const main = mainCashflowIndex(toolEvents);
+  const main = mainCashflowIndex(toolEvents, from);
   const ordered = main < 0 ? [...toolEvents].reverse() : [toolEvents[main], ...toolEvents.slice(0, main).reverse()];
   for (const event of ordered) {
     const output = event.output;
@@ -610,8 +613,9 @@ function scenariosFor(condition: string, scenarios: readonly ScenarioRange[]): S
 function rangeMismatches(
   text: string,
   toolEvents: readonly GuardToolEvent[],
+  from = 0,
 ): Unverified[] {
-  const latest = latestScenarios(toolEvents);
+  const latest = latestScenarios(toolEvents, from);
   if (!latest) return [];
   const { confirm } = latest;
   const normalized = normalize(text);
@@ -685,7 +689,7 @@ function rangeMismatches(
 // 範囲の端が、それだけで照らせない額なら、範囲の注意は重ねない。
 function problemsIn(text: string, args: CheckArgs): Unverified[] {
   const unverified = unverifiedIn(text, allowedValues(args), args.today);
-  const ranges = rangeMismatches(text, args.toolEvents).filter(
+  const ranges = rangeMismatches(text, args.toolEvents, args.currentFrom).filter(
     (range) =>
       !unverified.some((item) => item.start < range.end && range.start < item.end),
   );
@@ -934,8 +938,12 @@ interface Gap {
   needHigh: number;
 }
 
-function latestGaps(toolEvents: readonly GuardToolEvent[]): Gap[] {
-  for (const event of [...toolEvents].reverse()) {
+// 足りない額の向きも、本線の見通し（#82・#85 と同じ選び方）で照らす。本線が読めなければ、前の見通しをさかのぼる。
+function latestGaps(toolEvents: readonly GuardToolEvent[], from = 0): Gap[] {
+  const main = mainCashflowIndex(toolEvents, from);
+  const ordered =
+    main < 0 ? [...toolEvents].reverse() : [toolEvents[main], ...toolEvents.slice(0, main).reverse()];
+  for (const event of ordered) {
     const parsed = cashflowOutputSchema.safeParse(event.output);
     if (!parsed.success) continue;
     const cash = parsed.data.cash_on_hand;
@@ -953,8 +961,9 @@ function latestGaps(toolEvents: readonly GuardToolEvent[]): Gap[] {
 export function fixGapDirection(
   text: string,
   toolEvents: readonly GuardToolEvent[],
+  from = 0,
 ): { text: string; replaced: number; sentences: string[] } {
-  const gaps = latestGaps(toolEvents);
+  const gaps = latestGaps(toolEvents, from);
   if (gaps.length === 0) return { text, replaced: 0, sentences: [] };
   const short = (value: number) =>
     gaps.filter((gap) => [gap.needLow, gap.needHigh].some((need) => need - gap.cash === value));

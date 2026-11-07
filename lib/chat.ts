@@ -331,11 +331,13 @@ export async function runChat({
       userTexts: textsOf("user"),
       earlierReplies: textsOf("assistant"),
       today,
+      // 本線の見通しは今回の回から選ぶ（#85）。前の回の計算も照らす根拠として残す。
+      currentFrom: prior.events.length,
     };
     // 足りない額と残る額の向きを逆に書いた文は、計算から作った文に置き換え、注意で伝える（#66 の A-3）。
     const gapWarnings: MoneyWarning[] = [];
     const fixGap = (text: string) => {
-      const fixed = fixGapDirection(text, checkArgs.toolEvents);
+      const fixed = fixGapDirection(text, checkArgs.toolEvents, checkArgs.currentFrom);
       for (const sentence of fixed.sentences) {
         const shown = sentence.slice(0, 120);
         gapWarnings.push({
