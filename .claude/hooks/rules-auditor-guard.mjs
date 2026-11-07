@@ -1,9 +1,12 @@
 #!/usr/bin/env node
-// rules-auditor サブエージェントの PreToolUse フック。依存なし。
+// rules-auditor サブエージェントの道具の制限。依存なし。
+// .claude/settings.json の PreToolUse フック（rules-auditor-guard.sh）から呼ぶ。入力の agent_type が rules-auditor の
+// 呼び出しだけを検査し、それ以外は通す。
 // 点検役は外部のページを読み、公開リポジトリに Issue を書ける。手元の秘密に届かないよう、道具の使い道を絞る。
 // - Read / Grep: lib/money/rules.ts と、点検の手順書（SKILL.md）だけ
 // - WebFetch: rules.ts の sources[].url に載っているホストだけ
 // - Bash: `gh issue create` だけ。つなぎ・リダイレクト・展開・置換と、手元のファイルを読む --body-file / -F / --recover は使えない
+// - 呼び出し元への報告（SubagentHandback）と、この点検の Skill の読み込みは通す。ほかの道具はすべて止める
 // 許すなら exit 0、止めるなら理由を stderr に出して exit 2。
 import { readFileSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
@@ -79,7 +82,10 @@ export function fetchProblem(rulesText, url) {
   return `取得できるのは rules.ts の出典のホスト（${[...hosts].join("、")}）だけです`;
 }
 
+export const AGENT_TYPE = "rules-auditor";
+
 export function guard(input, root) {
+  if (input.agent_type !== AGENT_TYPE) return null;
   const tool = input.tool_name;
   const ti = input.tool_input ?? {};
   const cwd = input.cwd;
@@ -92,6 +98,12 @@ export function guard(input, root) {
       return readProblem(root, cwd, ti.path);
     case "WebFetch":
       return fetchProblem(readFileSync(join(root, READABLE[0]), "utf8"), String(ti.url ?? ""));
+    // 呼び出し元へ結果を返す道具。ファイルにもネットワークにも触れない。止めると報告が届かない
+    case "SubagentHandback":
+      return null;
+    // 手順書を読み込む道具。この点検の手順書だけ
+    case "Skill":
+      return ti.skill === "rules-freshness" ? null : "読み込める Skill は rules-freshness だけです";
     default:
       return `rules-auditor は ${tool} を使えません`;
   }

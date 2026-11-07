@@ -1,22 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import {
   bashProblem,
+  guard,
   readProblem,
   sourceHosts,
 } from "../.claude/hooks/rules-auditor-guard.mjs";
 
-const guard = resolve(".claude/hooks/rules-auditor-guard.mjs");
+// .claude/settings.json の PreToolUse から呼ばれる入口
+const hook = resolve(".claude/hooks/rules-auditor-guard.sh");
 const root = resolve(".");
+const AUDITOR = { agent_id: "a0000", agent_type: "rules-auditor" };
 
-function runGuard(input: unknown) {
-  const r = spawnSync("node", [guard], {
+function runGuard(input: unknown, projectDir = root) {
+  const r = spawnSync("bash", [hook], {
     input: JSON.stringify(input),
     encoding: "utf8",
-    env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: projectDir },
   });
   return { code: r.status, err: r.stderr };
 }
@@ -84,9 +88,12 @@ test("フック: 許すときは exit 0、止めるときは exit 2 で理由を
     { tool_name: "Grep", tool_input: { pattern: "checked_on", path: "lib/money/rules.ts" } },
     { tool_name: "WebFetch", tool_input: { url: "https://www8.cao.go.jp/chosei/shukujitsu/gaiyou.html", prompt: "祝日" } },
     { tool_name: "Bash", tool_input: { command: "gh issue create --title t --body 'b'" } },
+    // 呼び出し元への報告を止めると、点検の結果が届かない
+    { tool_name: "SubagentHandback", tool_input: { message: "結果" } },
+    { tool_name: "Skill", tool_input: { skill: "rules-freshness" } },
   ];
   for (const input of ok) {
-    const r = runGuard({ ...input, cwd: root });
+    const r = runGuard({ ...AUDITOR, ...input, cwd: root });
     assert.equal(r.code, 0, `${input.tool_name}: ${r.err}`);
   }
   const ng = [
@@ -96,10 +103,51 @@ test("フック: 許すときは exit 0、止めるときは exit 2 で理由を
     { tool_name: "Bash", tool_input: { command: "cat .env" } },
     { tool_name: "Edit", tool_input: { file_path: resolve("lib/money/rules.ts") } },
     { tool_name: "Write", tool_input: { file_path: resolve("lib/money/rules.ts") } },
+    { tool_name: "Skill", tool_input: { skill: "update-config" } },
+    { tool_name: "Glob", tool_input: { pattern: "**/.env*" } },
+    { tool_name: "mcp__github__issue_write", tool_input: { method: "create", title: "t" } },
   ];
   for (const input of ng) {
-    const r = runGuard({ ...input, cwd: root });
+    const r = runGuard({ ...AUDITOR, ...input, cwd: root });
     assert.equal(r.code, 2, input.tool_name);
     assert.match(r.err, /rules-auditor の道具の制限で止めました/);
   }
+});
+
+test("フック: 本体の会話と、ほかのサブエージェントの呼び出しは素通しにする", () => {
+  const inputs = [
+    { tool_name: "Read", tool_input: { file_path: resolve(".env") } },
+    { tool_name: "Bash", tool_input: { command: "git status" } },
+    { tool_name: "Edit", tool_input: { file_path: resolve("lib/money/rules.ts") } },
+  ];
+  for (const input of inputs) {
+    assert.equal(runGuard({ ...input, cwd: root }).code, 0, `本体: ${input.tool_name}`);
+    const other = { ...input, agent_id: "a1111", agent_type: "Explore", cwd: root };
+    assert.equal(runGuard(other).code, 0, `Explore: ${input.tool_name}`);
+  }
+  // 道具の入力の中に同じ文字列があっても、点検役の呼び出しとは見なさない
+  const written = {
+    tool_name: "Write",
+    tool_input: { file_path: resolve("x.json"), content: '{"agent_type":"rules-auditor"}' },
+    cwd: root,
+  };
+  assert.equal(runGuard(written).code, 0);
+});
+
+test("フック: 検査できないとき（検査の本体が見つからないなど）も、点検役の呼び出しは止める", () => {
+  const empty = mkdtempSync(join(tmpdir(), "auditor-guard-"));
+  try {
+    const r = runGuard(
+      { ...AUDITOR, tool_name: "Read", tool_input: { file_path: resolve("lib/money/rules.ts") }, cwd: empty },
+      empty,
+    );
+    assert.equal(r.code, 2);
+    assert.match(r.err, /検査できなかったので止めました/);
+  } finally { rmSync(empty, { recursive: true, force: true }); }
+});
+
+test("検査の本体も agent_type を確かめる（絞り込みをすり抜けた入力を通す）", () => {
+  const read = { tool_name: "Read", tool_input: { file_path: resolve(".env") }, cwd: root };
+  assert.equal(guard(read, root), null);
+  assert.notEqual(guard({ ...AUDITOR, ...read }, root), null);
 });
