@@ -113,8 +113,11 @@ test("画面に見える文字は 0。名前は aria-label にだけ置く", () 
 test("家の絵は約 1.5 秒押し続けると戻る", () => {
   assert.equal(HOLD_MS, 1500);
   const home = sources.find((s) => s.path === "app/play/home-button.tsx")?.text ?? "";
-  // 2 本以上の指（手のひら）では数え直す
-  assert.match(home, /pointers\.current\.size > 1\) stop\(\)/);
+  // 2 本以上の指（手のひら）では数え直す。家の外に触れている指も数える（画面全体で数える、#64）
+  assert.match(home, /pointers\.current\.size > 1 \|\| elsewhere\) stop\(\)/);
+  assert.match(home, /document\.addEventListener\("pointerdown", down, true\)/);
+  // 外で離しても離したことが届くよう、押したときに捕まえる（#64）
+  assert.match(home, /setPointerCapture\(e\.pointerId\)/);
 });
 
 test("ばあの中身は配列で差し替えられる", () => {
