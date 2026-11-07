@@ -1,0 +1,44 @@
+# push と PR のたびに、手元と同じ検査を回す（#35）
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: 型・テスト・公開前の検査
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # 公開前の検査は origin/main からのコミットを 1 つずつ調べるので、履歴ごと取る
+      - name: リポジトリを取得する
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # 本番の Vercel と同じ Node.js 24（ADR 0010）。Node 22 では会話の時間切れのテストが打ち切られる
+      - name: Node.js 24 を用意する
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: 依存を入れる（npm ci）
+        run: npm ci
+
+      - name: 型を検査する（npm run typecheck）
+        run: npm run typecheck
+
+      - name: テストを実行する（npm test）
+        run: npm test
+
+      - name: 公開前の検査を実行する（npm run check:public）
+        run: npm run check:public
