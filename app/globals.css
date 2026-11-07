@@ -814,9 +814,17 @@ main.talk {
   font-size: 12px;
   text-decoration: none;
 }
-/* 左の「体験例を見る」が無いときも、送るボタンは右に置く。 */
+/* 入力欄のそばの道具（いまは体験例へのリンク）。道具が無いときも、送るボタンは右に置く。 */
+.composer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-width: 0;
+}
 .composer-bottom .send-button {
   margin-left: auto;
+  flex: none;
 }
 .text-link {
   background: none;
