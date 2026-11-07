@@ -623,6 +623,16 @@ function rangeMismatches(
     if (SHRINK_AFTER.test(normalized.slice(high.end))) return [];
     const before = normalized.slice(sentenceStart, low.start);
     if (pastRange(before)) return [];
+    // 文の最後の「要る額」から範囲までに「幅」があり、「X 円から Y 円」と書いた範囲は、幅が変わることを言う文
+    // （「要る額の幅は149,060円から0円になります」）なので、要る額の範囲とは照らさない（#71）。
+    // 一つずつの額の照合は残る。「要る額の幅は X〜Y 円です」は要る額の範囲として照らす。
+    const lastNeed = before.lastIndexOf("要る額");
+    if (
+      lastNeed >= 0 &&
+      before.slice(lastNeed).includes("幅") &&
+      normalized.slice(low.end, high.start).includes("から")
+    )
+      return [];
     const conditions = [...before.matchAll(CONDITION_MARKER)];
     const condition = conditions.at(-1);
     let expected: { need_low: number; need_high: number; name: string | null };
@@ -828,11 +838,19 @@ function actorOf(sentence: string, voice: "reply" | "card", at: number): string 
   return ACTORS.find(([pattern]) => pattern.test(word))?.[1] ?? "other";
 }
 
-// 本人の発言にある完了の報告（誰が・何を）。
+// 家族を言う主語と、本人を言う主語（本人の発言の中で）。
+const FAMILY_SUBJECT =
+  /(?:奥様|奥さん|家内|妻|ご主人|旦那|主人|夫|お母さん|母親|義母|祖母|母|お父さん|父親|義父|祖父|父|子ども|子供|息子|娘|長男|長女|次男|次女|兄|姉|弟|妹|ご家族|家族)(?:は|が|も|から)/;
+const SELF_SUBJECT = /(?:私|わたし|僕|ぼく|自分)(?:は|が)/;
+
+// 本人の発言にある完了の報告（誰が・何を）。家族と本人の両方が主語に出てくる報告
+// （「夫は私が留守の間に、保険会社に連絡しました。」）は、済ませた人を判別できないので「ambiguous:手続き」として持つ（#71）。
 function reportsIn(userTexts: readonly string[]): Set<string> {
   const reports = new Set<string>();
   for (const sentence of userTexts.flatMap((text) => text.match(/[^。！？\n]+[。！？]?/g) ?? [])) {
     const done = DONE_CLAIM.exec(sentence);
+    if (done && FAMILY_SUBJECT.test(sentence) && SELF_SUBJECT.test(sentence))
+      reports.add(`ambiguous:${ACTION_GROUP[done[1]]}`);
     const actor = done ? actorOf(sentence, "card", done.index) : null;
     if (done && actor) reports.add(`${actor}:${ACTION_GROUP[done[1]]}`);
   }
@@ -866,7 +884,11 @@ function overclaims(
   // 済ませた人を判別できなければ、置き換えない（ADR 0018: 迷ったら伏せない・置き換えない側に倒す）。
   if (actor === null) return false;
   if (actor === "app" || actor === "other") return true;
-  return !reportsIn(userTexts).has(`${actor}:${ACTION_GROUP[done[1]]}`);
+  const reports = reportsIn(userTexts);
+  const group = ACTION_GROUP[done[1]];
+  // 本人の報告で済ませた人を判別できないときは、置き換えない（ADR 0018: 迷ったら置き換えない側に倒す）。
+  if (reports.has(`ambiguous:${group}`)) return false;
+  return !reports.has(`${actor}:${group}`);
 }
 
 export function softenClaims(
@@ -897,7 +919,9 @@ export function softenTitle(title: string, options: SoftenOptions = {}): string 
 const SHORT_WORDS = /足りません|足りない|足りなく|足らない|足らず|不足/;
 const ENOUGH_WORDS = /足ります|足りる|足りています|間に合います|間に合う|収まります|収まる|残ります|残る|余ります|余る/;
 
-const UNDECIDABLE_GAP = /れば|たら|ても|でも|かどうか|か[、。？?]|ますか|でしょうか/;
+// 資金を足す動き（「追加すると」「用意することで」など）がある文も、活用形によらず条件の文として扱う（#71）。
+const UNDECIDABLE_GAP =
+  /れば|たら|ても|でも|かどうか|か[、。？?]|ますか|でしょうか|追加|用意|足す|足し|足せ|補う|補え|補い|補填|準備|工面|借り|借入|立て替/;
 
 interface Gap {
   name: string;
