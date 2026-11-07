@@ -93,6 +93,91 @@
 a.fact-cite {
   text-decoration: underline;
 }
+/* まず確かめる 1 つ。表より先に、答えと次の確認を置く。 */
+.money-confirm {
+  border-top: 0;
+  padding-top: 4px;
+}
+.money-confirm h4 {
+  color: var(--green);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.money-confirm-name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.decision-range strong {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+.money-bars {
+  margin: 10px 0 8px;
+  display: grid;
+  gap: 6px;
+}
+.money-bar-row {
+  display: grid;
+  grid-template-columns: 8.5em minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+}
+.money-bar-label {
+  color: var(--muted);
+}
+.money-bar {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--sage);
+  overflow: hidden;
+}
+.money-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: #b9a37f;
+}
+.money-bar-fill.after {
+  background: var(--green);
+}
+.money-bar-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 7.5em;
+}
+.money-confirm-ask {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f1f4ec;
+}
+.money-copy {
+  margin: 4px 0;
+  font-size: 11px;
+}
+.money-question {
+  white-space: pre-wrap;
+  border-left: 2px solid #d5ddcc;
+  padding-left: 9px;
+}
+.money-confirm-other {
+  margin-top: 8px;
+}
+.money-confirm-other p {
+  font-weight: 500;
+}
+/* 返答の下に、呼んだ計算の名前と回数を小さく出す。 */
+.tool-trace {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
 .money-warnings {
   margin-top: 8px;
   padding: 8px 10px;
@@ -152,6 +237,13 @@ a.fact-cite {
     justify-content: space-between;
     gap: 12px;
     text-align: right;
+  }
+  .money-bar-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .money-bar-row .money-bar {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
   .money-table tbody td::before {
     content: attr(data-label);
