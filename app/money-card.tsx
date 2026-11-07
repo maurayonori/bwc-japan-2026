@@ -6,6 +6,7 @@ import {
   CERTAINTY_TEXT,
   DIRECTION_TEXT,
   KOUGAKU_ROWS,
+  cashGapText,
   cashflowPaths,
   cashflowRows,
   copayText,
@@ -470,6 +471,69 @@ function OtherFactors({ confirm }: { confirm: WhatToConfirm }) {
   );
 }
 
+// 支払日に要るお金を、筋書きごとに並べる（#55）。窓口で上限が使える場合と使えない場合の差（いったん立て替える額）と、
+// 手元のお金との差を、表より先に読めるようにする。値はすべてサーバーの計算結果で、筋書きの名前は会話で付けたもの。
+const CERTAINTY_ORDER = ["confirmed", "estimate", "assumption"] as const;
+const REFUND_NOTE =
+  "窓口で上限が使えないときは、上限を超えた分をいったん立て替え、あとから払い戻しを受けます。協会けんぽの案内では、払い戻しは診療月から 3 か月以上あとです。[F05]";
+
+export function PayDayBlock({
+  output,
+  refundNote,
+}: {
+  output: CashflowOutput;
+  refundNote: boolean;
+}) {
+  const cash = output.cash_on_hand;
+  const baseYear = Number(output.start_date.slice(0, 4));
+  const rows = output.scenarios.map((scenario) => {
+    const { low_case: low, high_case: high } = scenario;
+    // 支払いに入っている額の確かさを、確かめた額・見積もり・仮定の順に並べる（例: 入院費は確かめた額、食事代は見積もり）。
+    const outRows = high.rows.filter((row) => row.direction === "out");
+    const certainty = CERTAINTY_ORDER.filter((kind) =>
+      outRows.some((row) => row.certainty === kind),
+    ).map((kind) => CERTAINTY_TEXT[kind]);
+    return [
+      scenario.name,
+      yenRange(low.need, high.need),
+      high.need_date ? showDate(high.need_date, baseYear) : "なし",
+      ...(cash === null ? [] : [cashGapText(cash, low.need, high.need)]),
+      certainty.length > 0 ? certainty.join("・") : "—",
+    ];
+  });
+  return (
+    <section className="money-block money-payday decision">
+      <h4>支払日に要るお金</h4>
+      <Table
+        headers={[
+          "筋書き",
+          "要る額",
+          "いつ",
+          ...(cash === null ? [] : ["手元のお金との差"]),
+          "確かさ",
+        ]}
+        rows={rows}
+      />
+      {output.comparison_with_first.length > 0 && (
+        <p className="money-muted payday-gap">
+          {output.comparison_with_first
+            .map(
+              (item) =>
+                `「${output.scenarios[0].name}」との差 ${needDifferenceText(item)}`,
+            )
+            .join("。")}
+          。
+        </p>
+      )}
+      {refundNote && output.scenarios.length >= 2 && (
+        <p className="payday-note">
+          <FactText text={REFUND_NOTE} />
+        </p>
+      )}
+    </section>
+  );
+}
+
 // 要る額の幅と、その幅を一番縮める確認を 1 つ。順位も額も、サーバーの計算結果だけを使う。
 export function ConfirmBlock({
   output,
@@ -619,9 +683,23 @@ export function MoneyDetails({
       ),
     ),
   ];
-  const sources = moneySources(money, text);
+  const hasKougaku = calculations.some(
+    (calculation) => calculation.name === "kougaku_gendo",
+  );
+  const payday =
+    latest?.name === "simulate_cashflow" && latest.output.scenarios.length > 0;
+  // 支払日の表の払い戻しの注意は、出典の一覧にも出す。
+  const sources = moneySources(
+    money,
+    payday && hasKougaku && latest.output.scenarios.length >= 2
+      ? `${text}\n${REFUND_NOTE}`
+      : text,
+  );
   return (
     <div className="money">
+      {payday && latest?.name === "simulate_cashflow" && (
+        <PayDayBlock output={latest.output} refundNote={hasKougaku} />
+      )}
       {latest?.name === "simulate_cashflow" && (
         <ConfirmBlock
           output={latest.output}

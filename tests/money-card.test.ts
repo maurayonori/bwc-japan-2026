@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { exampleWorkspace } from "../lib/example";
+import { EXAMPLE_TODAY, exampleMoneyTurns, exampleWorkspace } from "../lib/example";
 import { calcDate } from "../lib/money/business-days";
 import { citedFacts, moneySources, showDate, yen, yenRange } from "../lib/money/format";
 import { checkReply } from "../lib/money/guard";
@@ -134,44 +134,77 @@ test("道具の結果は、スキーマを通しても 1 項目も欠けない",
 test("体験例の表の数字は、計算関数の結果そのもの", () => {
   const card = moneyCard();
   const kougaku = kougakuGendo({
-    treatment_month: "2026-11",
+    treatment_month: "2026-12",
     income_category: "ウ",
-    amount_basis: "copay",
-    amount_low: 240_000,
-    amount_high: 300_000,
+    amount_basis: "total",
+    amount_low: 800_000,
+    amount_high: 800_000,
     copay_percent: 30,
   });
   assert.deepEqual(outputOf(card, "kougaku_gendo").output, kougaku);
   assert.equal(kougaku.cases[0].low.pay_with_cap, 90_940);
-  assert.equal(kougaku.cases[0].high.pay_with_cap, 92_940);
+  assert.equal(kougaku.cases[0].low.copay_without_cap, 240_000);
   const stay = calcDate({
-    start_date: "2026-11-16",
+    start_date: "2026-12-14",
     steps: [],
-    until_date: "2026-11-30",
+    until_date: "2026-12-28",
   });
   assert.equal(stay.until?.days_inclusive, 15);
   assert.deepEqual(outputOf(card, "calc_date").output, stay);
   const meals = mealCost({ days_low: 15, days_high: 15 });
   assert.equal(meals.low.cost_max, 24_750);
   assert.deepEqual(outputOf(card, "meal_cost").output, meals);
+  // 1 回目: 上限が使える場合と使えない場合を並べ、差が 149,060 円
+  const { first, second } = exampleMoneyTurns();
+  const firstCalc = first.calculations.find((c) => c.name === "simulate_cashflow");
+  assert.ok(firstCalc?.name === "simulate_cashflow");
+  assert.deepEqual(firstCalc.output, simulateCashflow(firstCalc.input as never));
+  const [withCap, withoutCap] = firstCalc.output.scenarios;
+  assert.equal(withCap.low_case.need, 115_690);
+  assert.equal(withCap.high_case.need, 115_690);
+  assert.equal(withoutCap.low_case.need, 264_750);
+  assert.equal(withoutCap.low_case.shortfall, 64_750);
+  assert.equal(withCap.low_case.end_balance, 84_310);
+  assert.equal(firstCalc.output.what_to_confirm?.width, 149_060);
+  assert.equal(firstCalc.output.comparison_with_first[0].need_low_difference, 149_060);
+  assert.equal(firstCalc.output.what_to_confirm?.factors[0].kind, "scenario");
+  assert.equal(firstCalc.output.what_to_confirm?.factors[0].width_if_resolved, 0);
+  // 2 回目（カードに残る表）: 確かめた額の筋書き 1 本で、幅は無い
   const { input, output } = outputOf(card, "simulate_cashflow");
   assert.deepEqual(output, simulateCashflow(input as never));
-  const [withCap, withoutCap] = output.scenarios;
-  assert.equal(withCap.low_case.need, 115_690);
-  assert.equal(withCap.high_case.need, 117_690);
-  assert.equal(withoutCap.low_case.need, 264_750);
-  assert.equal(withoutCap.high_case.need, 324_750);
+  assert.deepEqual(output, second.cashflow);
+  assert.equal(output.scenarios.length, 1);
+  assert.equal(output.scenarios[0].low_case.need, 115_690);
+  assert.equal(output.scenarios[0].high_case.rows[0].certainty, "confirmed");
+  assert.equal(output.what_to_confirm?.width, 0);
 });
 
 test("体験例の文章の金額と日付は、計算結果と発言に見当たる", () => {
   const workspace = workspaceSchema.parse(exampleWorkspace());
   const card = moneyCard();
-  assert.ok(card.body.includes(yenRange(115_690, 117_690)));
-  assert.ok(card.body.includes(showDate("2026-11-30")));
+  assert.ok(card.body.includes(yen(115_690)));
+  assert.ok(card.body.includes(showDate("2026-12-28")));
+  const userTexts = workspace.messages
+    .filter((message) => message.role === "user")
+    .map((message) => message.text);
+  const { first } = exampleMoneyTurns();
+  const replies = workspace.messages.filter(
+    (message) => message.role === "assistant",
+  );
+  assert.equal(replies.length, 2);
+  // 1 回目の返答は、1 回目の計算結果と照らす（2 つの筋書きの額と差）
+  assert.deepEqual(
+    checkReply({
+      reply: replies[0].text,
+      toolEvents: first.calculations,
+      userTexts,
+      today: EXAMPLE_TODAY,
+    }),
+    [],
+  );
+  // 2 回目の返答とカードは、カードに残る計算結果と照らす
   const prose = [
-    ...workspace.messages
-      .filter((message) => message.role === "assistant")
-      .map((message) => message.text),
+    replies[1].text,
     ...workspace.cards.flatMap((item) => [
       item.title,
       item.body,
@@ -183,10 +216,8 @@ test("体験例の文章の金額と日付は、計算結果と発言に見当�
     checkReply({
       reply: prose,
       toolEvents: card.money?.calculations ?? [],
-      userTexts: workspace.messages
-        .filter((message) => message.role === "user")
-        .map((message) => message.text),
-      today: "2026-11-06",
+      userTexts,
+      today: EXAMPLE_TODAY,
     }),
     [],
   );
@@ -240,9 +271,7 @@ test("持ち出しには表の内容・未確認事項・出典が入り、会�
   assert.match(text, /【お金の見通し】/);
   for (const expected of [
     yen(115_690),
-    yen(117_690),
-    yen(264_750),
-    yen(324_750),
+    yen(90_940),
     yen(24_750),
     "入院中の食事代",
     "差額ベッド代",
@@ -253,7 +282,7 @@ test("持ち出しには表の内容・未確認事項・出典が入り、会�
   ]) {
     assert.ok(text.includes(expected), expected);
   }
-  assert.doesNotMatch(text, /example-|標準報酬月額は34万円/);
+  assert.doesNotMatch(text, /example-|給料は月35万円/);
   for (const message of workspace.messages)
     assert.equal(text.includes(message.text), false, message.id);
 });
@@ -436,19 +465,21 @@ test("順位と呼んだ計算の記録が無い、前の保存データも読�
   assert.ok(exportMemo([{ ...card, included: true }]).includes("お金の出入りの見通し"));
 });
 
-test("体験例の「まず確かめる 1 つ」の 209,060 円と 60,000 円は、計算結果にあり、検査を通る", () => {
+test("体験例の「まず確かめる 1 つ」の幅 149,060 円は 1 回目の計算結果にあり、検査を通る", () => {
   const workspace = exampleWorkspace();
-  const card = moneyCard();
-  const { output } = outputOf(card, "simulate_cashflow");
-  assert.equal(output.what_to_confirm?.width, 209_060);
-  assert.equal(output.what_to_confirm?.factors[0].width_if_resolved, 60_000);
+  const { first } = exampleMoneyTurns();
+  const cashflow = first.calculations.find((c) => c.name === "simulate_cashflow");
+  assert.ok(cashflow?.name === "simulate_cashflow");
+  assert.equal(cashflow.output.what_to_confirm?.width, 149_060);
+  assert.equal(cashflow.output.what_to_confirm?.factors[0].width_if_resolved, 0);
   const reply = workspace.messages.find((message) => message.role === "assistant");
   assert.ok(reply);
   assert.ok(
     reply.text.includes(
-      "まず確かめる 1 つは、窓口で上限が適用されるかです。病院の会計に聞くと、要る額の幅は 209,060 円から 60,000 円に縮みます。",
+      "まず確かめる 1 つは、窓口で上限が使えるかです。病院の会計に聞くと、要る額の幅 149,060 円は無くなり、どちらか 1 つの額に決まります。",
     ),
   );
+  assert.ok(reply.text.includes("差の 149,060 円はあとから払い戻されます"));
   assert.deepEqual(reply.tools, [
     "kougaku_gendo",
     "meal_cost",
@@ -458,28 +489,46 @@ test("体験例の「まず確かめる 1 つ」の 209,060 円と 60,000 円は
   assert.deepEqual(
     checkReply({
       reply: reply.text,
-      toolEvents: card.money?.calculations ?? [],
+      toolEvents: first.calculations,
       userTexts: [],
-      today: "2026-11-06",
+      today: EXAMPLE_TODAY,
+    }),
+    [],
+  );
+  // 2 回目の返答は、カードに残る計算（筋書き 1 本）だけで通る
+  const second = workspace.messages.at(-1);
+  assert.ok(second && second.role === "assistant");
+  assert.deepEqual(second.tools, ["simulate_cashflow"]);
+  assert.deepEqual(
+    checkReply({
+      reply: second.text,
+      toolEvents: moneyCard().money?.calculations ?? [],
+      userTexts: [],
+      today: EXAMPLE_TODAY,
     }),
     [],
   );
 });
 
 test("持ち出しには、表より先に「まず確かめる 1 つ」が入る", () => {
-  const text = exportMemo([{ ...moneyCard(), included: true }]);
+  // 1 回目の計算（不明点が残る）を持つカードで確かめる。確かめたあとのカードには不明点が無いので見出しも出ない。
+  const { first } = exampleMoneyTurns();
+  const text = exportMemo([
+    { ...moneyCard(), money: { calculations: first.calculations }, included: true },
+  ]);
   assert.ok(text.startsWith("さきよみ — 渡すもの\n"));
   assert.doesNotMatch(text, /家族のしおり/);
   for (const expected of [
     "■ まず確かめる 1 つ",
-    "『窓口で上限が適用される場合』か『いったん 3 割を払う場合』か",
-    "（幅 209,060 円）",
-    "- 確かめると残る幅: 60,000 円",
+    "『窓口で上限が使える場合』か『上限が使えず、いったん 3 割を払う場合』か",
+    "（幅 149,060 円）",
+    "- 確かめると残る幅: 0 円",
   ])
     assert.ok(text.includes(expected), expected);
   assert.ok(
     text.indexOf("■ まず確かめる 1 つ") < text.indexOf("■ お金の出入りの見通し"),
   );
+  assert.doesNotMatch(exportMemo([{ ...moneyCard(), included: true }]), /■ まず確かめる 1 つ/);
 });
 
 test("病院の会計に聞く質問文は、発言の原文と完全一致する引用を持ち、お金のカードの後ろに置く", () => {
@@ -488,12 +537,16 @@ test("病院の会計に聞く質問文は、発言の原文と完全一致す�
   assert.ok(card);
   assert.equal(card.kind, "contact");
   assert.equal(card.title, "病院の会計に、このまま聞く");
-  assert.deepEqual(card.evidence, [
-    { messageId: "example-4", quote: "病院からは3割負担で24万〜30万円と聞いた。" },
-  ]);
-  const source = workspace.messages.find((message) => message.id === "example-4");
-  assert.equal(source?.role, "user");
-  assert.ok(source?.text.includes(card.evidence[0].quote));
+  assert.deepEqual(
+    card.evidence.map((item) => item.messageId),
+    ["example-1", "example-3"],
+  );
+  for (const evidence of card.evidence) {
+    const source = workspace.messages.find((message) => message.id === evidence.messageId);
+    assert.equal(source?.role, "user");
+    assert.ok(source?.text.includes(evidence.quote), evidence.quote);
+  }
+  assert.ok(card.body.includes("聞いた答え：マイナ保険証で、窓口の上限は使える。"));
   assert.equal(workspace.cards[3].kind, "money");
   assert.equal(workspace.cards.at(-1)?.id, "hospital-desk");
 });

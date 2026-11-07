@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkReply } from "../lib/money/guard";
 import { executeTool } from "../lib/money/tools";
-import { exampleWorkspace } from "../lib/example";
+import { legacyCashflowInput } from "./helpers/legacy-cashflow";
 
 const today = '2026-11-06';
 
@@ -114,9 +114,7 @@ test('割合や回数など、円でも日付でもない数字は見ない', ()
 });
 
 test('「まず確かめる 1 つ」の前後の幅は、資金繰りの計算結果だけで通る', () => {
-  const card = exampleWorkspace().cards.find((item) => item.kind === 'money');
-  const input = card?.money?.calculations.find((item) => item.name === 'simulate_cashflow')?.input;
-  assert.ok(input);
+  const input = legacyCashflowInput(); // 幅 209,060 円。先頭を確かめると 60,000 円残る
   const args = { toolEvents: [eventOf('simulate_cashflow', input)], userTexts: [], today };
   assert.deepEqual(checkReply({ reply: '要る額の幅は 209,060 円から 60,000 円に縮みます。', ...args }), []);
   const warnings = checkReply({ reply: '要る額の幅は 209,060 円から 59,000 円に縮みます。', ...args });
@@ -188,9 +186,7 @@ test('先頭の shrink が 0 より大きければ、「A 円から B 円に縮�
 });
 
 test('答えを反映したターンで、前の計算の幅から今の幅まで縮んだと伝える文は通す', () => {
-  const card = exampleWorkspace().cards.find((item) => item.kind === 'money');
-  const input = card?.money?.calculations.find((item) => item.name === 'simulate_cashflow')?.input;
-  assert.ok(input);
+  const input = legacyCashflowInput();
   const before = eventOf('simulate_cashflow', input); // 幅 209,060 円
   assert.deepEqual(checkNoShrink('答えを入れると、要る額の幅は 209,060 円から 203,100 円に縮みました。', [before, noShrink]), []);
   // 前の計算が無ければ、同じ「縮みました」でも見当たらない金額として指摘が出る。
