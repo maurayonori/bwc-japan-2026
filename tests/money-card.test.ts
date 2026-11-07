@@ -175,7 +175,8 @@ test("体験例の表の数字は、計算関数の結果そのもの", () => {
   assert.deepEqual(output, second.cashflow);
   assert.equal(output.scenarios.length, 1);
   assert.equal(output.scenarios[0].low_case.need, 115_690);
-  assert.equal(output.scenarios[0].high_case.rows[0].certainty, "confirmed");
+  // 確かめたのは条件（窓口で上限が使える）だけなので、額は見積もりのまま（#68）。
+  assert.equal(output.scenarios[0].high_case.rows[0].certainty, "estimate");
   assert.equal(output.what_to_confirm?.width, 0);
 });
 
@@ -479,7 +480,9 @@ test("体験例の「まず確かめる 1 つ」の幅 149,060 円は 1 回目�
       "まず確かめる 1 つは、窓口で上限が使えるかです。病院の会計に聞くと、要る額の幅 149,060 円は無くなり、どちらか 1 つの額に決まります。",
     ),
   );
-  assert.ok(reply.text.includes("差の 149,060 円はあとから払い戻されます"));
+  // 払い戻しは見込みとして書き、受けられるか・いつかは加入先に確かめると書く（給付を言い切らない）。
+  assert.ok(reply.text.includes("差の 149,060 円は、あとから払い戻される見込みの額です"));
+  assert.doesNotMatch(reply.text, /払い戻されますが/);
   assert.deepEqual(reply.tools, [
     "kougaku_gendo",
     "meal_cost",
