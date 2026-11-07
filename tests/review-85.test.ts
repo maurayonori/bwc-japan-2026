@@ -144,3 +144,41 @@ test("#85: 持ち出しでも、本線の見通しはそのカード自身の計
     assert.doesNotMatch(text, /照合できない/);
   }
 });
+
+test("#87 の後退: 旧形式の見通し（what_to_confirm の無い保存データ）も、持ち出しでそのカードの本線として数える", () => {
+  const { second } = exampleMoneyTurns();
+  // 旧形式: 見通しの結果に what_to_confirm が無い（「まず確かめる 1 つ」より前の保存データ）。要る額 115,690 円、手元 200,000 円。
+  const legacy = second.calculations.map((item) => {
+    if (item.name !== "simulate_cashflow") return item;
+    const { what_to_confirm: _omit, ...output } = item.output as Record<string, unknown>;
+    return { ...item, output };
+  });
+  // 別のカードの見通し: 要る額 284,310 円（手元 200,000 円で 84,310 円足りない）。
+  const otherInput = {
+    start_date: TODAY,
+    cash_on_hand: 200_000,
+    scenarios: [{ name: "多めの見積もり", events: [{ date: "2026-12-28", label: "入院費", direction: "out", amount_low: 284_310, amount_high: 284_310, certainty: "estimate" }] }],
+  };
+  const other = executeTool("simulate_cashflow", otherInput);
+  assert.equal(other.ok, true);
+  const card = (id: string, calculations: unknown[], body: string, included: boolean): Card => ({
+    id,
+    kind: "money",
+    title: "支払日までに、手元に要る額",
+    body,
+    nextStep: "読み返す。",
+    uncertainty: "",
+    evidence: [{ messageId: "u1", quote: SAID_1 }],
+    edited: false,
+    done: false,
+    included,
+    money: { calculations: calculations as never },
+  });
+  const chosen = card("m1", legacy, "手元の20万円から84,310円残ります。", true);
+  const another = card("m2", [{ name: "simulate_cashflow", input: otherInput, output: (other as { output: unknown }).output }], "表を読む。", false);
+  for (const cards of [[chosen, another], [another, chosen]]) {
+    const text = exportMemo(cards, [{ id: "u1", role: "user", text: SAID_1 }]);
+    assert.match(text, /84,310円残ります/);
+    assert.doesNotMatch(text, /84,310 円足りない/);
+  }
+});
