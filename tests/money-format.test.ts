@@ -11,6 +11,7 @@ import {
   inDisplayOrder,
   moneyToText,
   needDifferenceText,
+  paydayGapText,
   readingGuide,
   toolTraceText,
 } from "../lib/money/format";
@@ -100,6 +101,41 @@ test("比べた差は、少なめと多めが同じなら 1 つだけ書く", ()
     needDifferenceText(differs.comparison_with_first[0]),
     "少なめの場合 +10,000 円、多めの場合 +30,000 円",
   );
+});
+
+test("支払日の表の下の差の文は、筋書きが 3 つでも、どの筋書きの差かが分かる", () => {
+  const two = cashflow([
+    { name: "窓口で上限が適用される場合", low: 115_690, high: 115_690 },
+    { name: "上限が適用されず、いったん3割を払う場合", low: 264_750, high: 264_750 },
+  ]);
+  assert.equal(
+    paydayGapText(two),
+    "「窓口で上限が適用される場合」と比べると、「上限が適用されず、いったん3割を払う場合」は +149,060 円。",
+  );
+
+  const three = cashflow([
+    { name: "費用が片方の月に寄る場合", low: 127_240, high: 127_240 },
+    { name: "費用が半々の場合", low: 210_180, high: 210_180 },
+    { name: "上限が適用されない場合", low: 276_300, high: 276_300 },
+  ]);
+  assert.equal(
+    paydayGapText(three),
+    "「費用が片方の月に寄る場合」と比べると、「費用が半々の場合」は +82,940 円、「上限が適用されない場合」は +149,060 円。",
+  );
+
+  // 少なめ・多めで差が違う筋書きがあるときは、「、」が重ならないように筋書きの区切りを「。」にする。
+  const differs = cashflow([
+    { name: "元の予定", low: 100_000, high: 100_000 },
+    { name: "延びた場合", low: 110_000, high: 130_000 },
+    { name: "上限が無い場合", low: 150_000, high: 150_000 },
+  ]);
+  assert.equal(
+    paydayGapText(differs),
+    "「元の予定」と比べると、「延びた場合」は 少なめの場合 +10,000 円、多めの場合 +30,000 円。「上限が無い場合」は +50,000 円。",
+  );
+
+  const one = cashflow([{ name: "元の予定", low: 100_000, high: 100_000 }]);
+  assert.equal(paydayGapText(one), "");
 });
 
 test("幅が 1 つも無ければ、読み方に幅の説明を出さない", () => {
