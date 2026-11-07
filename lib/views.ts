@@ -126,9 +126,10 @@ export function questionCard(
 }
 
 // ---- 支払日に要るお金（窓口で上限を使う場合と、使わずにあとで還付を受ける場合） ----
-// 見通しの筋書きのどちらが「上限を使う」かは、Claude が付けた名前では決めない。
-// 高額療養費の計算の出力（pay_with_cap と copay_without_cap）と、見通しの各行の額が一致するかで見分ける。
-// 金額はすべて計算の出力から選んで並べる。ここで新しい額は作らない（足し算も引き算もしない）。
+// 見通しの筋書きのどちらが「上限を使う」かは、Claude が付けた筋書きの名前では決めない。
+// 高額療養費の計算（1 つだけ・1 区分）の pay_with_cap と copay_without_cap に、医療費の支払いの行の額が
+// ちょうど 1 行だけ一致するかで見分ける。結び付けが一意でなければ、欄を丸ごと出さない（ADR 0016）。
+// 金額はすべて計算の出力から選んで並べる。ここで新しい額は作らない（足し算も引き算もしない。向きをそろえる符号の反転だけ）。
 
 type CashflowCalc = Extract<Calculation, { name: "simulate_cashflow" }>;
 type KougakuCalc = Extract<Calculation, { name: "kougaku_gendo" }>;
@@ -147,8 +148,10 @@ export type CashResult =
   | { kind: "remain"; amount: number };
 
 export interface PaydayRow {
+  date: string;
   label: string;
   direction: string;
+  // 少なめの場合と多めの場合の額を、小さい順に並べたもの（入金は少なめの場合に多く置かれるため）。
   amount: Pair;
   certainty: string;
 }
@@ -169,74 +172,114 @@ export interface Payday {
   cashOnHand: number | null;
   cap: PaydayColumn | null;
   nocap: PaydayColumn | null;
-  // 高額療養費の計算が 1 か月・1 区分だけのときの、入院費の額（月をまたぐと月ごとに分かれるので出さない）。
+  // 結び付けた高額療養費の計算（1 か月・1 区分）の、入院費の額。
   kougaku: {
     month: string;
     payWithCap: Pair;
     copayWithoutCap: Pair;
     refundLater: Pair;
-  } | null;
-  // 2 つの筋書きの、支払日に要るお金の差（comparison_with_first）。どちらかが一番上の筋書きのときだけ。
-  needDifference: Pair | null;
+  };
+  // 上限を使うと、支払日に要るお金がいくら少ないか（還付側 − 上限側。負なら上限側のほうが多い）。
+  // comparison_with_first の値で、上限側が一番上なら還付側の差をそのまま、還付側が一番上なら上限側の差の符号を反転して使う。
+  // 両側がそろうときだけ。
+  capSaves: Pair | null;
+  // 両側の筋書きで、医療費の行のほかの出入り（名前・日付・向き・額・確かさ）がすべて同じか。
+  sameOtherRows: boolean;
 }
+
+// 医療費の支払いの行とみなす名前。偶然同じ額になった家賃などを、医療費と結び付けないため。
+// 名前で決めるのは「医療費の行かどうか」の足切りだけで、上限側か還付側かは額で決める。
+const MEDICAL_LABEL_WORDS = ["入院", "医療", "診療", "病院", "窓口"];
 
 const samePair = (a: Pair, b: Pair): boolean =>
   a.low === b.low && a.high === b.high;
 
-// 上限で窓口負担が減る、1 区分の計算だけを使う（区分が分からず 5 つ並べた計算では見分けられない）。
-function capCases(calculations: readonly Calculation[]): KougakuCase[] {
-  return calculations.flatMap((calculation) =>
-    calculation.name === "kougaku_gendo" &&
-    calculation.output.cases.length === 1 &&
-    calculation.output.cases[0].low.cap_reduces_payment &&
-    calculation.output.cases[0].high.cap_reduces_payment
-      ? [calculation.output.cases[0]]
-      : [],
+const ordered = (a: number, b: number): Pair => ({
+  low: Math.min(a, b),
+  high: Math.max(a, b),
+});
+
+// 結び付ける高額療養費の計算。ちょうど 1 つで、1 区分で、上限で窓口負担が減るときだけ。
+// 区分が分からず 5 つ並べた計算、区分の違う計算が 2 つ以上（区分の比べ合い・月ごとの計算）は、結び付けが一意でない。
+function onlyKougaku(
+  calculations: readonly Calculation[],
+): { calc: KougakuCalc; item: KougakuCase } | null {
+  const found = calculations.filter(
+    (calculation): calculation is KougakuCalc =>
+      calculation.name === "kougaku_gendo",
   );
+  if (found.length !== 1) return null;
+  const [calc] = found;
+  if (calc.output.cases.length !== 1) return null;
+  const [item] = calc.output.cases;
+  if (!item.low.cap_reduces_payment || !item.high.cap_reduces_payment)
+    return null;
+  return { calc, item };
 }
 
-// 筋書きの支払いの行を、少なめと多めの場合で突き合わせる（同じ入出金を同じ順に並べている）。
-function rowsOf(scenario: Scenario): PaydayRow[] {
+// 筋書きの行を、少なめと多めの場合で突き合わせる（同じ入出金を同じ順に並べている）。並びが違えば null。
+function rowsOf(scenario: Scenario): PaydayRow[] | null {
   const low = scenario.low_case.rows;
   const high = scenario.high_case.rows;
-  if (low.length !== high.length) return [];
-  return low.map((row, index) => ({
-    label: row.label,
-    direction: row.direction,
-    amount: { low: row.amount, high: high[index].amount },
-    certainty: row.certainty,
-  }));
+  if (low.length !== high.length) return null;
+  const rows: PaydayRow[] = [];
+  for (const [index, row] of low.entries()) {
+    const other = high[index];
+    if (
+      other.label !== row.label ||
+      other.date !== row.date ||
+      other.direction !== row.direction
+    )
+      return null;
+    rows.push({
+      date: row.date,
+      label: row.label,
+      direction: row.direction,
+      amount: ordered(row.amount, other.amount),
+      certainty: row.certainty,
+    });
+  }
+  return rows;
 }
 
-function classify(
-  scenario: Scenario,
-  cases: readonly KougakuCase[],
-): "cap" | "nocap" | null {
-  let cap = 0;
-  let nocap = 0;
-  for (const row of rowsOf(scenario)) {
-    if (row.direction !== "out") continue;
-    for (const item of cases) {
-      if (
-        samePair(row.amount, {
-          low: item.low.pay_with_cap,
-          high: item.high.pay_with_cap,
-        })
-      )
-        cap += 1;
-      if (
-        samePair(row.amount, {
-          low: item.low.copay_without_cap,
-          high: item.high.copay_without_cap,
-        })
-      )
-        nocap += 1;
-    }
-  }
-  if (cap > 0 && nocap === 0) return "cap";
-  if (nocap > 0 && cap === 0) return "nocap";
-  return null;
+interface Classified {
+  side: "cap" | "nocap";
+  rows: PaydayRow[];
+  medical: number;
 }
+
+// 上限の額か上限なしの額に一致する支払いの行が、ちょうど 1 行で、医療費の名前のときだけ分類する。
+function classify(scenario: Scenario, item: KougakuCase): Classified | null {
+  const rows = rowsOf(scenario);
+  if (!rows) return null;
+  const withCap = { low: item.low.pay_with_cap, high: item.high.pay_with_cap };
+  const withoutCap = {
+    low: item.low.copay_without_cap,
+    high: item.high.copay_without_cap,
+  };
+  const matches: { side: Classified["side"]; index: number }[] = [];
+  for (const [index, row] of rows.entries()) {
+    if (row.direction !== "out") continue;
+    if (samePair(row.amount, withCap)) matches.push({ side: "cap", index });
+    else if (samePair(row.amount, withoutCap))
+      matches.push({ side: "nocap", index });
+  }
+  if (matches.length !== 1) return null;
+  const [{ side, index }] = matches;
+  const label = rows[index].label;
+  if (!MEDICAL_LABEL_WORDS.some((word) => label.includes(word))) return null;
+  return { side, rows, medical: index };
+}
+
+const sameRow = (a: PaydayRow, b: PaydayRow): boolean =>
+  a.date === b.date &&
+  a.label === b.label &&
+  a.direction === b.direction &&
+  a.certainty === b.certainty &&
+  samePair(a.amount, b.amount);
+
+const otherRows = ({ rows, medical }: Classified): PaydayRow[] =>
+  rows.filter((_, index) => index !== medical);
 
 function cashOf(path: LedgerPath, cash: number | null): CashResult | null {
   if (cash === null) return null;
@@ -249,7 +292,11 @@ function cashOf(path: LedgerPath, cash: number | null): CashResult | null {
   return { kind: "remain", amount: Math.min(cash, ...balances) };
 }
 
-function columnOf(scenario: Scenario, cash: number | null): PaydayColumn {
+function columnOf(
+  scenario: Scenario,
+  rows: PaydayRow[],
+  cash: number | null,
+): PaydayColumn {
   const { low_case: low, high_case: high } = scenario;
   const without = scenario.high_case_without_unconfirmed_income;
   const lowCash = cashOf(low, cash);
@@ -263,12 +310,8 @@ function columnOf(scenario: Scenario, cash: number | null): PaydayColumn {
       scenario.totals.unconfirmed_in_high > 0
         ? { need: without.need, cash: cashOf(without, cash) }
         : null,
-    rows: rowsOf(scenario),
+    rows,
   };
-}
-
-function only<T>(items: readonly T[]): T | null {
-  return items.length === 1 ? items[0] : null;
 }
 
 // 支払日に要るお金を、窓口で上限を使う場合と使わない場合に分けて並べる。見分けられなければ null。
@@ -278,73 +321,113 @@ export function paydayOf(money: Money | undefined): Payday | null {
     (calculation): calculation is CashflowCalc =>
       calculation.name === "simulate_cashflow",
   );
-  const cases = capCases(calculations);
-  if (!cashflow || cases.length === 0) return null;
+  const linked = onlyKougaku(calculations);
+  if (!cashflow || !linked) return null;
   const { output } = cashflow;
-  const kinds = output.scenarios.map((scenario) => classify(scenario, cases));
-  const capIndexes = kinds.flatMap((kind, i) => (kind === "cap" ? [i] : []));
-  const nocapIndexes = kinds.flatMap((kind, i) =>
-    kind === "nocap" ? [i] : [],
+  const classified = output.scenarios.map((scenario) =>
+    classify(scenario, linked.item),
   );
-  // 同じ側の筋書きが 2 本以上（月をまたぐときの内訳の違いなど）は、どれを出すか決められないので出さない。
+  // 分類できない筋書きが 1 本でもあれば、比べる相手が欠けて見えるので、欄を丸ごと出さない。
+  if (classified.some((item) => item === null)) return null;
+  const sides = classified as Classified[];
+  const capIndexes = sides.flatMap((item, i) => (item.side === "cap" ? [i] : []));
+  const nocapIndexes = sides.flatMap((item, i) =>
+    item.side === "nocap" ? [i] : [],
+  );
+  // 同じ側の筋書きが 2 本以上あれば、どれを出すか決められない。
   if (capIndexes.length > 1 || nocapIndexes.length > 1) return null;
-  const capIndex = only(capIndexes);
-  const nocapIndex = only(nocapIndexes);
-  if (capIndex === null && nocapIndex === null) return null;
+  const [capIndex] = capIndexes;
+  const [nocapIndex] = nocapIndexes;
+  const capSide = capIndex === undefined ? null : sides[capIndex];
+  const nocapSide = nocapIndex === undefined ? null : sides[nocapIndex];
+  // 両側の医療費の行は、同じ名前・同じ日付のときだけ結び付ける（同じ支払いの、上限あり・なし）。
+  if (capSide && nocapSide) {
+    const a = capSide.rows[capSide.medical];
+    const b = nocapSide.rows[nocapSide.medical];
+    if (a.label !== b.label || a.date !== b.date) return null;
+  }
 
-  const cash = output.cash_on_hand;
-  const differenceOf = (index: number | null) =>
-    index === null
-      ? undefined
-      : output.comparison_with_first.find(
-          (item) => item.name === output.scenarios[index].name,
-        );
-  const compared =
-    capIndex === 0
+  const differenceOf = (index: number) =>
+    output.comparison_with_first.find(
+      (item) => item.name === output.scenarios[index].name,
+    );
+  const fromFirst =
+    capIndex === 0 && nocapIndex !== undefined
       ? differenceOf(nocapIndex)
-      : nocapIndex === 0
-        ? differenceOf(capIndex)
-        : undefined;
-  const single = only(cases);
-  const kougakuCalc = only(
-    calculations.filter(
-      (calculation): calculation is KougakuCalc =>
-        calculation.name === "kougaku_gendo",
-    ),
-  );
+      : undefined;
+  const toFirst =
+    nocapIndex === 0 && capIndex !== undefined
+      ? differenceOf(capIndex)
+      : undefined;
+  const capSaves: Pair | null = fromFirst
+    ? {
+        low: fromFirst.need_low_difference,
+        high: fromFirst.need_high_difference,
+      }
+    : toFirst
+      ? {
+          low: -toFirst.need_low_difference,
+          high: -toFirst.need_high_difference,
+        }
+      : null;
+  const otherCap = capSide ? otherRows(capSide) : [];
+  const otherNocap = nocapSide ? otherRows(nocapSide) : [];
+  const { calc, item } = linked;
+  const cash = output.cash_on_hand;
   return {
     startDate: output.start_date,
     cashOnHand: cash,
-    cap: capIndex === null ? null : columnOf(output.scenarios[capIndex], cash),
+    cap:
+      capSide && capIndex !== undefined
+        ? columnOf(output.scenarios[capIndex], capSide.rows, cash)
+        : null,
     nocap:
-      nocapIndex === null ? null : columnOf(output.scenarios[nocapIndex], cash),
-    kougaku:
-      single && kougakuCalc
-        ? {
-            month: kougakuCalc.output.treatment_month,
-            payWithCap: {
-              low: single.low.pay_with_cap,
-              high: single.high.pay_with_cap,
-            },
-            copayWithoutCap: {
-              low: single.low.copay_without_cap,
-              high: single.high.copay_without_cap,
-            },
-            refundLater: {
-              low: single.low.refund_later,
-              high: single.high.refund_later,
-            },
-          }
+      nocapSide && nocapIndex !== undefined
+        ? columnOf(output.scenarios[nocapIndex], nocapSide.rows, cash)
         : null,
-    // 差は、上限を使わないほうが多い向きで読む（一番上の筋書きがどちらでも、差の大きさは同じ）。
-    needDifference:
-      compared && capIndex !== null && nocapIndex !== null
-        ? {
-            low: Math.abs(compared.need_low_difference),
-            high: Math.abs(compared.need_high_difference),
-          }
-        : null,
+    kougaku: {
+      month: calc.output.treatment_month,
+      payWithCap: { low: item.low.pay_with_cap, high: item.high.pay_with_cap },
+      copayWithoutCap: {
+        low: item.low.copay_without_cap,
+        high: item.high.copay_without_cap,
+      },
+      refundLater: { low: item.low.refund_later, high: item.high.refund_later },
+    },
+    capSaves: capSide && nocapSide ? capSaves : null,
+    sameOtherRows:
+      Boolean(capSide && nocapSide) &&
+      otherCap.length === otherNocap.length &&
+      otherCap.every((row, index) => sameRow(row, otherNocap[index])),
   };
+}
+
+// 2 つの欄の下に出す、差の行。
+// - avoidable: 両側があり、医療費のほかの出入りが同じで、上限側が少なく、その差が還付まで立て替える額と同じとき。「避けられる一時立替」と呼ぶ
+// - difference: 両側があり、少なめと多めで差の向きがそろうとき。向きを保って「支払日に要るお金の差」と呼ぶ（立替の説明は付けない）
+// - refund: 片側だけのとき。高額療養費の計算の、還付まで立て替える額（上限を使えば立て替えずに済む額）
+// 両側があっても差が取れない・向きが分かれるときは null（還付の額に置き換えない）。
+export type PaydayDifference =
+  | { kind: "avoidable"; amount: Pair }
+  | { kind: "difference"; direction: "cap-less" | "cap-more"; amount: Pair }
+  | { kind: "refund"; amount: Pair };
+
+export function paydayDifference(payday: Payday): PaydayDifference | null {
+  const { cap, nocap, capSaves, sameOtherRows, kougaku } = payday;
+  if (!cap || !nocap)
+    return cap || nocap ? { kind: "refund", amount: kougaku.refundLater } : null;
+  if (!capSaves) return null;
+  if (capSaves.low > 0 && capSaves.high > 0)
+    return sameOtherRows && samePair(capSaves, kougaku.refundLater)
+      ? { kind: "avoidable", amount: capSaves }
+      : { kind: "difference", direction: "cap-less", amount: capSaves };
+  if (capSaves.low < 0 && capSaves.high < 0)
+    return {
+      kind: "difference",
+      direction: "cap-more",
+      amount: ordered(-capSaves.low, -capSaves.high),
+    };
+  return null;
 }
 
 // 支払日のお金の欄に添える、出典つきの事実。文は持っている事実（lib/money/facts.ts）の番号の本文に沿う。

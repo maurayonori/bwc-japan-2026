@@ -23,7 +23,7 @@ import { kougakuGendo } from "../lib/money/kougaku";
 import { simulateCashflow } from "../lib/money/ledger";
 import { mealCost } from "../lib/money/meals";
 import type { Calculation } from "../lib/money/schema";
-import { PAYDAY_FACTS, paydayOf, questionCard, resultLinks } from "../lib/views";
+import { PAYDAY_FACTS, paydayDifference, paydayOf, questionCard, resultLinks } from "../lib/views";
 import { validateEvidence, workspaceSchema, type Card } from "../lib/workspace";
 import { rangeExampleWorkspace } from "./fixtures/range-example";
 
@@ -168,8 +168,10 @@ test("支払日に要るお金: 病院に聞く前は、上限を使う場合と
   assert.equal(payday.cap.needDate, "2026-12-28");
   assert.deepEqual(payday.cap.cash?.low, { kind: "remain", amount: 84_310 });
   assert.deepEqual(payday.nocap.cash?.high, { kind: "short", amount: 64_750 });
-  assert.deepEqual(payday.needDifference, { low: 149_060, high: 149_060 });
-  assert.deepEqual(payday.kougaku?.refundLater, { low: 149_060, high: 149_060 });
+  assert.deepEqual(payday.capSaves, { low: 149_060, high: 149_060 });
+  assert.equal(payday.sameOtherRows, true);
+  assert.deepEqual(payday.kougaku.refundLater, { low: 149_060, high: 149_060 });
+  assert.deepEqual(paydayDifference(payday), { kind: "avoidable", amount: { low: 149_060, high: 149_060 } });
   // 確かめた額・見積もり・仮定の区別を残す
   assert.deepEqual(
     payday.cap.rows.map((row) => [row.label, row.amount.low, row.certainty]),
@@ -186,7 +188,8 @@ test("支払日に要るお金: 病院の答えのあとは上限を使う場合
   const payday = paydayOf(moneyOf(after.cards).money);
   assert.ok(payday?.cap);
   assert.equal(payday.nocap, null);
-  assert.equal(payday.needDifference, null);
+  assert.equal(payday.capSaves, null);
+  assert.deepEqual(paydayDifference(payday), { kind: "refund", amount: { low: 149_060, high: 149_060 } });
   assert.deepEqual(payday.cap.need, { low: 115_690, high: 115_690 });
   assert.deepEqual(payday.cap.cash?.high, { kind: "remain", amount: 84_310 });
   assert.deepEqual(payday.kougaku?.copayWithoutCap, { low: 240_000, high: 240_000 });
@@ -207,7 +210,8 @@ test("支払日に要るお金: 幅のある見積もりでも、行の額が少
   assert.equal(payday.nocap.scenario, "いったん 3 割を払う場合");
   assert.deepEqual(payday.cap.need, { low: 115_690, high: 117_690 });
   assert.deepEqual(payday.nocap.need, { low: 264_750, high: 324_750 });
-  assert.deepEqual(payday.needDifference, { low: 149_060, high: 207_060 });
+  assert.deepEqual(payday.capSaves, { low: 149_060, high: 207_060 });
+  assert.equal(paydayDifference(payday)?.kind, "avoidable");
   assert.deepEqual(payday.kougaku?.refundLater, { low: 149_060, high: 207_060 });
   // 手元のお金を聞いていないときは、足りる・足りないを出さない
   assert.equal(payday.cashOnHand, null);

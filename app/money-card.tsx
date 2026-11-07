@@ -34,6 +34,7 @@ import type {
 import {
   PAYDAY_FACTS,
   askWhom,
+  paydayDifference,
   type CashResult,
   type Pair,
   type Payday,
@@ -527,13 +528,9 @@ export function PaydayBlock({
   payday: Payday;
   compact?: boolean;
 }) {
-  const { cap, nocap, kougaku, needDifference, cashOnHand } = payday;
-  const advance = needDifference ?? kougaku?.refundLater ?? null;
-  const sameAsRefund =
-    needDifference !== null &&
-    kougaku !== null &&
-    needDifference.low === kougaku.refundLater.low &&
-    needDifference.high === kougaku.refundLater.high;
+  const { cap, nocap, kougaku, cashOnHand } = payday;
+  // 差の行の種類と額は lib/views.ts の paydayDifference が決める（向きを保つ。新しい額は作らない）。
+  const difference = paydayDifference(payday);
   return (
     <section
       className={`money-block payday${compact ? " compact" : ""}`}
@@ -542,8 +539,7 @@ export function PaydayBlock({
       {!compact && <h4>支払日に要るお金</h4>}
       {!compact && (
         <p className="money-muted">
-          {kougaku ? `${monthText(kougaku.month)}の診療分。` : ""}
-          手元のお金:{" "}
+          {monthText(kougaku.month)}の診療分。手元のお金:{" "}
           {cashOnHand === null ? "聞いていないので、要る額までを出しています" : yen(cashOnHand)}
         </p>
       )}
@@ -553,44 +549,40 @@ export function PaydayBlock({
           column={cap}
           onHand={cashOnHand}
           compact={compact}
-          missing={
-            kougaku
-              ? `上限を使えれば、入院費の窓口負担は ${pairText(kougaku.payWithCap)}です。`
-              : null
-          }
+          missing={`上限を使えれば、入院費の窓口負担は ${pairText(kougaku.payWithCap)}です。`}
         />
         <PaydayTile
           title="使わずに、あとで還付"
           column={nocap}
           onHand={cashOnHand}
           compact={compact}
-          missing={
-            kougaku
-              ? `上限を使わないと、入院費の窓口負担は ${pairText(kougaku.copayWithoutCap)}で、あとで戻る ${pairText(kougaku.refundLater)}を還付まで立て替えます。`
-              : null
-          }
+          missing={`上限を使わないと、入院費の窓口負担は ${pairText(kougaku.copayWithoutCap)}で、あとで戻る ${pairText(kougaku.refundLater)}を還付まで立て替えます。`}
         />
       </div>
-      {cap && nocap && needDifference ? (
+      {difference?.kind === "avoidable" && (
         <p className="payday-diff">
-          <span className="payday-diff-label">
-            {sameAsRefund ? "避けられる一時立替" : "支払日に要るお金の差"}
-          </span>{" "}
-          <strong>{pairText(needDifference)}</strong>
-          {sameAsRefund && (
-            <span> 窓口で上限を使えば、この額を還付まで立て替えずに済みます。</span>
-          )}
+          <span className="payday-diff-label">避けられる一時立替</span>{" "}
+          <strong>{pairText(difference.amount)}</strong>
+          <span> 窓口で上限を使えば、この額を還付まで立て替えずに済みます。</span>
         </p>
-      ) : (
-        cap &&
-        !nocap &&
-        advance && (
-          <p className="payday-diff">
-            <span className="payday-diff-label">避けられる一時立替</span>{" "}
-            <strong>{pairText(advance)}</strong>
-            <span> 窓口で上限までの支払いになれば、この額を還付まで立て替えずに済みます。</span>
-          </p>
-        )
+      )}
+      {difference?.kind === "refund" && (
+        <p className="payday-diff">
+          <span className="payday-diff-label">避けられる一時立替</span>{" "}
+          <strong>{pairText(difference.amount)}</strong>
+          <span> 窓口で上限までの支払いになれば、この額を還付まで立て替えずに済みます。</span>
+        </p>
+      )}
+      {difference?.kind === "difference" && (
+        <p className="payday-diff">
+          <span className="payday-diff-label">支払日に要るお金の差</span>{" "}
+          上限を使うほうが <strong>{pairText(difference.amount)}</strong>
+          {difference.direction === "cap-less" ? "少ない" : "多い"}
+          <span className="money-muted">
+            {" "}
+            （医療費のほかの出入りも含めた差で、還付まで立て替える額とは限りません）
+          </span>
+        </p>
       )}
       {!compact &&
         PAYDAY_FACTS.map((fact) => (
