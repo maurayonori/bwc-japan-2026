@@ -33,4 +33,5 @@
 | [0012](0012-open-production-with-usage-limits.md)                    | 本番 URL を利用上限つきで公開し、Vercel ログインを外す                               | 採用                 | 2026-11-06 |
 | [0013](0013-decision-first-range-and-one-check.md)                  | 主役を「退院の日に要る額の幅」と「まず確かめる 1 つ」にし、メモは渡すものとして下に置く | 採用                 | 2026-11-07 |
 | [0014](0014-browser-speech-recognition-for-voice-input.md)          | 入力欄の横のマイクは、ブラウザ内蔵の音声認識（Web Speech API）にする                 | 採用                 | 2026-11-07 |
-| [0015](0015-one-menu-for-sakiyomi-roadmap-and-play.md)              | 1 つのメニューから会話・年表・あそぶへ移れるようにし、移るあいだの会話はタブのメモリにだけ置く | 提案（提出版には入れない） | 2026-11-07 |
+| [0015](0015-one-menu-for-sakiyomi-roadmap-and-play.md)              | 1 つのメニューから会話・年表・あそぶへ移れるようにし、移るあいだの会話はタブのメモリにだけ置く | 採用（提出版に入れる）     | 2026-11-07 |
+| [0016](0016-pay-day-story-display-and-example.md)                   | 支払日に要るお金を見通しの先頭に並べ、架空の体験例を動画と同じ条件にし、副題を「入院のお金、支払日に間に合う準備」にする | 採用                 | 2026-11-07 |
