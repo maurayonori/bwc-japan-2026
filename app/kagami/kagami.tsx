@@ -2,15 +2,19 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
+  ACCEPTED_EXTENSIONS,
   MAX_RECORDING_MS,
   addClip,
+  cameraFailure,
   clipFileName,
   formatElapsed,
   formatSize,
   getClips,
   pickRecordingType,
+  reachedLimit,
   removeClip,
   subscribeClips,
+  videoTypeOf,
   type Clip,
 } from "@/lib/kagami";
 
@@ -22,14 +26,8 @@ type Camera = "off" | "starting" | "live" | "unavailable";
 
 const NO_CLIPS: readonly Clip[] = [];
 
-function reasonOf(error: unknown): string {
-  const name = error instanceof DOMException ? error.name : "";
-  if (name === "NotAllowedError" || name === "SecurityError")
-    return "カメラの使用が許可されませんでした。";
-  if (name === "NotFoundError" || name === "OverconstrainedError")
-    return "カメラが見つかりませんでした。";
-  if (name === "NotReadableError") return "カメラをほかのアプリが使っているため、開けませんでした。";
-  return "カメラを開けませんでした。";
+function errorName(error: unknown): string {
+  return error instanceof DOMException || error instanceof Error ? error.name : "";
 }
 
 function timeOf(at: number): string {
@@ -82,6 +80,27 @@ export function Kagami() {
       live.current.srcObject = stream.current;
   });
 
+  // タブが隠れたら、録っている途中ならそこまでを残して止め、カメラも止める。
+  // 戻ったときは「カメラをつける」をもう一度押してもらう（裏のタブで上限の 2 分を過ぎて録り続けることもない）。
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== "hidden") return;
+      const wasRecording = recorder.current?.state === "recording";
+      if (wasRecording) recorder.current?.stop();
+      if (!stream.current) return;
+      stopStream(stream.current);
+      stream.current = null;
+      setCamera((now) => (now === "unavailable" ? now : "off"));
+      setNote(
+        wasRecording
+          ? "タブを離れたので、録画とカメラを止めました。撮ったところまでは残っています。"
+          : "タブを離れたので、カメラを止めました。",
+      );
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
   async function open(next: Facing) {
     stopStream(stream.current);
     stream.current = null;
@@ -99,13 +118,26 @@ export function Kagami() {
         withAudio = false;
       } catch (error) {
         if (!mounted.current) return;
-        setCamera("unavailable");
-        setReason(reasonOf(error));
+        // 拒否とカメラが無いときだけ、動画を選ぶ形にする。使用中などは、もう一度押してもらう。
+        const failure = cameraFailure(errorName(error));
+        if (failure.fallback) {
+          setCamera("unavailable");
+          setReason(failure.message);
+        } else {
+          setCamera("off");
+          setNote(failure.message);
+        }
         return;
       }
     }
     if (!mounted.current) {
       stopStream(media);
+      return;
+    }
+    // 開いているあいだにタブが隠れたら、つながずに止める。
+    if (document.visibilityState === "hidden") {
+      stopStream(media);
+      setCamera("off");
       return;
     }
     stream.current = media;
@@ -131,7 +163,11 @@ export function Kagami() {
   function start() {
     const media = stream.current;
     if (!media || recording) return;
-    const type = pickRecordingType((t) => MediaRecorder.isTypeSupported(t), audio);
+    // isTypeSupported が無いブラウザでは、形式を MediaRecorder に任せる。
+    const type =
+      typeof MediaRecorder.isTypeSupported === "function"
+        ? pickRecordingType((t) => MediaRecorder.isTypeSupported(t), audio)
+        : null;
     let rec: MediaRecorder;
     try {
       rec = type ? new MediaRecorder(media, { mimeType: type }) : new MediaRecorder(media);
@@ -179,7 +215,7 @@ export function Kagami() {
     timer.current = window.setInterval(() => {
       const ms = performance.now() - began;
       setElapsed(ms);
-      if (ms >= MAX_RECORDING_MS && rec.state === "recording") {
+      if (reachedLimit(ms) && rec.state === "recording") {
         rec.stop();
         setNote(`1 本は ${formatElapsed(MAX_RECORDING_MS)} までなので、止めました。`);
       }
@@ -197,10 +233,22 @@ export function Kagami() {
   }
 
   function choose(files: FileList | null) {
+    const refused: string[] = [];
     for (const file of Array.from(files ?? [])) {
-      if (!file.type.startsWith("video/") && file.type !== "") continue;
-      addClip(file, { name: file.name, at: Date.now(), durationMs: null, source: "file" });
+      const type = videoTypeOf(file.name, file.type);
+      if (!type) {
+        refused.push(file.name);
+        continue;
+      }
+      // MIME が空のファイルは、拡張子から決めた形式を付けて置く。
+      const blob = file.type === type ? file : new Blob([file], { type });
+      addClip(blob, { name: file.name, at: Date.now(), durationMs: null, source: "file" });
     }
+    setNote(
+      refused.length
+        ? `${refused.join("、")} は動画として開けませんでした。${ACCEPTED_EXTENSIONS.join("・")} の動画を選んでください。`
+        : "",
+    );
   }
 
   return (
@@ -227,6 +275,8 @@ export function Kagami() {
                 src={latestClip.url}
                 controls
                 autoPlay
+                // 人のいる場所で急に音が出ないよう、消音で始める。音は利用者が出す。
+                muted
                 playsInline
                 aria-label="いま撮った映像"
               />
@@ -320,6 +370,11 @@ export function Kagami() {
           <p className="notice" role="status">
             {reason}端末で撮った動画を選ぶと、ここで見返せます。
           </p>
+          {note && (
+            <p className="notice" role="status">
+              {note}
+            </p>
+          )}
           <label className="primary kagami-pick">
             動画を選ぶ
             <input

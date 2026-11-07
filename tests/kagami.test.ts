@@ -4,8 +4,10 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import config from "../next.config";
 import {
+  ACCEPTED_EXTENSIONS,
   MAX_RECORDING_MS,
   addClip,
+  cameraFailure,
   clearClips,
   clipFileName,
   extensionOf,
@@ -13,12 +15,51 @@ import {
   formatSize,
   getClips,
   pickRecordingType,
+  reachedLimit,
   removeClip,
   subscribeClips,
+  videoTypeOf,
 } from "../lib/kagami";
 
-test("1 本の上限は 2 分", () => {
+test("1 本の上限は 2 分。2 分に達したら止める", () => {
   assert.equal(MAX_RECORDING_MS, 120_000);
+  assert.equal(reachedLimit(0), false);
+  assert.equal(reachedLimit(119_999), false);
+  assert.equal(reachedLimit(120_000), true);
+  assert.equal(reachedLimit(120_250), true);
+  // 上限を変えて確かめる
+  assert.equal(reachedLimit(999, 1000), false);
+  assert.equal(reachedLimit(1000, 1000), true);
+});
+
+test("カメラを開けないとき、拒否とカメラが無いときだけ動画を選ぶ形にする。使用中はもう一度押してもらう", () => {
+  for (const name of ["NotAllowedError", "SecurityError", "NotFoundError"]) assert.equal(cameraFailure(name).fallback, true, name);
+  assert.equal(cameraFailure("NotAllowedError").message, "カメラの使用が許可されませんでした。");
+  assert.equal(cameraFailure("NotFoundError").message, "カメラが見つかりませんでした。");
+  for (const name of ["NotReadableError", "AbortError"]) {
+    assert.deepEqual(cameraFailure(name), {
+      fallback: false,
+      message: "ほかのアプリがカメラを使っているかもしれません。閉じてから、もう一度押してください。",
+    });
+  }
+  for (const name of ["OverconstrainedError", "TypeError", ""]) {
+    assert.deepEqual(cameraFailure(name), { fallback: false, message: "カメラを開けませんでした。もう一度押してください。" });
+  }
+});
+
+test("選んだファイルは、MIME が動画ならそのまま、空なら拡張子で見分け、それ以外は断る", () => {
+  assert.deepEqual(ACCEPTED_EXTENSIONS, ["mp4", "m4v", "mov", "webm"]);
+  assert.equal(videoTypeOf("a.mp4", "video/mp4"), "video/mp4");
+  assert.equal(videoTypeOf("IMG_0001.MOV", "video/quicktime"), "video/quicktime");
+  assert.equal(videoTypeOf("x.bin", "video/webm"), "video/webm");
+  assert.equal(videoTypeOf("IMG_0001.MOV", ""), "video/quicktime");
+  assert.equal(videoTypeOf("clip.m4v", ""), "video/mp4");
+  assert.equal(videoTypeOf("clip.mp4", ""), "video/mp4");
+  assert.equal(videoTypeOf("clip.webm", ""), "video/webm");
+  assert.equal(videoTypeOf("memo.txt", ""), null);
+  assert.equal(videoTypeOf("noext", ""), null);
+  assert.equal(videoTypeOf("photo.jpg", "image/jpeg"), null);
+  assert.equal(videoTypeOf("a.mp4", "application/octet-stream"), null);
 });
 
 test("録画の形式は、このブラウザで録れるものを上から選ぶ。音声が無いときは映像だけの形式", () => {

@@ -4,6 +4,45 @@
 // 1 本の上限。これを過ぎたら自動で止める。
 export const MAX_RECORDING_MS = 2 * 60 * 1000;
 
+// 録っている長さが上限に達したか。達したら止める（画面は 0.25 秒ごとに確かめる）。
+// ファイルの実際の長さは、確かめる間隔と最後のかたまり（約 1 秒）の分だけ上限を超えることがある。
+export function reachedLimit(elapsedMs: number, limitMs: number = MAX_RECORDING_MS): boolean {
+  return elapsedMs >= limitMs;
+}
+
+// カメラを開けなかったときの扱い。拒否とカメラが無いときだけ、動画を選ぶ形に切り替える。
+// 使用中（NotReadableError・AbortError）やそのほかは「カメラをつける」に戻し、もう一度押してもらう。
+export function cameraFailure(name: string): { fallback: boolean; message: string } {
+  if (name === "NotAllowedError" || name === "SecurityError")
+    return { fallback: true, message: "カメラの使用が許可されませんでした。" };
+  if (name === "NotFoundError")
+    return { fallback: true, message: "カメラが見つかりませんでした。" };
+  if (name === "NotReadableError" || name === "AbortError")
+    return {
+      fallback: false,
+      message: "ほかのアプリがカメラを使っているかもしれません。閉じてから、もう一度押してください。",
+    };
+  return { fallback: false, message: "カメラを開けませんでした。もう一度押してください。" };
+}
+
+// 端末から選べる動画の拡張子。MIME が空のファイルは、これで見分ける。
+const VIDEO_EXTENSIONS: Record<string, string> = {
+  mp4: "video/mp4",
+  m4v: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+};
+export const ACCEPTED_EXTENSIONS = Object.keys(VIDEO_EXTENSIONS);
+
+// 選んだファイルを動画として扱えるか。扱えるなら形式を、扱えなければ null を返す。
+export function videoTypeOf(name: string, type: string): string | null {
+  if (type.startsWith("video/")) return type;
+  if (type !== "") return null;
+  const dot = name.lastIndexOf(".");
+  if (dot < 0) return null;
+  return VIDEO_EXTENSIONS[name.slice(dot + 1).toLowerCase()] ?? null;
+}
+
 // 録画の形式の候補。上から順に、このブラウザで録れるものを使う。
 // MP4（H.264・AAC）はスマホの写真アプリなどでも開きやすいので先に試し、録れなければ WebM にする。
 const WITH_AUDIO = [
