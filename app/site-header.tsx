@@ -89,6 +89,8 @@ export function SiteHeader({
   const home = isHomeKey(current);
   // 外部リンクの数。中くらいの幅でヘッダーをどこまで詰めるかを、CSS がこれで決める。
   const links = items.filter((item) => item.external).length;
+  const primary = items.filter((item) => item.group === "sakiyomi");
+  const tools = items.filter((item) => item.group === "tools");
   return (
     <header className="site-header" data-links={links}>
       {home ? (
@@ -108,12 +110,8 @@ export function SiteHeader({
       )}
       <nav className="view-nav" aria-label="メニュー">
         <ul>
-          {items.map((item, i) => (
-            <li
-              key={item.key}
-              // さきよみの会話の画面と、ほかの道具のあいだに区切りを置く。
-              className={i > 0 && items[i - 1].group !== item.group ? "tools-start" : undefined}
-            >
+          {primary.map((item) => (
+            <li key={item.key}>
               <MenuLink
                 item={item}
                 current={current}
@@ -125,6 +123,18 @@ export function SiteHeader({
               />
             </li>
           ))}
+          {/* 区切りのあとに、家族の道具（年表・あそぶ・かがみ）を小さく控えめに並べる。主は会話の画面の 3 つ。 */}
+          {tools.length > 0 && (
+            <li className="tools-start">
+              <ul className="menu-tools" aria-label="家族の道具">
+                {tools.map((item) => (
+                  <li key={item.key}>
+                    <MenuLink item={item} current={current} />
+                  </li>
+                ))}
+              </ul>
+            </li>
+          )}
         </ul>
       </nav>
       {children}

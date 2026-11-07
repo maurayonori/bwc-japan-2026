@@ -216,7 +216,7 @@ async function wrappedHeaderText(page: Page) {
   });
 }
 
-test("ヘッダーの文字を、どの幅でも途中で折り返さない。1280px の見た目は変えない", async () => {
+test("ヘッダーの文字を、320〜1,440px のどの幅でも途中で折り返さない。1280px は 1 行で、家族の道具は控えめ", async () => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
   const widths = [320, 375, 414, 600, 740, 741, 771, 800, 850, 900, 950, 1000, 1050, 1100, 1150, 1200, 1280, 1440];
@@ -242,6 +242,22 @@ test("ヘッダーの文字を、どの幅でも途中で折り返さない。12
     }),
   );
   assert.ok(Math.max(...rows) - Math.min(...rows) <= 2, JSON.stringify(rows));
+  // 主は 話す・見通し・渡すもの。家族の道具（年表・あそぶ・かがみ）は小さく控えめに
+  // ブラウザで動かす関数の中では、名前の付く関数を作らない（変換の補助 __name が入ってしまう）
+  const look = await page.evaluate(() => {
+    const main = getComputedStyle(document.querySelector('nav.view-nav a[href="#outlook"]')!);
+    const tool = getComputedStyle(document.querySelector('nav.view-nav .menu-tools a[href="/kagami"]')!);
+    return {
+      group: document.querySelector("nav.view-nav .menu-tools")?.getAttribute("aria-label"),
+      mainSize: parseFloat(main.fontSize),
+      toolSize: parseFloat(tool.fontSize),
+      mainColor: main.color,
+      toolColor: tool.color,
+    };
+  });
+  assert.equal(look.group, "家族の道具");
+  assert.ok(look.toolSize < look.mainSize, JSON.stringify(look));
+  assert.notEqual(look.toolColor, look.mainColor);
   await context.close();
 });
 

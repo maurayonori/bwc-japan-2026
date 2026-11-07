@@ -109,6 +109,21 @@ test("どのページでもメニューは 1 つ。同じ行き先へのリン�
   }
 });
 
+test("主は 話す・見通し・渡すもの。年表・あそぶ・かがみ（とペルソナ）は区切りのあとの「家族の道具」にまとめる", () => {
+  for (const persona of [undefined, PERSONA]) {
+    const html = render("talk", persona);
+    const nav = html.slice(html.indexOf("<nav "), html.indexOf("</nav>"));
+    const at = nav.indexOf('<ul class="menu-tools" aria-label="家族の道具">');
+    assert.ok(at > 0, "家族の道具のまとまりが無い");
+    const main = links(nav.slice(0, at)).map((link) => link.href);
+    const tools = links(nav.slice(at)).map((link) => link.href);
+    assert.deepEqual(main, ["#talk", "#outlook", "#hand"]);
+    assert.deepEqual(tools, ["/roadmap", "/play", "/kagami", ...(persona ? [PERSONA] : [])]);
+    // 区切りは家族の道具の前に 1 つ
+    assert.equal(nav.match(/class="tools-start"/g)?.length, 1);
+  }
+});
+
 test("会話の画面の中は # だけで移り、ほかのページからは /#outlook で戻る", () => {
   const home = links(render("outlook", undefined, { outlook: 1, hand: 4 }));
   assert.deepEqual(
