@@ -92,7 +92,8 @@ export function exampleMoneyTurns(): { first: Turn; second: Turn } {
       {
         name: CAP_NAME,
         events: [
-          hospitalEvent(low.pay_with_cap, high.pay_with_cap, "confirmed"),
+          // 確かめたのは「窓口で上限が使える」という条件だけ。総額は病院の見積もりのままなので、額は見積もり（#68）。
+          hospitalEvent(low.pay_with_cap, high.pay_with_cap, "estimate"),
           mealEvent,
         ],
       },
@@ -173,7 +174,7 @@ export function exampleWorkspace(): Workspace {
         id: "example-reply",
         role: "assistant",
         text: [
-          `入院のお金を、窓口で上限が使える場合と、使えずにいったん 3 割を払う場合で並べました。${showDate(DISCHARGE)}に手元に要る額は ${yenRange(withCap.low_case.need, withCap.high_case.need)}か ${yenRange(withoutCap.low_case.need, withoutCap.high_case.need)}で、手元の ${yen(CASH_ON_HAND)}だと、後者では ${cashGapText(CASH_ON_HAND, withoutCap.low_case.need, withoutCap.high_case.need)}計算です。差の ${yen(firstDifference.need_low_difference)}はあとから払い戻されますが、払い戻しまで 3 か月以上かかることがあります。[F05]`,
+          `入院のお金を、窓口で上限が使える場合と、使えずにいったん 3 割を払う場合で並べました。${showDate(DISCHARGE)}に手元に要る額は ${yenRange(withCap.low_case.need, withCap.high_case.need)}か ${yenRange(withoutCap.low_case.need, withoutCap.high_case.need)}で、手元の ${yen(CASH_ON_HAND)}だと、後者では ${cashGapText(CASH_ON_HAND, withoutCap.low_case.need, withoutCap.high_case.need)}計算です。差の ${yen(firstDifference.need_low_difference)}は、あとから払い戻される見込みの額です。払い戻しを受けられるか、いつになるかは加入している健康保険に確かめる必要があり、診療月から 3 か月以上かかることがあります。[F05]`,
           `まず確かめる 1 つは、窓口で上限が使えるかです。病院の会計に聞くと、要る額の幅 ${yen(firstConfirm.width)}は無くなり、どちらか 1 つの額に決まります。`,
           "朝の支度の引き継ぎと、保険会社への質問文も用意しました。残しておきたい言葉は、話した言葉のまま残しています。",
         ].join("\n"),
@@ -191,7 +192,7 @@ export function exampleWorkspace(): Workspace {
         id: "example-reply-2",
         role: "assistant",
         text: [
-          `窓口で上限が使えると分かったので、その筋書きだけで計算し直しました。${showDate(DISCHARGE)}に手元に要る額は ${yenRange(confirmed.low_case.need, confirmed.high_case.need)}に決まり、手元の ${yen(CASH_ON_HAND)}から ${cashGapText(CASH_ON_HAND, confirmed.low_case.need, confirmed.high_case.need)}見込みです。入院費の額は「確かめた額」にしました。`,
+          `窓口で上限が使えると分かったので、その筋書きだけで計算し直しました。${showDate(DISCHARGE)}に手元に要る額は ${yenRange(confirmed.low_case.need, confirmed.high_case.need)}に決まり、手元の ${yen(CASH_ON_HAND)}から ${cashGapText(CASH_ON_HAND, confirmed.low_case.need, confirmed.high_case.need)}見込みです。確かめたのは窓口で上限が使えることで、入院費の総額と食事代は見積もりのままです。`,
           "病院の会計への質問文は、聞いた答えを添えて残しました。次に聞くなら、見積もりに入っていない費用です。",
         ].join("\n"),
         tools: ["simulate_cashflow"],
