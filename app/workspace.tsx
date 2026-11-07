@@ -813,10 +813,8 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
               <>
                 <div className="board-summary">
                   <span>
-                    <strong>
-                      {workspace.cards.filter((c) => c.done).length}
-                    </strong>{" "}
-                    / {workspace.cards.length} 件の準備ができました
+                    <strong>{handCards.filter((c) => c.done).length}</strong>{" "}
+                    / {handCards.length} 件の準備ができました
                   </span>
                   <p>全部を一度に進めなくても。ひとつ選ぶところから。</p>
                 </div>
