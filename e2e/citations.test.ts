@@ -119,3 +119,32 @@ test("カードの見出しと次の一歩の [Fxx] も、カードの終わり�
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+test("[F02][F07] と続けて引いた番号は、F02F07 とくっつかず、間が空いて見える", async () => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route("**/api/chat", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ reply: "給付金は確認できていないので、手元のお金に数えていません。[F02][F07]", cards: [], tools: [] }),
+    });
+  });
+  await page.goto(`${base}/`);
+  await page.waitForSelector("#thoughts:not([disabled])");
+  await page.fill("#thoughts", "架空の例: 来月入院します。");
+  await page.getByRole("button", { name: /ここから整理する/ }).click();
+  const message = page.locator(".message.assistant").filter({ hasText: "手元のお金に数えていません" }).first();
+  await message.waitFor();
+  const text = await message.locator("a.fact-cite").evaluateAll((links) =>
+    links.map((link) => link.textContent).join("|"),
+  );
+  assert.equal(text, "F02|F07");
+  const shown = (await message.innerText()).replace(/\s+/g, " ");
+  assert.match(shown, /F02 F07/, `番号の間に空白が要る: ${shown.slice(0, 80)}`);
+  assert.doesNotMatch(shown, /F02F07/);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
