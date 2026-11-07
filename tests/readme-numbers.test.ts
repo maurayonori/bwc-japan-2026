@@ -151,11 +151,67 @@ test("提出文の架空の例の金額は、計算関数の結果と一致す�
     `${yen(withoutCap.low_case.need)}で、差は ${yen(first.cashflow.comparison_with_first[0].need_low_difference)}`,
     `${cashGapText(CASH_ON_HAND, withCap.low_case.need, withCap.high_case.need).replace("残る", "残り")}`,
     `${cashGapText(CASH_ON_HAND, withoutCap.low_case.need, withoutCap.high_case.need).replace("足りない", "足りません")}`,
-    `${yen(confirmed.low_case.need)}に決まります`,
+    `要る額は ${yen(confirmed.low_case.need)}の 1 つ`,
     `12 月に寄れば ${yen(extended.skewed.low_case.need)}`,
     `半々なら ${yen(extended.half.low_case.need)}`,
     `上限が使えなければ ${yen(extended.withoutCap.low_case.need)}`,
   ];
   for (const text of expected) assert.ok(form.includes(text), text);
   assert.equal(confirmed.high_case.rows[0].certainty, "confirmed");
+});
+
+// 仕様（docs/family-preparation.md）と ADR 0016 の体験例の条件と金額も、同じ計算の入力と結果から作って照らす（#62）。
+// 条件は exampleMoneyTurns の計算の入力（総額・手元・入院の日付）から取り、文書に手で書いた値を正としない。
+function exampleConditions() {
+  const { first, second } = exampleMoneyTurns();
+  const kougaku = first.calculations.find((item) => item.name === "kougaku_gendo");
+  const stay = first.calculations.find((item) => item.name === "calc_date");
+  assert.ok(kougaku?.name === "kougaku_gendo" && stay?.name === "calc_date");
+  const { start_date: start, until_date: until } = stay.input;
+  const { amount_low: amount } = kougaku.input;
+  assert.ok(typeof start === "string" && typeof until === "string" && typeof amount === "number");
+  assert.ok(stay.output.until);
+  const man = (value: number) => `${value / 10_000} 万円`;
+  const [y, m, d] = start.split("-").map(Number);
+  const [, , d2] = until.split("-").map(Number);
+  const cash = first.cashflow.cash_on_hand;
+  assert.ok(cash !== null);
+  return {
+    first,
+    second,
+    period: `${y} 年 ${m} 月 ${d} 日〜${d2} 日の ${stay.output.until.days_inclusive} 日間`,
+    total: `医療費の総額 ${man(amount)}`,
+    cash: `手元 ${man(cash)}`,
+  };
+}
+
+test("仕様の体験例の条件と金額は、計算関数の結果と一致する", () => {
+  const spec = read("docs/family-preparation.md");
+  const { first, second, period, total, cash } = exampleConditions();
+  const [withCap, withoutCap] = first.cashflow.scenarios;
+  const [answered] = second.cashflow.scenarios;
+  const expected = [
+    period,
+    total,
+    cash,
+    `窓口で上限が使えれば ${yen(withCap.low_case.need)}`,
+    `使えなければ ${yen(withoutCap.low_case.need)}`,
+    `差は ${yen(first.cashflow.comparison_with_first[0].need_low_difference)}`,
+    `要る額は ${yen(answered.low_case.need)}の 1 つ`,
+  ];
+  for (const text of expected) assert.ok(spec.includes(text), text);
+  assert.equal(withCap.low_case.need, withCap.high_case.need);
+  assert.equal(answered.low_case.need, withCap.low_case.need);
+});
+
+test("ADR 0016 の体験例の条件は、計算関数の入力と一致する", () => {
+  const adr = read("docs/adr/0016-pay-day-story-display-and-example.md");
+  const { period, total, cash } = exampleConditions();
+  for (const text of [period, total, cash]) assert.ok(adr.includes(text), text);
+});
+
+test("README の体験例の条件は、計算関数の入力と一致する", () => {
+  const readme = read("README.md");
+  const { total, cash } = exampleConditions();
+  assert.ok(readme.includes(`協会けんぽ・区分ウ・${total}・${cash}`));
 });
