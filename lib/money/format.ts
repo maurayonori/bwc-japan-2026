@@ -37,13 +37,36 @@ const NEED_GUIDE = [
   "「手元に要る額」は、その日までの支払いをまかなうために、起点の日に手元に要る額です。あとから入るお金では、先に来る支払いは埋まりません。",
   "同じ日の入金と支払いは、支払いを先に置いています。",
 ];
+// 支払日のカードの決まった注記（窓口で上限が使えない筋書きがあるとき）。払い戻しは見込みとして書き、
+// 受けられるか・いつかは加入先に確かめると分かるようにする（給付を言い切らない。#70）。
+export const REFUND_NOTE =
+  "窓口で上限が使えないときは、上限を超えた分をいったん立て替えます。超えた分は、あとから払い戻される見込みの額です。払い戻しを受けられるか、いつになるかは加入している健康保険に確かめてください。協会けんぽの案内では、払い戻しは診療月から 3 か月以上あとです。[F05]";
+
 export const KOUGAKU_ROWS = [
   ["医療費の総額（10 割）", "total_medical_cost"],
   ["上限が無いときの窓口負担", "copay_without_cap"],
   ["1 か月の上限額", "cap"],
   ["窓口で払う額（上限が適用されるとき）", "pay_with_cap"],
-  ["いったん全額を払ったとき、あとで戻る額", "refund_later"],
+  // 払い戻しは受けられるかを確かめていないことがあるので、見込みとして書く（#71）。
+  ["いったん全額を払ったとき、あとで戻る見込みの額", "refund_later"],
 ] as const;
+
+// 返答の下に出す「この返答で呼んだ計算」の名前。
+export const TOOL_LABELS: Record<string, string> = {
+  kougaku_gendo: "高額療養費の上限",
+  meal_cost: "入院中の食事代",
+  calc_date: "日付の計算",
+  simulate_cashflow: "お金の出入りの見通し",
+};
+
+// 呼んだ順に、同じ計算は回数にまとめる（例: 高額療養費の上限 ×2、お金の出入りの見通し ×1）。
+export function toolTraceText(names: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
+  return [...counts]
+    .map(([name, count]) => `${TOOL_LABELS[name] ?? name} ×${count}`)
+    .join("、");
+}
 
 const numberFormat = new Intl.NumberFormat("ja-JP");
 
@@ -60,6 +83,19 @@ export function yenRange(low: number, high: number): string {
 
 export function signedYen(value: number): string {
   return `${value > 0 ? "+" : ""}${yen(value)}`;
+}
+
+// 手元のお金と、要る額の幅を比べた差。残るか、足りないか（#55）。
+export function cashGapText(
+  cash: number,
+  needLow: number,
+  needHigh: number,
+): string {
+  const gapLow = cash - needHigh;
+  const gapHigh = cash - needLow;
+  if (gapLow >= 0) return `${yenRange(gapLow, gapHigh)}残る`;
+  if (gapHigh <= 0) return `${yenRange(-gapHigh, -gapLow)}足りない`;
+  return `${yen(-gapLow)}まで足りないことがある`;
 }
 
 // 年は書かない。年をまたぐ見通しでも読み違えないよう、起点と違う年だけ年を足せるようにする。
@@ -171,6 +207,17 @@ export function needDifferenceText(
     : `少なめの場合 ${signedYen(item.need_low_difference)}、多めの場合 ${signedYen(item.need_high_difference)}`;
 }
 
+// 支払日の表の下に置く、一番上の筋書きと比べた差の文。筋書きが 3 つ以上でも、どの筋書きの差かが分かるように名前を付ける。
+// 少なめ・多めで差が違う筋書きがあるときは「、」が重なるので、筋書きの区切りを「。」にする。
+export function paydayGapText(output: CashflowOutput): string {
+  const items = output.comparison_with_first;
+  if (items.length === 0) return "";
+  const differences = items.map((item) => needDifferenceText(item));
+  const separator = differences.some((text) => text.includes("、")) ? "。" : "、";
+  const parts = items.map((item, index) => `「${item.name}」は ${differences[index]}`);
+  return `「${output.scenarios[0].name}」と比べると、${parts.join(separator)}。`;
+}
+
 const uniqueSources = (sources: readonly Source[]): Source[] => [
   ...new Map(sources.map((source) => [source.url, source])).values(),
 ];
@@ -194,6 +241,7 @@ export function citedFacts(text: string): CitedFact[] {
 }
 
 // 計算の結果と、文章で引いた事実の出典を 1 つにまとめる（同じ URL は 1 回だけ）。
+// simulate_cashflow は、渡した入出金を日付順に並べるだけで制度の表を使わないので、出典を持たない（結果に sources が無い）。
 export function moneySources(money: Money, text: string): Source[] {
   const fromTools = money.calculations.flatMap((calculation) =>
     calculation.name === "simulate_cashflow" ? [] : calculation.output.sources,
@@ -220,6 +268,16 @@ function sourceLines(sources: readonly Source[]): string[] {
         ),
       ]
     : [];
+}
+
+// 出典の番号を集める文。見出しと次の一歩の [Fxx] も含める（#70）。
+export function citedText(card: {
+  title: string;
+  body: string;
+  nextStep: string;
+  uncertainty: string;
+}): string {
+  return [card.title, card.body, card.nextStep, card.uncertainty].join("\n");
 }
 
 // 表の無いメモの本文に [F03] があるとき、持ち出した先でも出典をたどれるようにする。
@@ -286,10 +344,33 @@ function dateText(output: CalcDateOutput): string[] {
   ];
 }
 
+// 持ち出し用の「まず確かめる 1 つ」。不明点が無ければ見出しも出さない。
+export function confirmText(output: CashflowOutput): string[] {
+  const confirm = output.what_to_confirm;
+  const top = confirm?.factors[0];
+  if (!confirm || !top) return [];
+  return [
+    "■ まず確かめる 1 つ",
+    top.name,
+    `- 手元に要る額の幅: ${yenRange(confirm.need_low, confirm.need_high)}（幅 ${yen(confirm.width)}）`,
+    ...(confirm.shortfall_low !== null && confirm.shortfall_high !== null
+      ? [
+          `- 手元のお金と比べて足りない額: ${yenRange(confirm.shortfall_low, confirm.shortfall_high)}`,
+        ]
+      : []),
+    `- 確かめると残る幅: ${yen(top.width_if_resolved)}（答えによって残る幅のうち、大きいほう）`,
+    ...top.branches.map(
+      (branch) =>
+        `- 答えが「${branch.name}」なら: ${yenRange(branch.need_low, branch.need_high)}`,
+    ),
+  ];
+}
+
 function cashflowText(output: CashflowOutput): string[] {
   const hasCash = output.cash_on_hand !== null;
   const baseYear = yearOf(output.start_date);
   return [
+    ...confirmText(output),
     `■ お金の出入りの見通し（起点 ${showDate(output.start_date)}。手元のお金: ${hasCash ? yen(output.cash_on_hand) : "聞いていないので、要る額までを出しています"}）`,
     ...output.scenarios.flatMap((scenario) => {
       const { headers, rows } = cashflowRows(scenario, hasCash, baseYear);

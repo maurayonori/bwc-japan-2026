@@ -1,16 +1,23 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { calcDate } from "../lib/money/business-days";
+import { legacyCashflowInput } from "./helpers/legacy-cashflow";
 import {
+  TOOL_LABELS,
+  cashGapText,
   cashflowPaths,
   cashflowRows,
+  confirmText,
   inDisplayOrder,
   moneyToText,
   needDifferenceText,
+  paydayGapText,
   readingGuide,
+  toolTraceText,
 } from "../lib/money/format";
 import { simulateCashflow } from "../lib/money/ledger";
-import type { Calculation, Money } from "../lib/money/schema";
+import type { Calculation, CashflowOutput, Money } from "../lib/money/schema";
+import { TOOLS } from "../lib/money/tools";
 
 function cashflow(
   scenarios: {
@@ -96,6 +103,41 @@ test("比べた差は、少なめと多めが同じなら 1 つだけ書く", ()
   );
 });
 
+test("支払日の表の下の差の文は、筋書きが 3 つでも、どの筋書きの差かが分かる", () => {
+  const two = cashflow([
+    { name: "窓口で上限が適用される場合", low: 115_690, high: 115_690 },
+    { name: "上限が適用されず、いったん3割を払う場合", low: 264_750, high: 264_750 },
+  ]);
+  assert.equal(
+    paydayGapText(two),
+    "「窓口で上限が適用される場合」と比べると、「上限が適用されず、いったん3割を払う場合」は +149,060 円。",
+  );
+
+  const three = cashflow([
+    { name: "費用が片方の月に寄る場合", low: 127_240, high: 127_240 },
+    { name: "費用が半々の場合", low: 210_180, high: 210_180 },
+    { name: "上限が適用されない場合", low: 276_300, high: 276_300 },
+  ]);
+  assert.equal(
+    paydayGapText(three),
+    "「費用が片方の月に寄る場合」と比べると、「費用が半々の場合」は +82,940 円、「上限が適用されない場合」は +149,060 円。",
+  );
+
+  // 少なめ・多めで差が違う筋書きがあるときは、「、」が重ならないように筋書きの区切りを「。」にする。
+  const differs = cashflow([
+    { name: "元の予定", low: 100_000, high: 100_000 },
+    { name: "延びた場合", low: 110_000, high: 130_000 },
+    { name: "上限が無い場合", low: 150_000, high: 150_000 },
+  ]);
+  assert.equal(
+    paydayGapText(differs),
+    "「元の予定」と比べると、「延びた場合」は 少なめの場合 +10,000 円、多めの場合 +30,000 円。「上限が無い場合」は +50,000 円。",
+  );
+
+  const one = cashflow([{ name: "元の予定", low: 100_000, high: 100_000 }]);
+  assert.equal(paydayGapText(one), "");
+});
+
 test("幅が 1 つも無ければ、読み方に幅の説明を出さない", () => {
   const flat = cashflow([{ name: "試算", low: 100_000, high: 100_000 }]);
   assert.ok(readingGuide(flat).every((line) => !line.includes("少なめ")));
@@ -152,4 +194,55 @@ test("起点と同じ日までを数えただけの日付計算は、表に出�
   assert.deepEqual(inDisplayOrder([trivial, useful]), [useful]);
   assert.ok(!moneyToText(asMoney([trivial]), "").includes("日付の計算"));
   assert.ok(moneyToText(asMoney([useful]), "").includes("日付の計算"));
+});
+
+// 2026-11-07 までの体験例の計算（筋書きと額の 2 つの不明点がある）。
+function exampleCashflow(): CashflowOutput {
+  return simulateCashflow(legacyCashflowInput());
+}
+
+test("持ち出し用の「まず確かめる 1 つ」は、先頭の不明点と前後の幅を書く", () => {
+  assert.deepEqual(confirmText(exampleCashflow()), [
+    "■ まず確かめる 1 つ",
+    "『窓口で上限が適用される場合』か『いったん 3 割を払う場合』か",
+    "- 手元に要る額の幅: 115,690〜324,750 円（幅 209,060 円）",
+    "- 確かめると残る幅: 60,000 円（答えによって残る幅のうち、大きいほう）",
+    "- 答えが「窓口で上限が適用される場合」なら: 115,690〜117,690 円",
+    "- 答えが「いったん 3 割を払う場合」なら: 264,750〜324,750 円",
+  ]);
+});
+
+test("不明点が無いとき・順位の無い前の結果では、「まず確かめる 1 つ」の見出しを出さない", () => {
+  const flat = cashflow([{ name: "試算", low: 100_000, high: 100_000 }]);
+  assert.deepEqual(flat.what_to_confirm?.factors, []);
+  assert.deepEqual(confirmText(flat), []);
+  const { what_to_confirm: _ranking, ...old } = exampleCashflow();
+  assert.deepEqual(confirmText(old), []);
+  const text = moneyToText(
+    asMoney([
+      { name: "simulate_cashflow", input: {}, output: old } as Calculation,
+    ]),
+    "",
+  );
+  assert.ok(!text.includes("まず確かめる"));
+  assert.ok(text.includes("お金の出入りの見通し"));
+});
+
+test("この返答で呼んだ計算は、呼んだ順に名前と回数でまとめる", () => {
+  assert.equal(
+    toolTraceText(["kougaku_gendo", "simulate_cashflow", "kougaku_gendo"]),
+    "高額療養費の上限 ×2、お金の出入りの見通し ×1",
+  );
+  assert.equal(toolTraceText([]), "");
+  assert.equal(toolTraceText(["unknown_tool"]), "unknown_tool ×1");
+  for (const tool of TOOLS) assert.ok(TOOL_LABELS[tool.name], tool.name);
+});
+
+test("手元のお金との差は、残るか足りないかで書く（#55）", () => {
+  assert.equal(cashGapText(200_000, 115_690, 115_690), "84,310 円残る");
+  assert.equal(cashGapText(200_000, 264_750, 264_750), "64,750 円足りない");
+  assert.equal(cashGapText(200_000, 115_690, 117_690), "82,310〜84,310 円残る");
+  assert.equal(cashGapText(200_000, 264_750, 324_750), "64,750〜124,750 円足りない");
+  assert.equal(cashGapText(200_000, 115_690, 264_750), "64,750 円まで足りないことがある");
+  assert.equal(cashGapText(200_000, 200_000, 200_000), "0 円残る");
 });

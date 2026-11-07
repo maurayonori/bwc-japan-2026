@@ -29,5 +29,11 @@
 | [0008](0008-build-family-preparation-workspace.md)                  | 会話から家族のための文章を作り、選んで持ち出せる初版を実装する                       | 一部置き換え（0011） | 2026-11-06 |
 | [0009](0009-conversational-hospital-cost-prototype.md)              | 入院前のお金の見通しを会話で試す検証用の試作を、計算の道具つきで、アプリと分けて置く | 置き換え（0011）     | 2026-11-06 |
 | [0010](0010-host-on-vercel-with-authentication.md)                  | Vercelへ配置し、全URLを認証で保護してMacの起動なしで使えるようにする                 | 置き換え（0012）     | 2026-11-06 |
-| [0011](0011-confirm-sakiyomi-and-include-money.md)                  | 発表する製品を「さきよみ」に確定し、入院前のお金の計算を本体に入れる                 | 採用                 | 2026-11-06 |
+| [0011](0011-confirm-sakiyomi-and-include-money.md)                  | 発表する製品を「さきよみ」に確定し、入院前のお金の計算を本体に入れる                 | 一部置き換え（0013） | 2026-11-06 |
 | [0012](0012-open-production-with-usage-limits.md)                    | 本番 URL を利用上限つきで公開し、Vercel ログインを外す                               | 採用                 | 2026-11-06 |
+| [0013](0013-decision-first-range-and-one-check.md)                  | 主役を「退院の日に要る額の幅」と「まず確かめる 1 つ」にし、メモは渡すものとして下に置く | 採用                 | 2026-11-07 |
+| [0014](0014-browser-speech-recognition-for-voice-input.md)          | 入力欄の横のマイクは、ブラウザ内蔵の音声認識（Web Speech API）にする                 | 採用                 | 2026-11-07 |
+| [0015](0015-one-menu-for-sakiyomi-roadmap-and-play.md)              | 1 つのメニューから会話・年表・あそぶへ移れるようにし、移るあいだの会話はタブのメモリにだけ置く | 一部置き換え（0017） | 2026-11-07 |
+| [0016](0016-pay-day-story-display-and-example.md)                   | 支払日に要るお金を見通しの先頭に並べ、架空の体験例を動画と同じ条件にし、副題を「入院のお金、支払日に間に合う準備」にする | 採用                 | 2026-11-07 |
+| [0017](0017-kagami-recording-on-this-device-only.md)                | かがみ（撮影とプレビュー）をアプリの中に置き、映像をこの端末から出さず、カメラをこのサイト自身にだけ許す | 採用                 | 2026-11-07 |
+| [0018](0018-reject-unverified-numbers-and-rank-by-effect.md)        | 照らせない金額と日付は採用せず、確認の順位は要る額への効き方と中間の境目で決める       | 採用                 | 2026-11-07 |

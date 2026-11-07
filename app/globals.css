@@ -172,60 +172,6 @@ main {
   margin: auto;
   padding: 0 44px;
 }
-.intro {
-  padding: 39px 0 31px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-}
-.eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  color: var(--green);
-  margin-bottom: 10px;
-}
-h1 {
-  font-size: clamp(23px, 2.5vw, 33px);
-  font-weight: 500;
-  letter-spacing: 0.07em;
-  line-height: 1.65;
-}
-.intro p:not(.eyebrow) {
-  margin-top: 9px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.mobile-break {
-  display: none;
-}
-.example-button {
-  display: flex;
-  align-items: center;
-  gap: 22px;
-  border: 1px solid #c8d1c0;
-  background: transparent;
-  padding: 12px 19px;
-  border-radius: 40px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-.example-button span {
-  font-size: 20px;
-  color: var(--green);
-}
-.workspace-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.94fr) minmax(0, 1fr);
-  gap: 36px;
-  align-items: start;
-}
-.panel {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: 0 6px 22px #344a2e03;
-}
 .section-heading {
   display: flex;
   justify-content: space-between;
@@ -245,17 +191,6 @@ h2 {
   letter-spacing: 0.04em;
   font-weight: 600;
 }
-.quiet-dot {
-  height: 9px;
-  width: 9px;
-  border-radius: 50%;
-  background: #c3d3b5;
-}
-.conversation {
-  position: sticky;
-  top: 20px;
-  overflow: hidden;
-}
 .transcript {
   height: 440px;
   min-height: 300px;
@@ -263,59 +198,6 @@ h2 {
   padding: 24px;
   scrollbar-width: thin;
   scrollbar-color: #ced8c9 transparent;
-}
-.welcome {
-  text-align: center;
-  padding: 9px 13px 15px;
-}
-.welcome-mark {
-  width: 66px;
-  height: 66px;
-  margin: 0 auto 18px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--sage);
-}
-.welcome h3 {
-  font-size: 21px;
-  line-height: 1.9;
-  letter-spacing: 0.06em;
-  font-weight: 500;
-}
-.welcome p {
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 2;
-  margin-top: 13px;
-}
-.starters {
-  max-width: 340px;
-  margin: 26px auto 0;
-  text-align: left;
-}
-.starters > span {
-  color: var(--muted);
-  font-size: 10px;
-  letter-spacing: 0.07em;
-  display: block;
-  margin-bottom: 8px;
-}
-.starters button {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  background: #f7f8f1;
-  border: 1px solid #e5e9dd;
-  border-radius: 8px;
-  padding: 9px 12px;
-  margin-bottom: 7px;
-  font-size: 12px;
-}
-.starters button span + span {
-  font-size: 16px;
-  color: #829477;
 }
 .composer-wrap {
   padding: 14px 18px 14px;
@@ -440,6 +322,21 @@ h2 {
 .memo-heading {
   padding: 20px 2px 17px;
 }
+.foresight .cards {
+  margin-top: 17px;
+}
+.foresight .memo-card.money {
+  border-top-width: 4px;
+}
+.foresight-empty {
+  margin-top: 17px;
+  padding: 20px 18px;
+  border: 1px dashed #cfd8c6;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
 .draft-label {
   font-size: 10px;
   color: #89947f;
@@ -450,85 +347,6 @@ h2 {
   padding: 3px 7px;
   background: #e4eadd;
   border-radius: 50%;
-  color: var(--green);
-}
-.empty-board {
-  text-align: center;
-  padding: 38px 0 28px;
-}
-.paper-art {
-  width: 190px;
-  height: 205px;
-  position: relative;
-  margin: 0 auto 22px;
-}
-.paper {
-  width: 156px;
-  height: 190px;
-  position: absolute;
-  left: 17px;
-  top: 6px;
-  border-radius: 3px;
-  border: 1px solid #dce1d0;
-  background: #fcfcf5;
-  box-shadow: 0 6px 12px #334a2a05;
-}
-.paper.back {
-  transform: rotate(-10deg);
-  background: #edf0e2;
-}
-.paper.front {
-  transform: rotate(5deg);
-  padding: 18px;
-  text-align: left;
-}
-.paper i {
-  display: block;
-  border-bottom: 1px solid #dce3d2;
-  margin-top: 17px;
-  width: 100%;
-}
-.paper i:nth-child(4) {
-  width: 65%;
-}
-.paper b {
-  font-size: 8px;
-  font-weight: 400;
-  color: #84937b;
-  display: block;
-  margin-top: 16px;
-}
-.empty-board h3 {
-  font-size: 21px;
-  line-height: 1.9;
-  letter-spacing: 0.04em;
-  font-weight: 500;
-}
-.empty-board > p {
-  font-size: 12px;
-  line-height: 2.2;
-  color: var(--muted);
-  margin-top: 14px;
-}
-.steps {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  padding: 0;
-  margin: 33px 0 0;
-  list-style: none;
-  font-size: 10px;
-  color: var(--muted);
-}
-.steps span {
-  display: block;
-  width: 22px;
-  height: 22px;
-  line-height: 22px;
-  border-radius: 50%;
-  border: 1px solid #cdd7c1;
-  margin: 0 auto 9px;
-  font-size: 10px;
   color: var(--green);
 }
 .board-summary {
@@ -777,7 +595,7 @@ summary {
   margin-bottom: 22px;
   color: #76684b;
 }
-.example-banner > span {
+.example-banner > span:first-child {
   font-weight: 600;
   white-space: nowrap;
 }
@@ -897,6 +715,242 @@ dialog::backdrop {
   margin-top: 24px;
   padding-top: 15px;
 }
+/* ---- 最初の画面は会話だけ（#43）。入力欄は画面の下に置き、見通しと渡すものへはリンクで移る。 ---- */
+.app-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.app-shell.is-talk {
+  height: 100dvh;
+  overflow: hidden;
+}
+.site-header {
+  flex: none;
+  width: 100%;
+  max-width: none;
+  padding: 10px 24px;
+  gap: 16px;
+}
+.brand {
+  align-items: center;
+  font-size: 17px;
+}
+.brand small {
+  margin-top: 1px;
+}
+/* アプリ全体の 1 つのメニュー（#52、ADR 0015）。会話の画面の 3 つと、ほかの道具のあいだに細い区切りを置く。 */
+.view-nav {
+  display: flex;
+  gap: 4px;
+  /* 横に送るときに、読み上げ用の文字（.sr-only）がメニューの外へはみ出さないよう、ここを基準にする。 */
+  position: relative;
+}
+.view-nav ul {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.view-nav li.tools-start {
+  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 1px solid var(--line);
+}
+/* 主は会話の画面の 3 つ（話す・見通し・渡すもの）。区切りのあとの家族の道具（年表・あそぶ・かがみ）は、小さく控えめに（#54）。 */
+.view-nav > ul > li > a {
+  color: var(--ink);
+}
+.view-nav .menu-tools {
+  gap: 2px;
+}
+.view-nav .menu-tools a {
+  font-size: 11px;
+  padding: 4px 8px;
+  color: var(--muted);
+}
+.view-nav .menu-tools a[aria-current="page"] {
+  color: var(--green);
+}
+.view-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.view-nav a[aria-current="page"] {
+  background: white;
+  border-color: #c7d3bc;
+  color: var(--green);
+}
+.view-nav .count {
+  margin-left: 0;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+main.talk {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.talk-notes {
+  flex: none;
+  padding: 12px 20px 0;
+}
+.talk-notes .example-banner,
+.talk-notes .notice {
+  margin-bottom: 0;
+}
+.talk .transcript {
+  flex: 1;
+  min-height: 0;
+  height: auto;
+  padding: 24px 20px 12px;
+}
+.talk .composer-wrap {
+  flex: none;
+  background: var(--bg);
+}
+.talk .composer textarea {
+  min-height: 52px;
+}
+.message .result-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  white-space: normal;
+  line-height: 1.6;
+}
+.result-links a {
+  display: inline-block;
+  padding: 6px 12px;
+  border: 1px solid #c7d3bc;
+  border-radius: 16px;
+  background: white;
+  font-size: 12px;
+  text-decoration: none;
+}
+/* 入力欄のそばの道具（マイクと体験例へのリンク）。道具が無いときも、送るボタンは右に置く。 */
+.composer-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-width: 0;
+}
+.composer-bottom .send-button {
+  margin-left: auto;
+  flex: none;
+}
+.text-link {
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--green);
+  text-decoration: underline;
+  text-decoration-color: #bcc8bb;
+  text-underline-offset: 4px;
+}
+/* 入力欄の横のマイク（#45）。PC の対応するブラウザだけに出る。録音中は塗りと点で分かるようにする。 */
+.voice-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px 5px 8px;
+  border: 1px solid #c7d3bc;
+  border-radius: 16px;
+  background: white;
+  color: var(--green);
+  font-size: 11px;
+}
+.voice-button svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.voice-button[aria-pressed="true"] {
+  background: var(--deep);
+  border-color: var(--deep);
+  color: white;
+}
+.voice-dot {
+  width: 9px;
+  height: 9px;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: #f0b9a6;
+  animation: voice-pulse 1.2s ease-in-out infinite;
+}
+@keyframes voice-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+/* 録音中の案内、話している途中の文字、エラー、初めて押したときの一言。道具の下に 1 行ずつ並べる。 */
+.voice-status {
+  order: 1;
+  flex-basis: 100%;
+  display: grid;
+  gap: 2px;
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.voice-interim {
+  color: #9aa498;
+}
+.voice-interim::after {
+  content: " …";
+}
+.voice-error {
+  color: #7c603d;
+}
+/* 年表（/roadmap）の入れ物。幅と余白は年表の .wrap が決める（#52）。 */
+main.roadmap-main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+main.page {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px 20px 0;
+}
+.back-link {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  text-decoration: none;
+}
+.privacy-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.privacy-controls label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
 @media (min-width: 1500px) {
   .transcript {
     height: 490px;
@@ -904,31 +958,16 @@ dialog::backdrop {
 }
 @media (max-width: 1000px) {
   .site-header {
-    padding: 22px 28px;
+    padding: 10px 20px;
   }
   main {
     padding: 0 28px;
   }
-  .workspace-grid {
-    gap: 24px;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
   .composer-bottom > span {
     display: none;
   }
-  .intro h1 {
-    font-size: 26px;
-  }
-  .example-button {
-    font-size: 11px;
-    padding: 10px 14px;
-    gap: 12px;
-  }
   .draft-label {
     display: none;
-  }
-  .steps {
-    gap: 15px;
   }
   .memo-card {
     padding-left: 17px;
@@ -953,18 +992,56 @@ dialog::backdrop {
   }
 }
 @media (max-width: 740px) {
+  /* 製品名と「保存とプライバシー」を 1 行目、表示の切り替えを 2 行目に置く。 */
   .site-header {
-    padding: 17px 20px;
+    padding: 8px 14px;
+    flex-wrap: wrap;
+    row-gap: 6px;
   }
   .brand {
-    font-size: 21px;
+    font-size: 16px;
   }
   .brand small {
-    font-size: 9px;
+    display: none;
   }
   .brand .mark {
-    width: 37px;
-    height: 37px;
+    width: 28px;
+    height: 28px;
+  }
+  .view-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .view-nav ul {
+    flex: 1;
+    gap: 0;
+  }
+  .view-nav li {
+    flex: 1 0 auto;
+  }
+  .view-nav li.tools-start {
+    margin-left: 2px;
+    padding-left: 2px;
+  }
+  .view-nav a {
+    width: 100%;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 4px;
+  }
+  .view-nav .menu-tools a {
+    padding: 5px 3px;
+  }
+  main.page {
+    padding: 12px 16px 0;
+  }
+  .talk-notes {
+    padding: 10px 14px 0;
+  }
+  .talk .transcript {
+    padding: 18px 16px 10px;
   }
   .header-actions .connection {
     display: none;
@@ -974,34 +1051,6 @@ dialog::backdrop {
   }
   main {
     padding: 0 18px;
-  }
-  .intro {
-    display: block;
-    padding: 27px 3px 24px;
-  }
-  .intro h1 {
-    font-size: 27px;
-    line-height: 1.65;
-  }
-  .mobile-break {
-    display: block;
-  }
-  .intro p:not(.eyebrow) {
-    font-size: 11px;
-    margin-top: 12px;
-  }
-  .example-button {
-    margin-top: 20px;
-    padding: 8px 14px;
-  }
-  .workspace-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 25px;
-  }
-  .conversation {
-    position: static;
-    width: 100%;
   }
   .section-heading {
     padding: 18px 19px 15px;
@@ -1013,30 +1062,6 @@ dialog::backdrop {
     height: 375px;
     padding: 20px;
   }
-  .welcome {
-    padding: 0;
-  }
-  .welcome-mark {
-    width: 52px;
-    height: 52px;
-    margin-bottom: 14px;
-  }
-  .welcome h3 {
-    font-size: 19px;
-    line-height: 1.7;
-  }
-  .welcome p {
-    font-size: 11px;
-    margin-top: 10px;
-  }
-  .starters {
-    margin-top: 19px;
-    max-width: 300px;
-  }
-  .starters button {
-    padding: 7px 11px;
-    font-size: 11px;
-  }
   .composer-wrap {
     padding: 12px;
   }
@@ -1044,20 +1069,20 @@ dialog::backdrop {
     font-size: 16px;
     min-height: 85px;
   }
+  .talk .composer textarea {
+    min-height: 56px;
+  }
   .composer textarea::placeholder {
     font-size: 11px;
   }
   .composer-bottom {
-    justify-content: flex-end;
+    justify-content: space-between;
   }
   .send-button {
     padding: 9px 13px;
   }
   .privacy-hint {
     font-size: 9px;
-  }
-  .preparation {
-    width: 100%;
   }
   .memo-heading {
     padding: 0 3px 16px;
@@ -1066,34 +1091,20 @@ dialog::backdrop {
     display: block;
     font-size: 9px;
   }
-  .empty-board {
-    padding: 25px 0;
+  /* 見出しが 2 行に折れないよう、添え書きは見出しの下に回す。 */
+  .foresight .section-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
-  .paper-art {
-    transform: scale(0.85);
-    height: 180px;
-    margin-bottom: 8px;
-  }
-  .empty-board h3 {
-    font-size: 19px;
-  }
-  .empty-board > p {
-    font-size: 11px;
-  }
-  .steps {
-    gap: 24px;
-  }
+  /* 会話の場所を狭めないよう、狭い幅では 1 行にする。 */
   .example-banner {
-    flex-wrap: wrap;
-    gap: 6px;
+    gap: 10px;
     font-size: 10px;
-    padding: 10px 13px;
+    padding: 8px 13px;
   }
-  .example-banner > span {
-    width: 100%;
-  }
-  .example-banner button {
-    margin-left: 0;
+  .example-banner .example-note {
+    display: none;
   }
   .filters {
     gap: 1px;
@@ -1150,6 +1161,55 @@ dialog::backdrop {
   }
   .connection {
     font-size: 9px;
+  }
+}
+/* ヘッダーの文字は途中で折り返さない（#52）。1280px 以上の見た目は変えず、狭くなったら次の順で詰める。
+   1079px 以下: 副題と「公開の試用版」を隠す。
+   それでも収まらない幅（外部リンクがあれば 959px 以下、無ければ 799px 以下）: メニューを 2 行目に送る。
+   740px 以下はスマホの並び（上の @media (max-width: 740px)）。 */
+.brand > span,
+.header-actions .connection,
+.header-actions .text-button {
+  white-space: nowrap;
+}
+@media (min-width: 741px) and (max-width: 1079px) {
+  .site-header .brand small,
+  .site-header .header-actions .connection {
+    display: none;
+  }
+}
+@media (min-width: 741px) and (max-width: 799px) {
+  .site-header {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .site-header .view-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+@media (min-width: 800px) and (max-width: 959px) {
+  .site-header:not([data-links="0"]) {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .site-header:not([data-links="0"]) .view-nav {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
+/* 320px 前後の幅でも、メニューの 5 つを 1 行に収める（ペルソナやかがみを足したときは、メニューの中で横に送る）。 */
+@media (max-width: 360px) {
+  .view-nav a {
+    font-size: 11px;
+    padding: 5px 3px;
+  }
+  .view-nav .count {
+    padding: 0 4px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -1,5 +1,5 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { runChat } from "@/lib/chat";
+import { runChat, toResponse } from "@/lib/chat";
 import { requestSchema } from "@/lib/workspace";
 import { isAllowedRequest, readBoundedJson } from "@/lib/request";
 import { readApiKey } from "@/lib/credentials";
@@ -66,12 +66,9 @@ export async function POST(request: Request) {
       [...input.cards, ...result.cards].map((card) => card.id),
     );
     if (ids.size > MAX_CARDS) return fail(TOO_MANY_CARDS, 400);
-    // ステップ数やトークン数（result.meta）は画面に要らないので返さない。
-    const { reply, cards, warnings } = result;
-    return Response.json(
-      { reply, cards, warnings },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    return Response.json(toResponse(result), {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch {
     // 本文・個人情報・プロバイダーのエラー全文はログにも応答にも出さない。
     return fail(

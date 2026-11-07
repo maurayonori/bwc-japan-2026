@@ -49,6 +49,25 @@ test("ADR 0007 の約束が入っている", () => {
   }
 });
 
+test("「まず確かめる 1 つ」の読み方と、答えを反映する呼び直しが入っている", () => {
+  const text = buildSystem("2026-11-06")[0].content;
+  for (const phrase of [
+    "what_to_confirm.factors",
+    "「まず確かめる 1 つ」として 1 行で書く",
+    "width_if_resolved",
+    "このまま聞く",
+    "certainty を confirmed にする",
+    "前の width から新しい width",
+    "同じ label は 1 つの不明点として数える",
+    "いったん 3 割を払う筋書きを並べる",
+    "まず確かめる 1 つの前後の幅",
+    "先頭の shrink が 0 のときは",
+    "答えごとに何が決まるかを書く",
+  ]) {
+    assert.ok(text.includes(phrase), phrase);
+  }
+});
+
 test("すべての道具の名前と、すべての事実の番号が入っている", () => {
   const text = buildSystem("2026-11-06")[0].content;
   for (const tool of TOOLS) assert.ok(text.includes(tool.name), tool.name);

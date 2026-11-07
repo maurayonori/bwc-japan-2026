@@ -9,6 +9,26 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-push-check.sh"
           }
         ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/rules-auditor-guard.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/rules-freshness-check.sh"
+          }
+        ]
       }
     ]
   }

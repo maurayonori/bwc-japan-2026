@@ -6,17 +6,22 @@ import {
   CERTAINTY_TEXT,
   DIRECTION_TEXT,
   KOUGAKU_ROWS,
+  cashGapText,
   cashflowPaths,
   cashflowRows,
+  citedFacts,
   copayText,
   formulaText,
   inDisplayOrder,
   moneySources,
   monthText,
   needDifferenceText,
+  paydayGapText,
   readingGuide,
+  REFUND_NOTE,
   showDate,
   stepText,
+  toolTraceText,
   yen,
   yenRange,
   type CashflowScenario,
@@ -28,7 +33,9 @@ import type {
   MealOutput,
   Money,
   MoneyWarning,
+  WhatToConfirm,
 } from "@/lib/money/schema";
+import { askWhom } from "@/lib/views";
 import "./money.css";
 
 // 表に出す金額と日付は、すべてサーバーの計算結果。Claude が書いた数字は入らない。
@@ -37,6 +44,7 @@ const CITATION = /(\[F\d{2}(?:\s*[,、]\s*F\d{2})*\])/;
 const WEEKEND_REASONS = ["土曜日", "日曜日"];
 const MAX_SKIPPED_SHOWN = 6;
 const HINT_AFTER_SECONDS = 5;
+const OTHER_FACTORS_SHOWN = 3;
 
 function Citation({ id }: { id: string }) {
   const fact = FACTS.find((item) => item.id === id);
@@ -60,13 +68,51 @@ function Citation({ id }: { id: string }) {
   );
 }
 
-// 文章の [F03] を、出典へのリンクにする。
-export function FactText({ text }: { text: string }) {
+// 引いた事実ごとの出典すべて（名前と URL）と確認日を、ホバーにせず見える形で並べる（#68）。
+export function FactSources({ text }: { text: string }) {
+  const facts = citedFacts(text);
+  if (facts.length === 0) return null;
+  return (
+    <span className="fact-sources">
+      {facts.map((fact) => (
+        <span key={fact.id} className="fact-source">
+          <span className="fact-source-head">
+            {fact.id}: {fact.topic}（確認 {fact.checked_on}）
+          </span>
+          {fact.sources.map((source) => (
+            <span key={source.url} className="fact-source-item">
+              {source.name}{" "}
+              {source.url.startsWith("https://") ? (
+                <a href={source.url} target="_blank" rel="noopener noreferrer">
+                  {source.url}
+                </a>
+              ) : (
+                source.url
+              )}
+            </span>
+          ))}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// 文章の [F03] を、出典へのリンクにする。sources が true なら、文章のあとに出典の並び（FactSources）を出す。
+// カードは見出し・本文・次の一歩・まだ確かめていないことの出典を、カードの終わりにまとめて出す（#70）。
+export function FactText({
+  text,
+  sources = true,
+}: {
+  text: string;
+  sources?: boolean;
+}) {
   return (
     <>
-      {text.split(CITATION).map((part, index) =>
+      {text.split(CITATION).map((part, index, parts) =>
         CITATION.test(part) ? (
           <span key={index}>
+            {/* [F02][F07] のように続けて書かれた番号が、F02F07 とくっついて見えないようにする */}
+            {index >= 2 && parts[index - 1] === "" && " "}
             {(part.match(/F\d{2}/g) ?? []).map((id, position) => (
               <span key={id}>
                 {position > 0 && " "}
@@ -78,6 +124,7 @@ export function FactText({ text }: { text: string }) {
           part
         ),
       )}
+      {sources && <FactSources text={text} />}
     </>
   );
 }
@@ -403,8 +450,262 @@ function CashflowBlock({ output }: { output: CashflowOutput }) {
   );
 }
 
-export function MoneyDetails({ money, text }: { money: Money; text: string }) {
+// 聞く相手にそのまま見せる質問文。会話で作った「確かめる・頼む」の文章を使う。
+export interface AskQuestion {
+  title: string;
+  body: string;
+}
+
+function Bar({
+  label,
+  value,
+  ratio,
+  after = false,
+}: {
+  label: string;
+  value: number;
+  ratio: number;
+  after?: boolean;
+}) {
+  // 0 でなければ、細くても見えるようにする。
+  const percent = ratio > 0 ? Math.max(ratio * 100, 1.5) : 0;
+  return (
+    <div className="money-bar-row">
+      <span className="money-bar-label">{label}</span>
+      <span className="money-bar" aria-hidden="true">
+        <span
+          className={`money-bar-fill${after ? " after" : ""}`}
+          style={{ width: `${Math.min(percent, 100)}%` }}
+        />
+      </span>
+      <span className="money-bar-value">{yen(value)}</span>
+    </div>
+  );
+}
+
+function OtherFactors({ confirm }: { confirm: WhatToConfirm }) {
+  const others = confirm.factors.slice(1, 1 + OTHER_FACTORS_SHOWN);
+  const hidden =
+    confirm.factors.length - 1 - others.length + confirm.omitted_factors;
+  if (others.length === 0 && hidden === 0) return null;
+  return (
+    <details>
+      <summary>ほかの不明点</summary>
+      {others.map((factor, index) => (
+        <div key={`${factor.kind}-${index}`} className="money-confirm-other">
+          <p>{factor.name}</p>
+          <Bar
+            label="確かめると残る幅"
+            value={factor.width_if_resolved}
+            ratio={
+              confirm.width > 0 ? factor.width_if_resolved / confirm.width : 0
+            }
+            after
+          />
+        </div>
+      ))}
+      {hidden > 0 && (
+        <p className="money-muted">
+          ほかに {hidden} 件の不明点があります。幅の縮み方が小さいか、組み合わせが多くなるので、ここには並べていません。
+        </p>
+      )}
+    </details>
+  );
+}
+
+// 支払日に要るお金を、筋書きごとに並べる（#55）。窓口で上限が使える場合と使えない場合の差（いったん立て替える額）と、
+// 手元のお金との差を、表より先に読めるようにする。値はすべてサーバーの計算結果で、筋書きの名前は会話で付けたもの。
+const CERTAINTY_ORDER = ["confirmed", "estimate", "assumption"] as const;
+
+export function PayDayBlock({
+  output,
+  refundNote,
+}: {
+  output: CashflowOutput;
+  refundNote: boolean;
+}) {
+  const cash = output.cash_on_hand;
+  const baseYear = Number(output.start_date.slice(0, 4));
+  const rows = output.scenarios.map((scenario) => {
+    const { low_case: low, high_case: high } = scenario;
+    // 支払いに入っている額の確かさを、確かめた額・見積もり・仮定の順に並べる（例: 入院費は確かめた額、食事代は見積もり）。
+    const outRows = high.rows.filter((row) => row.direction === "out");
+    const certainty = CERTAINTY_ORDER.filter((kind) =>
+      outRows.some((row) => row.certainty === kind),
+    ).map((kind) => CERTAINTY_TEXT[kind]);
+    return [
+      scenario.name,
+      yenRange(low.need, high.need),
+      high.need_date ? showDate(high.need_date, baseYear) : "なし",
+      ...(cash === null ? [] : [cashGapText(cash, low.need, high.need)]),
+      certainty.length > 0 ? certainty.join("・") : "—",
+    ];
+  });
+  return (
+    <section className="money-block money-payday decision">
+      <h4>支払日に要るお金</h4>
+      <Table
+        headers={[
+          "筋書き",
+          "要る額",
+          "いつ",
+          ...(cash === null ? [] : ["手元のお金との差"]),
+          "確かさ",
+        ]}
+        rows={rows}
+      />
+      {output.comparison_with_first.length > 0 && (
+        <p className="money-muted payday-gap">{paydayGapText(output)}</p>
+      )}
+      {refundNote && output.scenarios.length >= 2 && (
+        <p className="payday-note">
+          <FactText text={REFUND_NOTE} />
+        </p>
+      )}
+    </section>
+  );
+}
+
+// 要る額の幅と、その幅を一番縮める確認を 1 つ。順位も額も、サーバーの計算結果だけを使う。
+export function ConfirmBlock({
+  output,
+  question,
+  onAsk,
+  disabled = false,
+}: {
+  output: CashflowOutput;
+  question?: AskQuestion | null;
+  onAsk?: (text: string) => void;
+  disabled?: boolean;
+}) {
+  const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+  const confirm = output.what_to_confirm;
+  if (!confirm) return null;
+  const [top] = confirm.factors;
+  const { width } = confirm;
+  async function copyQuestion(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopy("copied");
+    } catch {
+      setCopy("failed");
+    }
+  }
+  return (
+    <section className="money-block money-confirm decision">
+      <h4>まず確かめる 1{"\u00a0"}つ</h4>
+      {top && width > 0 && <p className="money-confirm-name">{top.name}</p>}
+      <p className="decision-range">
+        <span className="money-muted">手元に要る額の幅</span>{" "}
+        <strong>{yenRange(confirm.need_low, confirm.need_high)}</strong>
+        {width > 0 && <span className="money-muted">（幅 {yen(width)}）</span>}
+      </p>
+      {confirm.shortfall_low !== null && confirm.shortfall_high !== null && (
+        <p className="money-muted">
+          手元のお金と比べて足りない額:{" "}
+          {yenRange(confirm.shortfall_low, confirm.shortfall_high)}
+        </p>
+      )}
+      {width === 0 ? (
+        <p>幅はありません。</p>
+      ) : !top ? (
+        <p>残る幅は、確かめた額の幅です。</p>
+      ) : (
+        <div className="decision-check">
+          <div className="money-bars">
+            <Bar label="いまの幅" value={width} ratio={1} />
+            <Bar
+              label="確かめると残る幅"
+              value={top.width_if_resolved}
+              ratio={top.width_if_resolved / width}
+              after
+            />
+          </div>
+          {top.shrink === 0 && (
+            <p className="money-muted">
+              この不明点だけが分かっても、答えによっては幅が縮みません。
+            </p>
+          )}
+          <Table
+            headers={["答え", "要る額"]}
+            rows={top.branches.map((branch) => [
+              branch.name,
+              yenRange(branch.need_low, branch.need_high),
+            ])}
+          />
+          {question ? (
+            <div className="money-confirm-ask">
+              <p>
+                <span className="money-muted">聞く相手</span>{" "}
+                {askWhom(question.title)}
+              </p>
+              <button
+                type="button"
+                className="secondary money-copy"
+                onClick={() => void copyQuestion(question.body)}
+              >
+                {copy === "copied" ? "✓ コピーしました" : "質問文をコピー"}
+              </button>
+              {copy === "failed" && (
+                <p className="money-muted" role="status">
+                  コピーできませんでした。下の質問文を選んでコピーしてください。
+                </p>
+              )}
+              <details open={copy === "failed"}>
+                <summary>質問文を見る</summary>
+                <p className="money-question">{question.body}</p>
+              </details>
+            </div>
+          ) : (
+            onAsk && (
+              <div className="money-confirm-ask">
+                <button
+                  type="button"
+                  className="secondary money-copy"
+                  disabled={disabled}
+                  onClick={() =>
+                    onAsk(`「${top.name}」を確かめる質問文を作って`)
+                  }
+                >
+                  質問文を作ってもらう
+                </button>
+                <p className="money-muted">
+                  会話の入力欄に下書きを入れます。送るかどうかは自分で決められます。
+                </p>
+              </div>
+            )
+          )}
+        </div>
+      )}
+      <OtherFactors confirm={confirm} />
+      <details>
+        <summary>読み方</summary>
+        <Lines items={confirm.reading_guide} />
+      </details>
+    </section>
+  );
+}
+
+export function MoneyDetails({
+  money,
+  text,
+  question,
+  onAsk,
+  disabled,
+}: {
+  money: Money;
+  text: string;
+  question?: AskQuestion | null;
+  onAsk?: (text: string) => void;
+  disabled?: boolean;
+}) {
   const calculations = inDisplayOrder(money.calculations);
+  // 見通しが 2 つ以上あるときは、あとで計算したほうの順位を出す。
+  const latest = calculations.findLast(
+    (calculation) =>
+      calculation.name === "simulate_cashflow" &&
+      calculation.output.what_to_confirm !== undefined,
+  );
   const notIncluded = [
     ...new Set(
       calculations.flatMap((calculation) =>
@@ -414,9 +715,31 @@ export function MoneyDetails({ money, text }: { money: Money; text: string }) {
       ),
     ),
   ];
-  const sources = moneySources(money, text);
+  const hasKougaku = calculations.some(
+    (calculation) => calculation.name === "kougaku_gendo",
+  );
+  const payday =
+    latest?.name === "simulate_cashflow" && latest.output.scenarios.length > 0;
+  // 支払日の表の払い戻しの注意は、出典の一覧にも出す。
+  const sources = moneySources(
+    money,
+    payday && hasKougaku && latest.output.scenarios.length >= 2
+      ? `${text}\n${REFUND_NOTE}`
+      : text,
+  );
   return (
     <div className="money">
+      {payday && latest?.name === "simulate_cashflow" && (
+        <PayDayBlock output={latest.output} refundNote={hasKougaku} />
+      )}
+      {latest?.name === "simulate_cashflow" && (
+        <ConfirmBlock
+          output={latest.output}
+          question={question}
+          onAsk={onAsk}
+          disabled={disabled}
+        />
+      )}
       {calculations.map((calculation, index) => {
         switch (calculation.name) {
           case "simulate_cashflow":
@@ -478,6 +801,14 @@ export function WarningList({
         ))}
       </ul>
     </div>
+  );
+}
+
+// 返答の下に、この返答で呼んだ計算を出す。表の数字がプログラムの計算であることを、目で確かめられるように。
+export function ToolTrace({ tools }: { tools?: readonly string[] }) {
+  if (!tools?.length) return null;
+  return (
+    <p className="tool-trace">この返答で呼んだ計算: {toolTraceText(tools)}</p>
   );
 }
 
