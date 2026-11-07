@@ -13,7 +13,8 @@ let base = "";
 let stop = () => {};
 
 before(async () => {
-  ({ base, stop } = await startServer());
+  // 送信を押せるよう、接続ありの画面で起動する（接続が無いと送れない、#64）。送信はブラウザの中で差し替える。
+  ({ base, stop } = await startServer({ connected: true }));
   browser = await chromium.launch();
 });
 
