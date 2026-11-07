@@ -1,4 +1,4 @@
-// かがみ（#54、ADR 0016）: 撮っている映像を見ながら録画し、その場で見返す。合成・映像の解析・AI の呼び出しはしない。
+// かがみ（#54、ADR 0017）: 撮っている映像を見ながら録画し、その場で見返す。合成・映像の解析・AI の呼び出しはしない。
 // 撮ったものはこのタブのメモリにだけ置く。サーバーにもブラウザの保存領域にも書かない。タブを閉じると消える。
 
 // 1 本の上限。これを過ぎたら自動で止める。
@@ -23,6 +23,33 @@ export function cameraFailure(name: string): { fallback: boolean; message: strin
       message: "ほかのアプリがカメラを使っているかもしれません。閉じてから、もう一度押してください。",
     };
   return { fallback: false, message: "カメラを開けませんでした。もう一度押してください。" };
+}
+
+export type Facing = "user" | "environment";
+
+// 取得したカメラの向き。トラックの設定（getSettings の facingMode）を先に見る。
+// 設定に無ければ（PC のカメラなど）、向きを頼んで開いたときはその向き、deviceId で開いたときは分からない（null）。
+export function facingOf(settingsFacing: string | undefined, requested: Facing | null): Facing | null {
+  if (settingsFacing === "user" || settingsFacing === "environment") return settingsFacing;
+  return requested;
+}
+
+// 前のカメラは鏡のように左右を返して見せる。
+export const mirrored = (facing: Facing | null): boolean => facing === "user";
+
+// 切り替えたときに使う、いまと別のカメラ（deviceId）。並びの次を選び、最後なら先頭に戻る。別のカメラが無ければ null。
+export function nextCamera(deviceIds: readonly string[], currentId: string | undefined | null): string | null {
+  const ids = deviceIds.filter((id, i) => id && deviceIds.indexOf(id) === i);
+  if (ids.length < 2) return null;
+  const at = currentId ? ids.indexOf(currentId) : -1;
+  const next = ids[(at + 1) % ids.length];
+  return next === currentId ? null : next;
+}
+
+export function switchLabel(facing: Facing | null): string {
+  if (facing === "user") return "うしろのカメラにする";
+  if (facing === "environment") return "前のカメラにする";
+  return "ほかのカメラにする";
 }
 
 // 端末から選べる動画の拡張子。MIME が空のファイルは、これで見分ける。

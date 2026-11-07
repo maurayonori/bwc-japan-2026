@@ -8,6 +8,10 @@ import {
   MAX_RECORDING_MS,
   addClip,
   cameraFailure,
+  facingOf,
+  mirrored,
+  nextCamera,
+  switchLabel,
   clearClips,
   clipFileName,
   extensionOf,
@@ -21,12 +25,17 @@ import {
   videoTypeOf,
 } from "../lib/kagami";
 
-test("1 本の上限は 2 分。2 分に達したら止める", () => {
+test("1 本の上限は 2 分。直前は続け、ちょうどと遅れて確かめたときは止める", () => {
   assert.equal(MAX_RECORDING_MS, 120_000);
   assert.equal(reachedLimit(0), false);
+  // 直前
+  assert.equal(reachedLimit(119_750), false);
   assert.equal(reachedLimit(119_999), false);
+  // ちょうど
   assert.equal(reachedLimit(120_000), true);
+  // 遅れて呼ばれた（確かめる間隔の 1 回分、裏のタブで時計が遅れた場合）
   assert.equal(reachedLimit(120_250), true);
+  assert.equal(reachedLimit(125_000), true);
   // 上限を変えて確かめる
   assert.equal(reachedLimit(999, 1000), false);
   assert.equal(reachedLimit(1000, 1000), true);
@@ -45,6 +54,32 @@ test("カメラを開けないとき、拒否とカメラが無いときだけ�
   for (const name of ["OverconstrainedError", "TypeError", ""]) {
     assert.deepEqual(cameraFailure(name), { fallback: false, message: "カメラを開けませんでした。もう一度押してください。" });
   }
+});
+
+test("カメラの向きはトラックの設定から決め、無ければ頼んだ向き。前のカメラだけ鏡写し", () => {
+  assert.equal(facingOf("environment", "user"), "environment");
+  assert.equal(facingOf("user", null), "user");
+  assert.equal(facingOf(undefined, "user"), "user");
+  assert.equal(facingOf(undefined, null), null);
+  assert.equal(facingOf("left", null), null);
+  assert.equal(mirrored("user"), true);
+  assert.equal(mirrored("environment"), false);
+  assert.equal(mirrored(null), false);
+  assert.equal(switchLabel("user"), "うしろのカメラにする");
+  assert.equal(switchLabel("environment"), "前のカメラにする");
+  assert.equal(switchLabel(null), "ほかのカメラにする");
+});
+
+test("切り替えは deviceId で、いまと別のカメラを並びの順に選ぶ", () => {
+  assert.equal(nextCamera(["a", "b"], "a"), "b");
+  assert.equal(nextCamera(["a", "b"], "b"), "a");
+  assert.equal(nextCamera(["a", "b", "c"], "c"), "a");
+  assert.equal(nextCamera(["a", "b", "c"], undefined), "a");
+  assert.equal(nextCamera(["a", "b"], "x"), "a");
+  assert.equal(nextCamera(["a"], "a"), null);
+  assert.equal(nextCamera(["a", "a"], "a"), null);
+  assert.equal(nextCamera([], null), null);
+  assert.equal(nextCamera(["", "b"], "b"), null);
 });
 
 test("選んだファイルは、MIME が動画ならそのまま、空なら拡張子で見分け、それ以外は断る", () => {

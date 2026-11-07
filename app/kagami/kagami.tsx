@@ -7,22 +7,28 @@ import {
   addClip,
   cameraFailure,
   clipFileName,
+  facingOf,
   formatElapsed,
   formatSize,
   getClips,
+  mirrored,
+  nextCamera,
   pickRecordingType,
   reachedLimit,
   removeClip,
   subscribeClips,
+  switchLabel,
   videoTypeOf,
   type Clip,
+  type Facing,
 } from "@/lib/kagami";
 
-// かがみ（#54、ADR 0016）: 撮っている映像を見ながら録画し、止めたらすぐ見返す。端末に保存できる。
+// かがみ（#54、ADR 0017）: 撮っている映像を見ながら録画し、止めたらすぐ見返す。端末に保存できる。
 // 映像はこの端末の外に出さない（送らない、解析しない、合成しない）。撮ったものはこのタブのメモリにだけ置く。
 
-type Facing = "user" | "environment";
 type Camera = "off" | "starting" | "live" | "unavailable";
+// カメラを開く頼み方。最初は前のカメラを希望し、切り替えは deviceId で別のカメラを指定する。
+type Target = { facingMode: Facing } | { deviceId: string };
 
 const NO_CLIPS: readonly Clip[] = [];
 
@@ -43,9 +49,13 @@ export function Kagami() {
   const clips = useSyncExternalStore(subscribeClips, getClips, () => NO_CLIPS);
   const [camera, setCamera] = useState<Camera>("off");
   const [reason, setReason] = useState("");
-  const [facing, setFacing] = useState<Facing>("user");
+  // 取得したカメラの向き。鏡写しに使う（トラックの設定に無ければ、頼んだ向きから推す）
+  const [facing, setFacing] = useState<Facing | null>(null);
+  // トラックの設定で確かめられた向き。切り替えのボタンの文言に使う（推した向きで「うしろ」とは書かない）
+  const [knownFacing, setKnownFacing] = useState<Facing | null>(null);
   const [audio, setAudio] = useState(true);
-  const [canSwitch, setCanSwitch] = useState(false);
+  // 切り替えたときに使う、いまと別のカメラの deviceId
+  const [otherCamera, setOtherCamera] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [latest, setLatest] = useState<string | null>(null);
@@ -55,6 +65,9 @@ export function Kagami() {
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<number | null>(null);
   const mounted = useRef(true);
+  // カメラを開く要求の番号。画面を離れた・タブが隠れた・止めた・別の要求に替わったときに進め、古い要求の結果を使わない。
+  const request = useRef(0);
+  const cameraNow = useRef<Camera>("off");
   const latestClip = clips.find((clip) => clip.id === latest) ?? null;
 
   // カメラの API が無いブラウザでは、最初から動画を選ぶ形にする。
@@ -66,6 +79,7 @@ export function Kagami() {
     }
     return () => {
       mounted.current = false;
+      request.current++;
       if (timer.current !== null) window.clearInterval(timer.current);
       // 録っている途中で離れたら、そこまでを残す（止めた分はメモリに入る）。
       if (recorder.current?.state === "recording") recorder.current.stop();
@@ -76,6 +90,7 @@ export function Kagami() {
 
   // 映像の要素は表示を切り替えると作り直されるので、そのたびにカメラをつなぎ直す。
   useEffect(() => {
+    cameraNow.current = camera;
     if (camera === "live" && live.current && live.current.srcObject !== stream.current)
       live.current.srcObject = stream.current;
   });
@@ -85,9 +100,12 @@ export function Kagami() {
   useEffect(() => {
     const onVisibility = () => {
       if (document.visibilityState !== "hidden") return;
+      // 開いている途中の要求も無効にする（あとから返ってきたカメラは、すぐ止める）。
+      request.current++;
       const wasRecording = recorder.current?.state === "recording";
       if (wasRecording) recorder.current?.stop();
-      if (!stream.current) return;
+      const active = stream.current !== null || cameraNow.current === "starting";
+      if (!active) return;
       stopStream(stream.current);
       stream.current = null;
       setCamera((now) => (now === "unavailable" ? now : "off"));
@@ -101,23 +119,40 @@ export function Kagami() {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
-  async function open(next: Facing) {
+  // カメラが途中で切れたとき（外れた、ほかのアプリに取られたなど）。録っていればそこまでを残し、「カメラをつける」に戻す。
+  function lost(media: MediaStream) {
+    if (stream.current !== media) return;
+    if (recorder.current?.state === "recording") recorder.current.stop();
+    stopStream(media);
+    stream.current = null;
+    if (!mounted.current) return;
+    setCamera("off");
+    setNote("カメラが切れました。もう一度「カメラをつける」を押してください。");
+  }
+
+  async function open(target: Target) {
+    const id = ++request.current;
+    // 画面を離れた・タブが隠れた・止めた・別の要求に替わったあとなら、この要求の結果は使わない。
+    const stale = () => !mounted.current || request.current !== id;
     stopStream(stream.current);
     stream.current = null;
     setCamera("starting");
     setNote("");
-    const video = { facingMode: next };
+    const video: MediaTrackConstraints =
+      "deviceId" in target ? { deviceId: { exact: target.deviceId } } : { facingMode: target.facingMode };
     let media: MediaStream;
     let withAudio = true;
     try {
       media = await navigator.mediaDevices.getUserMedia({ video, audio: true });
     } catch {
+      // 古くなった要求なら、映像だけで取り直さない。
+      if (stale()) return;
       // マイクが拒否されたら、映像だけで撮る。
       try {
         media = await navigator.mediaDevices.getUserMedia({ video, audio: false });
         withAudio = false;
       } catch (error) {
-        if (!mounted.current) return;
+        if (stale()) return;
         // 拒否とカメラが無いときだけ、動画を選ぶ形にする。使用中などは、もう一度押してもらう。
         const failure = cameraFailure(errorName(error));
         if (failure.fallback) {
@@ -130,31 +165,32 @@ export function Kagami() {
         return;
       }
     }
-    if (!mounted.current) {
+    // 返ってくる前に画面を離れた・タブが隠れたなら、返ってきたカメラはすぐ止める。
+    if (stale()) {
       stopStream(media);
-      return;
-    }
-    // 開いているあいだにタブが隠れたら、つながずに止める。
-    if (document.visibilityState === "hidden") {
-      stopStream(media);
-      setCamera("off");
       return;
     }
     stream.current = media;
-    setFacing(next);
+    const settings = media.getVideoTracks()[0]?.getSettings?.() ?? {};
+    // 表示と鏡写しは、取得したトラックの設定から決める（facingMode は希望でしかないため）。
+    setFacing(facingOf(settings.facingMode, "facingMode" in target ? target.facingMode : null));
+    setKnownFacing(facingOf(settings.facingMode, null));
     setAudio(withAudio);
     setCamera("live");
+    for (const track of media.getTracks()) track.addEventListener("ended", () => lost(media));
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
-      if (mounted.current)
-        setCanSwitch(devices.filter((d) => d.kind === "videoinput").length > 1);
+      if (stale() || stream.current !== media) return;
+      const ids = devices.filter((d) => d.kind === "videoinput").map((d) => d.deviceId);
+      setOtherCamera(nextCamera(ids, settings.deviceId));
     } catch {
-      setCanSwitch(false);
+      if (!stale()) setOtherCamera(null);
     }
   }
 
   function close() {
     if (recording) return;
+    request.current++;
     stopStream(stream.current);
     stream.current = null;
     setCamera("off");
@@ -183,7 +219,8 @@ export function Kagami() {
     };
     rec.onstop = () => {
       const blobType = rec.mimeType || type || "video/webm";
-      const durationMs = Math.min(MAX_RECORDING_MS, performance.now() - began);
+      // 実際に録った長さを出す（上限で止めたときも 2:00 に丸めない）。
+      const durationMs = performance.now() - began;
       if (timer.current !== null) window.clearInterval(timer.current);
       timer.current = null;
       recorder.current = null;
@@ -206,8 +243,16 @@ export function Kagami() {
         setLatest(clip.id);
       }
     };
+    rec.onerror = () => {
+      if (mounted.current) setNote("録画が途中で止まりました。撮ったところまでは残っています。");
+    };
+    try {
+      rec.start(1000);
+    } catch {
+      setNote("録画を始められませんでした。カメラをつけ直して、もう一度試してください。");
+      return;
+    }
     recorder.current = rec;
-    rec.start(1000);
     setRecording(true);
     setElapsed(0);
     setLatest(null);
@@ -283,7 +328,7 @@ export function Kagami() {
             ) : camera === "live" || camera === "starting" ? (
               <video
                 ref={live}
-                className={facing === "user" ? "kagami-video mirror" : "kagami-video"}
+                className={mirrored(facing) ? "kagami-video mirror" : "kagami-video"}
                 autoPlay
                 muted
                 playsInline
@@ -326,14 +371,14 @@ export function Kagami() {
                     録画を始める
                   </button>
                 )}
-                {canSwitch && (
+                {otherCamera && (
                   <button
                     type="button"
                     className="secondary"
-                    onClick={() => void open(facing === "user" ? "environment" : "user")}
+                    onClick={() => void open({ deviceId: otherCamera })}
                     disabled={recording}
                   >
-                    {facing === "user" ? "うしろのカメラにする" : "前のカメラにする"}
+                    {switchLabel(knownFacing)}
                   </button>
                 )}
                 <button type="button" className="text-link" onClick={close} disabled={recording}>
@@ -344,7 +389,7 @@ export function Kagami() {
               <button
                 type="button"
                 className="primary"
-                onClick={() => void open(facing)}
+                onClick={() => void open({ facingMode: "user" })}
                 disabled={camera === "starting"}
               >
                 {camera === "starting" ? "カメラを開いています…" : "カメラをつける"}

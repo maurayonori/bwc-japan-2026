@@ -1,4 +1,4 @@
-/* かがみ（#54、ADR 0016）。色と文字はさきよみのトークン（globals.css）に揃える。規則は .kagami の中に閉じる。 */
+/* かがみ（#54、ADR 0017）。色と文字はさきよみのトークン（globals.css）に揃える。規則は .kagami の中に閉じる。 */
 .kagami-title {
   font-size: 16px;
   letter-spacing: 0.04em;
@@ -89,6 +89,11 @@
 .kagami-pick {
   justify-self: start;
   cursor: pointer;
+}
+/* 「動画を選ぶ」はラベルの中の入力欄に輪郭が出ないので、キーボードで選んだときはラベルに、ほかのボタンと同じ輪郭を付ける。 */
+.kagami-pick:focus-within {
+  outline: 3px solid #9bb397;
+  outline-offset: 3px;
 }
 .kagami .notice {
   margin-bottom: 0;
