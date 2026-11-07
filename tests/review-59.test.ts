@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { MockLanguageModelV4 } from "ai/test";
 import { runChat } from "../lib/chat";
-import { exampleWorkspace } from "../lib/example";
+import { exampleMoneyTurns, exampleWorkspace } from "../lib/example";
 import { attachMoney, SYNTHETIC_BODY } from "../lib/money/attach";
 import { checkReply, softenClaims } from "../lib/money/guard";
 import { simulateCashflow, type LedgerEvent } from "../lib/money/ledger";
@@ -329,24 +329,26 @@ test("指摘5: 必要額を決める支払いの時点が切り替わる中間�
 });
 
 test("体験例とストーリーの数字（115,690 円・264,750 円・差 149,060 円）は変わらない", () => {
-  const card = exampleWorkspace().cards.find((item) => item.kind === "money");
-  const found = card?.money?.calculations.find(
-    (item) => item.name === "simulate_cashflow",
-  );
-  assert.ok(found?.name === "simulate_cashflow");
-  const [withCap, withoutCap] = found.output.scenarios;
+  // 1 回目の計算: 窓口で上限を使う場合と使わない場合を並べる（#55 のストーリー）。
+  const { first, second } = exampleMoneyTurns();
+  const [withCap, withoutCap] = first.cashflow.scenarios;
   assert.equal(withCap.low_case.need, 115_690);
   assert.equal(withoutCap.low_case.need, 264_750);
   assert.equal(withoutCap.low_case.need - withCap.low_case.need, 149_060);
-  const confirm = found.output.what_to_confirm;
-  assert.equal(confirm?.width, 209_060);
+  const confirm = first.cashflow.what_to_confirm;
+  assert.equal(confirm?.width, 149_060);
   assert.deepEqual(
-    confirm?.factors.map((factor) => [factor.width_if_resolved, factor.shrink]),
-    [
-      [60_000, 149_060],
-      [207_060, 2_000],
-    ],
+    confirm?.factors.map((factor) => [factor.kind, factor.width_if_resolved, factor.shrink]),
+    [["scenario", 0, 149_060]],
   );
+  // 2 回目（確かめた額）は幅が無い。
+  assert.equal(second.cashflow.what_to_confirm?.width, 0);
+  assert.equal(second.cashflow.scenarios[0].low_case.need, 115_690);
+  // 画面に出すお金のカードは 2 回目の計算を持つ。
+  const card = exampleWorkspace().cards.find((item) => item.kind === "money");
+  const found = card?.money?.calculations.find((item) => item.name === "simulate_cashflow");
+  assert.ok(found?.name === "simulate_cashflow");
+  assert.deepEqual(found.output, second.cashflow);
 });
 
 // ---- 指摘 6: 診療月ごとの計算記録 ----
