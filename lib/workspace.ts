@@ -25,6 +25,8 @@ export const messageSchema = z.object({
   warnings: z.array(warningSchema).max(MAX_WARNINGS).optional(),
   // この返答で呼んだ計算の名前（画面の「この返答で呼んだ計算」）。前の保存データには無い。
   tools: z.array(z.string()).max(40).optional(),
+  // この返答で作ったり直したりしたカードの id。返答の下の「見る」リンクに使う。前の保存データには無い。
+  cardIds: z.array(id).max(5).optional(),
 });
 export const proposalSchema = z.object({
   id,

@@ -171,8 +171,9 @@ a.fact-cite {
 .money-confirm-other p {
   font-weight: 500;
 }
-/* 返答の下に、呼んだ計算の名前と回数を小さく出す。 */
-.tool-trace {
+/* 返答の下に、呼んだ計算の名前と回数を小さく出す（会話の本文の書式より優先する）。 */
+.tool-trace,
+.message .tool-trace {
   margin-top: 6px;
   color: var(--muted);
   font-size: 10px;
