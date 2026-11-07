@@ -56,6 +56,24 @@ export interface ChatResult {
   };
 }
 
+// 画面へ返す形。ステップ数やトークン数（meta）は画面に要らないので返さない。
+// 呼んだ道具の名前だけは、「この返答で呼んだ計算」として返す。
+export const MAX_RESPONSE_TOOLS = 40;
+
+export function toResponse(result: ChatResult): {
+  reply: string;
+  cards: Proposal[];
+  warnings: MoneyWarning[];
+  tools: string[];
+} {
+  return {
+    reply: result.reply,
+    cards: result.cards,
+    warnings: result.warnings,
+    tools: result.meta.tools.slice(0, MAX_RESPONSE_TOOLS),
+  };
+}
+
 function runRecorded(
   name: string,
   input: unknown,
