@@ -139,6 +139,13 @@ export function exampleWorkspace(): Workspace {
           `まず確かめる 1 つは、窓口で上限が適用されるかです。病院の会計に聞くと、要る額の幅は ${yen(money.confirm.width)}から ${yen(top.width_if_resolved)}に縮みます。`,
         ].join("\n"),
         tools: ["kougaku_gendo", "meal_cost", "calc_date", "simulate_cashflow"],
+        cardIds: [
+          "morning",
+          "insurance",
+          "pancake",
+          "hospital-money",
+          "hospital-desk",
+        ],
       },
     ],
     cards: [
