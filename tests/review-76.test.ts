@@ -144,3 +144,52 @@ test("体験例（デモの 3 発言の体験例）の文は、どれも置き�
   for (const message of example.messages.filter((item) => item.role === "assistant"))
     assert.equal(softenClaims(message.text, { voice: "reply" }).replaced, 0, message.text.slice(0, 30));
 });
+
+// ===== #78 への Codex の確認から、普通の会話で書きそうな 5 件 =====
+
+test("#78-1: 「必要がありません」「必要ではありません」なども、資金を足すことの打ち消しとして向きを照らす", () => {
+  assert.equal(gap("半々でも10,180円残るので、追加で用意する必要がありません。"), 1);
+  assert.equal(gap("半々でも10,180円残るので、追加で用意する必要ではありません。"), 1);
+});
+
+test("#78-2: 読点の無い条件（「追加すると半々の場合も」）も、条件の文として置き換えない", () => {
+  assert.equal(gap("10,180円を追加すると半々の場合も足ります。"), 0);
+  // 条件と打ち消しが 1 文にある文も、条件の節があれば残す。
+  assert.equal(gap("10,180円を用意しておけば、追加の借入は不要で、半々の場合も足ります。"), 0);
+});
+
+test("#78-3・4: 変化の語の例外は「から」でつないだ範囲だけ。「となります」「にまで縮みます」も変化の語", () => {
+  const { first } = exampleMoneyTurns();
+  const args = { toolEvents: first.calculations, userTexts: [], today: "2026-11-30" };
+  const tilde = checkReply({ ...args, reply: "今の要る額の幅は、149,060円〜264,750円になります。" });
+  assert.ok(tilde.some((warning) => warning.shown.includes("149,060") && warning.shown.includes("264,750")), JSON.stringify(tilde));
+  for (const said of [
+    "ここが分かると、要る額の幅は149,060円から0円となります。",
+    "ここが分かると、要る額の幅は149,060円から0円にまで縮みます。",
+  ]) {
+    assert.deepEqual(checkReply({ ...args, reply: said }), [], said);
+    assert.equal(maskUnverified({ ...args, reply: said }).masked, 0, said);
+  }
+});
+
+test("#78-5: 電話の台本（「」『』の中）は、済ませた・代行したの検査から外す", async () => {
+  const script = "電話で聞くときは『入院費のことで電話しました』と切り出してください。";
+  assert.equal(softenClaims(script, { voice: "reply" }).replaced, 0);
+  assert.equal(softenClaims(script, { voice: "card" }).replaced, 0);
+  assert.equal(softenClaims("電話で聞くときは「入院費のことで電話しました。」と切り出してください。", { voice: "reply" }).replaced, 0);
+  const card = {
+    id: "c1",
+    kind: "contact",
+    title: "病院の会計に、このまま聞く",
+    body: script,
+    nextStep: "読み返す。",
+    uncertainty: "",
+    evidence: [{ messageId: "u1", quote: "来月入院します。" }],
+  };
+  const result = await run(script, "来月入院します。", [card]);
+  assert.match(result.reply, /入院費のことで電話しました/);
+  assert.match(result.cards[0].body, /入院費のことで電話しました/);
+  // ふつうの「電話しました」は対象にしない。代行の形は今までどおり置き換える。
+  assert.equal(softenClaims("病院に電話しました。", { voice: "card" }).replaced, 0);
+  assert.equal(softenClaims("こちらで病院へ電話しておきました。", { voice: "reply" }).replaced, 1);
+});
