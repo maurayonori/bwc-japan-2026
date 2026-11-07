@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { exampleWorkspace } from "../lib/example";
+import { legacyCashflowInput } from "./helpers/legacy-cashflow";
 import {
   simulateCashflow,
   type CashflowInput,
@@ -43,13 +43,9 @@ function rank(
   return result;
 }
 
+// 2026-11-07 までの体験例の入力（tests/helpers/legacy-cashflow.ts）。筋書きと額の 2 つの不明点がある。
 function exampleInput(): CashflowInput {
-  const card = exampleWorkspace().cards.find((item) => item.kind === "money");
-  const found = card?.money?.calculations.find(
-    (item) => item.name === "simulate_cashflow",
-  );
-  assert.ok(found);
-  return structuredClone(found.input) as unknown as CashflowInput;
+  return structuredClone(legacyCashflowInput());
 }
 
 const confirmOf = (input: CashflowInput): WhatToConfirm => {

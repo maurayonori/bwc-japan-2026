@@ -73,13 +73,14 @@ test("持ち出すのは選んだメモだけ。引用・会話・未選択の�
   const text = exportMemo(cards);
   assert.match(text, /朝の支度/);
   assert.match(text, /まだ確かめていないこと/);
-  assert.doesNotMatch(text, /ホットケーキ|保険会社|example-|再来週/);
+  assert.doesNotMatch(text, /がんばってね|保険会社|example-|80万円/);
 });
 
 test("履歴の上限と重複IDをAPI境界で拒否する", () => {
   const workspace = exampleWorkspace();
   const input = {
-    messages: workspace.messages.slice(0, 3),
+    // 最後が利用者の発言で、カードの根拠の発言（example-1〜3）がすべて入る範囲
+    messages: workspace.messages.slice(0, 4),
     cards: workspace.cards,
   };
   assert.equal(requestSchema.safeParse(input).success, true);

@@ -252,9 +252,9 @@ const HANDOVER_KINDS = ["daily", "contact", "memory"] as const;
 
 // 話し始めの手がかりは、会話の最初の 1 文と入力欄の例だけにする（固定の質問票にしない）。
 const FIRST_LINE =
-  "入院のことや家族に頼みたいことを、思いついた順にそのまま話してください。";
+  "入院の予定と、分かっている金額や手元のお金を、そのまま話してください。支払日に要るお金を、窓口で上限が使える場合と使えない場合で並べ、まず確かめる 1 つを出します。家族に頼みたいことも、思いついた順で。";
 const PLACEHOLDER =
-  "例: 来月から 2 週間入院します。手元にいくら要るか知りたい。";
+  "例: 12 月に 2 週間入院します。見積もりは 80 万円。手元にいくら要るか知りたい。";
 // 入力欄に入る文字数の上限。マイクで足す文字も、この中に収める。
 const DRAFT_LIMIT = 4000;
 
@@ -595,7 +595,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
 
   return (
     <div className={`app-shell ${view === "talk" ? "is-talk" : "is-page"}`}>
-      <h1 className="sr-only">さきよみ 家族のための準備室</h1>
+      <h1 className="sr-only">さきよみ 入院のお金、支払日に間に合う準備</h1>
       <a
         className="skip-link"
         href={VIEW_HASH.talk}
@@ -773,14 +773,14 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
               <div>
                 <span className="section-number">見通し</span>
                 <h2 id="outlook-title">
-                  退院の日に要る額と、まず確かめる 1{" "}つ
+                  支払日に要るお金と、まず確かめる 1{" "}つ
                 </h2>
               </div>
               <span className="draft-label">話すほど、幅が縮む</span>
             </div>
             {moneyCards.length === 0 ? (
               <p className="foresight-empty">
-                入院のことを話すと、ここに要る額の幅と、まず確かめる 1
+                入院のことを話すと、ここに支払日に要るお金と、まず確かめる 1
                 {" "}つが出ます。<a href={VIEW_HASH.talk}>話す</a>
               </p>
             ) : (

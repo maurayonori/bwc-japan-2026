@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { MockLanguageModelV4 } from "ai/test";
 import { MAX_RESPONSE_TOOLS, runChat, toResponse } from "../lib/chat";
-import { exampleWorkspace } from "../lib/example";
+import { legacyCashflowInput } from "./helpers/legacy-cashflow";
 import { attachMoney, SYNTHETIC_BODY } from "../lib/money/attach";
 import {
   calculationSchema,
@@ -675,13 +675,9 @@ test("計算が多すぎるときは最後の 8 件だけにして、注意を�
 });
 
 // 体験例の見通しの入力（窓口で上限が適用される場合と、いったん 3 割を払う場合）。
+// 2026-11-07 までの体験例の入力（筋書きと額の 2 つの不明点があり、答えのあとも幅が 2,000 円残る）。
 function exampleCashflowInput() {
-  const card = exampleWorkspace().cards.find((item) => item.kind === "money");
-  const found = card?.money?.calculations.find(
-    (item) => item.name === "simulate_cashflow",
-  );
-  assert.ok(found);
-  return structuredClone(found.input) as {
+  return structuredClone(legacyCashflowInput()) as unknown as {
     start_date: string;
     cash_on_hand: number | null;
     scenarios: { name: string; events: unknown[] }[];

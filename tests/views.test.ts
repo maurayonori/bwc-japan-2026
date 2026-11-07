@@ -47,25 +47,34 @@ test("URL の # から表示を決める。知らない # や # 無しは「話�
 });
 
 test("体験例の返答の下に、見通しと渡すものへのリンクを出す。金額は道具の出力から組み立てる", () => {
-  const { cards } = exampleWorkspace();
+  const { cards, messages } = exampleWorkspace();
   const range = needRangeOf(moneyCard(cards));
-  assert.deepEqual(range, { low: 115_690, high: 324_750 });
+  // カードに残るのは 2 回目の計算（確かめた額の筋書き 1 本）
+  assert.deepEqual(range, { low: 115_690, high: 115_690 });
   const calculation = moneyCard(cards).money?.calculations.find(
     (item) => item.name === "simulate_cashflow",
   );
   assert.ok(calculation?.name === "simulate_cashflow");
   assert.equal(range?.low, calculation.output.what_to_confirm?.need_low);
   assert.equal(range?.high, calculation.output.what_to_confirm?.need_high);
-  assert.deepEqual(resultLinks(exampleReply(), cards, true), [
-    {
-      view: "outlook",
-      label: `要る額 ${yenRange(115_690, 324_750)}と、まず確かめる 1 つを見る`,
-    },
+  // 1 回目の返答は、お金のカードを最後に扱った返答ではないので、金額を書かない
+  assert.deepEqual(resultLinks(exampleReply(), cards, false), [
+    { view: "outlook", label: "要る額の幅と、まず確かめる 1 つを見る" },
     { view: "hand", label: "渡すものを見る（4 件）" },
   ]);
+  const last = messages.at(-1);
+  assert.ok(last && last.role === "assistant");
+  assert.equal(latestMoneyMessageId(messages, cards), last.id);
+  assert.deepEqual(resultLinks(last, cards, true), [
+    {
+      view: "outlook",
+      label: `要る額 ${yenRange(115_690, 115_690)}と、まず確かめる 1 つを見る`,
+    },
+    { view: "hand", label: "渡すものを見る（1 件）" },
+  ]);
   assert.equal(
-    resultLinks(exampleReply(), cards, true)[0].label,
-    "要る額 115,690〜324,750 円と、まず確かめる 1 つを見る",
+    resultLinks(last, cards, true)[0].label,
+    "要る額 115,690 円と、まず確かめる 1 つを見る",
   );
 });
 
@@ -110,7 +119,7 @@ test("結果が無い返答・利用者の発言・消したカードには、�
     [],
   );
   const remaining = cards.filter(
-    (card) => card.kind !== "money" && card.id !== "pancake",
+    (card) => card.kind !== "money" && card.id !== "memory",
   );
   assert.deepEqual(resultLinks(reply, remaining, true), [
     { view: "hand", label: "渡すものを見る（3 件）" },
@@ -119,7 +128,9 @@ test("結果が無い返答・利用者の発言・消したカードには、�
 
 test("金額を書く返答は、お金のカードを扱った返答のうち一番あとのもの", () => {
   const { cards, messages } = exampleWorkspace();
-  assert.equal(latestMoneyMessageId(messages, cards), "example-reply");
+  // 体験例は 2 回目の返答でもお金のカードを扱うので、そちらが一番あと
+  assert.equal(latestMoneyMessageId(messages, cards), "example-reply-2");
+  assert.equal(latestMoneyMessageId(messages.slice(0, 3), cards), "example-reply");
   const handOnly: Message = {
     id: "later-hand",
     role: "assistant",
@@ -128,7 +139,7 @@ test("金額を書く返答は、お金のカードを扱った返答のうち�
   };
   assert.equal(
     latestMoneyMessageId([...messages, handOnly], cards),
-    "example-reply",
+    "example-reply-2",
   );
   const moneyAgain: Message = {
     id: "later-money",
@@ -281,6 +292,12 @@ test("#48: 今の確認に対応する質問文が分からなければ、古い
 
 test("体験例では、2 枚の質問文のうち「まず確かめる」の行に出てくる病院の会計の文を選ぶ", () => {
   const { messages, cards } = exampleWorkspace();
+  // 1 回目の返答だけなら、2 枚の質問文から「まず確かめる」の行の病院の会計を選ぶ
+  const firstTurn = messages.slice(0, 3);
+  assert.equal(firstTurn.at(-1)?.id, "example-reply");
+  const chosenFirst = questionCard(firstTurn, cards);
+  assert.equal(chosenFirst?.id, "hospital-desk");
+  // 2 回目の返答（答えを添えて直した質問文だけを扱う）でも、同じ 1 枚
   const chosen = questionCard(messages, cards);
   assert.equal(chosen?.id, "hospital-desk");
   assert.equal(chosen?.title, "病院の会計に、このまま聞く");

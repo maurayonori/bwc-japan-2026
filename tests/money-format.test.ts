@@ -1,9 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { calcDate } from "../lib/money/business-days";
-import { exampleWorkspace } from "../lib/example";
+import { legacyCashflowInput } from "./helpers/legacy-cashflow";
 import {
   TOOL_LABELS,
+  cashGapText,
   cashflowPaths,
   cashflowRows,
   confirmText,
@@ -159,13 +160,9 @@ test("起点と同じ日までを数えただけの日付計算は、表に出�
   assert.ok(moneyToText(asMoney([useful]), "").includes("日付の計算"));
 });
 
+// 2026-11-07 までの体験例の計算（筋書きと額の 2 つの不明点がある）。
 function exampleCashflow(): CashflowOutput {
-  const card = exampleWorkspace().cards.find((item) => item.kind === "money");
-  const found = card?.money?.calculations.find(
-    (item) => item.name === "simulate_cashflow",
-  );
-  assert.ok(found?.name === "simulate_cashflow");
-  return found.output;
+  return simulateCashflow(legacyCashflowInput());
 }
 
 test("持ち出し用の「まず確かめる 1 つ」は、先頭の不明点と前後の幅を書く", () => {
@@ -203,4 +200,13 @@ test("この返答で呼んだ計算は、呼んだ順に名前と回数でま�
   assert.equal(toolTraceText([]), "");
   assert.equal(toolTraceText(["unknown_tool"]), "unknown_tool ×1");
   for (const tool of TOOLS) assert.ok(TOOL_LABELS[tool.name], tool.name);
+});
+
+test("手元のお金との差は、残るか足りないかで書く（#55）", () => {
+  assert.equal(cashGapText(200_000, 115_690, 115_690), "84,310 円残る");
+  assert.equal(cashGapText(200_000, 264_750, 264_750), "64,750 円足りない");
+  assert.equal(cashGapText(200_000, 115_690, 117_690), "82,310〜84,310 円残る");
+  assert.equal(cashGapText(200_000, 264_750, 324_750), "64,750〜124,750 円足りない");
+  assert.equal(cashGapText(200_000, 115_690, 264_750), "64,750 円まで足りないことがある");
+  assert.equal(cashGapText(200_000, 200_000, 200_000), "0 円残る");
 });
