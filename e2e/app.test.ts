@@ -10,17 +10,22 @@ import { externalHref } from "../lib/menu";
 import { startServer } from "./server";
 
 let browser: Browser;
+// 接続ありの画面（送信を押せる。送信はブラウザの中で差し替える）と、接続が無い画面（#64）
 let base = "";
+let offline = "";
 let stop = () => {};
+let stopOffline = () => {};
 
 before(async () => {
-  ({ base, stop } = await startServer());
+  ({ base, stop } = await startServer({ connected: true }));
+  ({ base: offline, stop: stopOffline } = await startServer());
   browser = await chromium.launch();
 });
 
 after(async () => {
   await browser?.close();
   stop();
+  stopOffline();
 });
 
 // 架空の体験例の返答。お金のカード 1 枚と、渡すもの 4 枚。
@@ -63,12 +68,18 @@ test("会話の途中で年表やあそぶへ移って戻っても、会話・�
 
   await page.goto(`${base}/`);
   await page.waitForSelector("#thoughts:not([disabled])");
+  // 接続があるときは、送れない案内を出さない（#64）
+  assert.equal(await page.locator("#offline-note").count(), 0);
+  const arrived = page.locator('main.talk p.sr-only[role="status"]');
+  assert.equal(await arrived.innerText(), "");
   const said = "架空の例: 来月から 2 週間入院します。手元にいくら要るか知りたい。";
   await page.fill("#thoughts", said);
   await page.getByRole("button", { name: /ここから整理する/ }).click();
   await page.waitForSelector(".message.user");
   const firstLine = mockReply().reply.split("\n")[0];
   await page.getByText(firstLine.slice(0, 20), { exact: false }).first().waitFor();
+  // 返答が届いたことを短い文で知らせる。本文は入れない（会話の記録が読み上げる）（#64）
+  assert.equal(await arrived.innerText(), "返答が届きました");
   await page.fill("#thoughts", "送る前の下書き");
 
   await menu(page, "見通し");
@@ -84,6 +95,16 @@ test("会話の途中で年表やあそぶへ移って戻っても、会話・�
   await menu(page, "渡すもの");
   await page.waitForSelector("#hand-title");
   await page.locator(".memo-card").first().getByRole("button", { name: "内容を直す" }).click();
+  // ダイアログの名前は、内側の見出しから取る（#64）
+  const named = (await page.evaluate(`(() => {
+    const dialog = document.querySelector("dialog[open]");
+    const id = dialog.getAttribute("aria-labelledby");
+    return { label: dialog.getAttribute("aria-label"), by: id && document.getElementById(id)?.textContent, h2: dialog.querySelector("h2").textContent };
+  })()`)) as { label: string | null; by: string | null; h2: string };
+  assert.equal(named.label, null);
+  assert.ok(named.h2.length > 0);
+  assert.equal(named.by, named.h2);
+  assert.equal(await page.getByRole("dialog", { name: named.h2 }).count(), 1);
   await page.locator("dialog textarea").first().fill("自分で直した文章（架空）");
   await page.getByRole("button", { name: "変更を残す" }).click();
   await page.getByText("自分で直した文章（架空）").waitFor();
@@ -232,6 +253,17 @@ test("ヘッダーの文字を、320〜1,440px のどの幅でも途中で折り
       await page.setViewportSize({ width, height: 800 });
       assert.deepEqual(await wrappedHeaderText(page), [], `${path} ${width}px`);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, `${path} ${width}px`);
+      // 740px 以下でも副題を消さず、小さめの字で 1 行に出す（#64）
+      if (width <= 740) {
+        assert.equal(await page.locator(".brand small").isVisible(), true, `${path} ${width}px 副題`);
+        // 副題を出しても、会話の画面では製品名と「保存とプライバシー」が 1 行目に並ぶ
+        if (path === "/") {
+          const tops = await page.evaluate(() =>
+            [".brand", ".header-actions"].map((s) => Math.round(document.querySelector(s)!.getBoundingClientRect().top)),
+          );
+          assert.ok(Math.abs(tops[0] - tops[1]) <= 12, `${path} ${width}px ${JSON.stringify(tops)}`);
+        }
+      }
     }
   }
   // 1280px: 副題と「公開の試用版」を出し、製品名・メニュー・右の道具を 1 行に並べる（動画と同じ）
@@ -423,5 +455,126 @@ test("年表は /roadmap のページとして出る（iframe なし、X-Frame-O
   await page.click("#back-main");
   await page.waitForSelector("#main-view:not([hidden])");
   assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("接続が無いときは送信を押せず、入力欄の近くで体験例へ案内する。注意は入力欄の直上に本文と同じ大きさ。空の見通し・渡すものからも体験例を開ける", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  let calls = 0;
+  await page.route("**/api/chat", async (route) => {
+    calls++;
+    await route.abort();
+  });
+  await page.goto(`${offline}/`);
+  await page.waitForSelector("#thoughts:not([disabled])");
+  const draft = "架空の例: 来月入院します。";
+  await page.fill("#thoughts", draft);
+  // 書いても送信は押せず、理由を入力欄の近くに出す
+  const send = page.getByRole("button", { name: /ここから整理する/ });
+  assert.equal(await send.isDisabled(), true);
+  assert.equal(await send.getAttribute("aria-describedby"), "offline-note");
+  const note = page.locator("#offline-note");
+  assert.match(await note.innerText(), /^接続が無いので送れません。架空の体験例で動きを見られます。/);
+  // フォームを直に送っても送らない
+  await page.evaluate(`document.querySelector("form.composer").requestSubmit()`);
+  await page.waitForTimeout(300);
+  assert.equal(calls, 0);
+  assert.equal(await page.locator(".message.user").count(), 0);
+  // 個人情報を書かない注意は、入力欄の直上に、会話の本文と同じ大きさで
+  const layout = (await page.evaluate(`(() => {
+    const hint = document.querySelector(".privacy-hint");
+    const box = document.querySelector("#thoughts").getBoundingClientRect();
+    return {
+      gap: box.top - hint.getBoundingClientRect().bottom,
+      hint: getComputedStyle(hint).fontSize,
+      body: getComputedStyle(document.querySelector(".message p")).fontSize,
+    };
+  })()`)) as { gap: number; hint: string; body: string };
+  assert.ok(layout.gap >= 0 && layout.gap < 40, JSON.stringify(layout));
+  assert.equal(layout.hint, layout.body);
+  // 案内のボタンで体験例を開き、戻ると下書きも戻る
+  await note.getByRole("button", { name: "架空の体験例を見る" }).click();
+  await page.locator(".example-banner").waitFor();
+  assert.equal(await page.locator("#offline-note").count(), 0);
+  await page.locator(".example-banner").getByRole("button", { name: /自分の準備に戻る/ }).click();
+  assert.equal(await page.inputValue("#thoughts"), draft);
+
+  // 空の見通し: 「話す」と並べて体験例のボタン
+  await menu(page, "見通し");
+  await page.waitForSelector("#outlook-title");
+  const emptyOutlook = page.locator(".foresight-empty");
+  assert.equal(await emptyOutlook.getByRole("link", { name: "話す" }).count(), 1);
+  await emptyOutlook.getByRole("button", { name: "架空の体験例を見る" }).click();
+  await page.locator(".memo-card.money").first().waitFor();
+  await page.locator(".example-banner").getByRole("button", { name: /自分の準備に戻る/ }).click();
+  await page.locator(".foresight-empty").waitFor();
+
+  // 空の渡すもの
+  await menu(page, "渡すもの");
+  await page.waitForSelector("#hand-title");
+  const emptyHand = page.locator(".foresight-empty");
+  assert.equal(await emptyHand.getByRole("link", { name: "話す" }).count(), 1);
+  await emptyHand.getByRole("button", { name: "架空の体験例を見る" }).click();
+  await page.locator(".example-banner").waitFor();
+  assert.ok((await page.locator(".memo-card").count()) >= 1);
+  assert.equal(calls, 0);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test("狭い幅では、横に送るメニューに名前があり、キーボードで移るとどの項目も見える位置に来る", async () => {
+  const context = await browser.newContext({ viewport: { width: 320, height: 760 } });
+  const page = await context.newPage();
+  await page.goto(`${base}/`);
+  await page.waitForLoadState("networkidle");
+  const nav = page.getByRole("navigation", { name: "メニュー" });
+  assert.equal(await nav.count(), 1);
+  const links = await nav.getByRole("link").count();
+  assert.ok(links >= 6, String(links));
+  // 製品名から Tab で順に移る
+  await page.locator(".brand").focus();
+  const seen: string[] = [];
+  for (let i = 0; i < links; i++) {
+    await page.keyboard.press("Tab");
+    const at = (await page.evaluate(`(() => {
+      const a = document.activeElement;
+      const n = document.querySelector("nav.view-nav");
+      if (!a || !n.contains(a)) return null;
+      const ar = a.getBoundingClientRect();
+      const nr = n.getBoundingClientRect();
+      return { text: a.textContent.trim(), inside: ar.left >= nr.left - 1 && ar.right <= nr.right + 1 && ar.width > 0 };
+    })()`)) as { text: string; inside: boolean } | null;
+    assert.ok(at && at.inside, `${i + 1} 番目: ${JSON.stringify(at)}`);
+    seen.push(at.text);
+  }
+  assert.equal(new Set(seen).size, links);
+  await context.close();
+});
+
+test("あそぶの家を押したまま外へ動かして離したら、戻らない。そのあと押し続ければ戻る", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  await page.goto(`${base}/play/pon`);
+  await page.locator(".play-home").waitFor();
+  const box = await page.locator(".play-home").boundingBox();
+  assert.ok(box);
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.waitForTimeout(400);
+  // 家の外へ動かして離す
+  await page.mouse.move(x + 400, y + 300, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(2000);
+  assert.equal(page.url(), `${base}/play/pon`, "家の外で離したのに戻った");
+  // 輪は空に戻る
+  assert.equal(await page.locator(".play-ring-fill").getAttribute("opacity"), "0");
+  // 押し続ければ戻る
+  await holdHome(page);
+  await page.waitForURL(`${base}/play`);
   await context.close();
 });

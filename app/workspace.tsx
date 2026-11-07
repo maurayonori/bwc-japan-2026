@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   CHAT_CLIENT_TIMEOUT_MS,
   emptyWorkspace,
@@ -52,13 +52,15 @@ function Modal({
   className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // ダイアログの名前は、内側の見出しから取る（#64）。
+  const headingId = useId();
   useEffect(() => {
     ref.current?.showModal();
   }, []);
   return (
-    <dialog className={className} ref={ref} onCancel={close} aria-label={title}>
+    <dialog className={className} ref={ref} onCancel={close} aria-labelledby={headingId}>
       <div className="dialog-heading">
-        <h2>{title}</h2>
+        <h2 id={headingId}>{title}</h2>
         <button className="icon-button" onClick={close} aria-label="閉じる">
           ×
         </button>
@@ -284,6 +286,8 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // 返答が届いたことを読み上げで短く知らせる（#64）。本文は会話の記録が読み上げるので、ここには入れない。
+  const [arrived, setArrived] = useState("");
   const [remember, setRemember] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [view, setView] = useState<View>("talk");
@@ -424,7 +428,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
 
   async function send() {
     const text = draft.trim();
-    if (!text || busy || example) return;
+    if (!text || busy || example || !connected) return;
     if (workspace.messages.length >= 39) {
       setError(
         "この会話は長くなりました。メモを持ち出してから、新しく始めてください。",
@@ -438,6 +442,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
     setBusy(true);
     setError("");
     setNotice("");
+    setArrived("");
     const controller = new AbortController();
     abort.current = controller;
     try {
@@ -471,6 +476,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
       }));
       setDraft("");
       setFilter("all");
+      setArrived("返答が届きました");
     } catch (e) {
       setError(
         controller.signal.aborted
@@ -497,6 +503,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
     setError("");
     setFilter("all");
     setNotice("");
+    setArrived("");
   }
   function updateCard(id: string, patch: Partial<Card>) {
     setWorkspace((prev) => ({
@@ -629,6 +636,9 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
       {view === "talk" && (
         <main className="talk" id="conversation" aria-label="話す">
           {(example || notice) && <div className="talk-notes">{notes}</div>}
+          <p className="sr-only" role="status">
+            {arrived}
+          </p>
           <div
             className="transcript"
             ref={transcript}
@@ -695,6 +705,24 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                 {error}
               </p>
             )}
+            {/* 接続が無いときは、押す前に送れないと分かるようにする（#64）。本番は接続ありなので出ない。 */}
+            {!connected && !example && (
+              <p className="offline-note" id="offline-note">
+                接続が無いので送れません。架空の体験例で動きを見られます。
+                <button
+                  type="button"
+                  onClick={toggleExample}
+                  disabled={busy || !hydrated}
+                >
+                  架空の体験例を見る
+                </button>
+              </p>
+            )}
+            {/* 個人情報を書かない注意は、入力欄の直上に本文と同じ大きさで置く（#64） */}
+            <p className="privacy-hint">
+              公開の試用版です。実名や病名は書かず、架空の内容で試してください。送信すると、会話とメモをClaudeに渡して整理します。
+              <button onClick={() => setModal("privacy")}>詳しく</button>
+            </p>
             <form
               className="composer"
               onSubmit={(e) => {
@@ -757,17 +785,14 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                   <button
                     type="submit"
                     className="send-button"
-                    disabled={!draft.trim() || example || !hydrated}
+                    disabled={!draft.trim() || example || !hydrated || !connected}
+                    aria-describedby={!connected && !example ? "offline-note" : undefined}
                   >
                     ここから整理する <span aria-hidden="true">↑</span>
                   </button>
                 )}
               </div>
             </form>
-            <p className="privacy-hint">
-              公開の試用版です。実名や病名は書かず、架空の内容で試してください。送信すると、会話とメモをClaudeに渡して整理します。
-              <button onClick={() => setModal("privacy")}>詳しく</button>
-            </p>
           </div>
         </main>
       )}
@@ -788,7 +813,19 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
             {moneyCards.length === 0 ? (
               <p className="foresight-empty">
                 入院のことを話すと、ここに支払日に要るお金と、まず確かめる 1
-                {" "}つが出ます。<a href={VIEW_HASH.talk}>話す</a>
+                {" "}つが出ます。
+                {/* メニューから先に開いた人が迷わないよう、体験例も開けるようにする（#64）。途中で折れないよう 1 つにまとめる */}
+                <span className="empty-actions">
+                  <a href={VIEW_HASH.talk}>話す</a>
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={toggleExample}
+                    disabled={busy || !hydrated}
+                  >
+                    架空の体験例を見る
+                  </button>
+                </span>
               </p>
             ) : (
               <div className="cards">{moneyCards.map(renderCard)}</div>
@@ -814,7 +851,17 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
             {workspace.cards.length === 0 ? (
               <p className="foresight-empty">
                 朝の支度の引き継ぎ、窓口への質問文、残しておきたい言葉。会話から、ここに渡す文章ができていきます。
-                <a href={VIEW_HASH.talk}>話す</a>
+                <span className="empty-actions">
+                  <a href={VIEW_HASH.talk}>話す</a>
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={toggleExample}
+                    disabled={busy || !hydrated}
+                  >
+                    架空の体験例を見る
+                  </button>
+                </span>
               </p>
             ) : (
               <>

@@ -54,6 +54,13 @@ export function HomeButton({ to, label }: { to: string; label: string }) {
       onPointerDown={(e) => {
         // 遊びの場所に「触れた」と伝えない（家の下に形や音を出さない）。
         e.stopPropagation();
+        // 押したまま家の外へ動かして離しても、離したこと（pointerup）が家に届くよう捕まえる（#64）。
+        // 届かないと長押しが続き、外で離したのに戻ってしまう。
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // 捕まえられないときも、離した・取り消した・捕まえ損ねたの知らせで取り消す
+        }
         pointers.current.add(e.pointerId);
         if (pointers.current.size > 1) stop();
         else start();
