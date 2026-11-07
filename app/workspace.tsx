@@ -27,7 +27,9 @@ import {
 } from "@/lib/views";
 import { appendTranscript } from "@/lib/voice";
 import { keepWorkspace, keptWorkspace } from "@/lib/kept-workspace";
+import { citedText } from "@/lib/money/format";
 import {
+  FactSources,
   FactText,
   MoneyDetails,
   ToolTrace,
@@ -109,9 +111,9 @@ function MemoCard({
                 : "下書き"}
         </span>
       </div>
-      <h3>{card.title}</h3>
+      <h3>{card.kind === "memory" ? card.title : <FactText text={card.title} sources={false} />}</h3>
       <p className="card-body">
-        {card.kind === "memory" ? card.body : <FactText text={card.body} />}
+        {card.kind === "memory" ? card.body : <FactText text={card.body} sources={false} />}
       </p>
       {card.kind === "money" && card.money && (
         <MoneyDetails
@@ -126,7 +128,7 @@ function MemoCard({
         <div className="uncertainty">
           <span>まだ確かめていないこと</span>
           <p>
-            <FactText text={card.uncertainty} />
+            <FactText text={card.uncertainty} sources={false} />
           </p>
         </div>
       )}
@@ -136,9 +138,12 @@ function MemoCard({
         </span>
         <div>
           <span>次の一歩</span>
-          <p>{card.nextStep}</p>
+          <p>
+            <FactText text={card.nextStep} sources={false} />
+          </p>
         </div>
       </div>
+      {card.kind !== "memory" && <FactSources text={citedText(card)} />}
       <div className="card-actions">
         <button className="text-button" onClick={edit} disabled={disabled}>
           内容を直す

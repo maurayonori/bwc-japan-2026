@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { todayInJapan } from "./money/dates";
-import { citationsToText, moneyToText } from "./money/format";
+import { citationsToText, citedText, moneyToText } from "./money/format";
 import { maskProblems } from "./money/guard";
 import {
   MAX_WARNINGS,
@@ -292,10 +292,10 @@ export function exportMemo(
         `【${kinds[card.kind].label}】${card.title}`,
         card.body,
         card.kind === "money" && card.money
-          ? moneyToText(card.money, `${card.body}\n${card.uncertainty}`)
+          ? moneyToText(card.money, citedText(card))
           : card.kind === "memory"
             ? ""
-            : citationsToText(`${card.body}\n${card.uncertainty}`),
+            : citationsToText(citedText(card)),
         card.uncertainty ? `まだ確かめていないこと：${card.uncertainty}` : "",
         `次にすること：${card.nextStep}`,
         `準備の状態：${card.done ? "本人が完了を確認" : "これから"}`,

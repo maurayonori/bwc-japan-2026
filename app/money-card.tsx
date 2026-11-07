@@ -17,6 +17,7 @@ import {
   monthText,
   needDifferenceText,
   readingGuide,
+  REFUND_NOTE,
   showDate,
   stepText,
   toolTraceText,
@@ -66,10 +67,44 @@ function Citation({ id }: { id: string }) {
   );
 }
 
-// 文章の [F03] を、出典へのリンクにする。文章のあとに、引いた事実ごとの出典すべて（名前と URL）と確認日を、
-// ホバーにせず見える形で並べる（#68）。
-export function FactText({ text }: { text: string }) {
+// 引いた事実ごとの出典すべて（名前と URL）と確認日を、ホバーにせず見える形で並べる（#68）。
+export function FactSources({ text }: { text: string }) {
   const facts = citedFacts(text);
+  if (facts.length === 0) return null;
+  return (
+    <span className="fact-sources">
+      {facts.map((fact) => (
+        <span key={fact.id} className="fact-source">
+          <span className="fact-source-head">
+            {fact.id}: {fact.topic}（確認 {fact.checked_on}）
+          </span>
+          {fact.sources.map((source) => (
+            <span key={source.url} className="fact-source-item">
+              {source.name}{" "}
+              {source.url.startsWith("https://") ? (
+                <a href={source.url} target="_blank" rel="noopener noreferrer">
+                  {source.url}
+                </a>
+              ) : (
+                source.url
+              )}
+            </span>
+          ))}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+// 文章の [F03] を、出典へのリンクにする。sources が true なら、文章のあとに出典の並び（FactSources）を出す。
+// カードは見出し・本文・次の一歩・まだ確かめていないことの出典を、カードの終わりにまとめて出す（#70）。
+export function FactText({
+  text,
+  sources = true,
+}: {
+  text: string;
+  sources?: boolean;
+}) {
   return (
     <>
       {text.split(CITATION).map((part, index) =>
@@ -86,29 +121,7 @@ export function FactText({ text }: { text: string }) {
           part
         ),
       )}
-      {facts.length > 0 && (
-        <span className="fact-sources">
-          {facts.map((fact) => (
-            <span key={fact.id} className="fact-source">
-              <span className="fact-source-head">
-                {fact.id}: {fact.topic}（確認 {fact.checked_on}）
-              </span>
-              {fact.sources.map((source) => (
-                <span key={source.url} className="fact-source-item">
-                  {source.name}{" "}
-                  {source.url.startsWith("https://") ? (
-                    <a href={source.url} target="_blank" rel="noopener noreferrer">
-                      {source.url}
-                    </a>
-                  ) : (
-                    source.url
-                  )}
-                </span>
-              ))}
-            </span>
-          ))}
-        </span>
-      )}
+      {sources && <FactSources text={text} />}
     </>
   );
 }
@@ -500,8 +513,6 @@ function OtherFactors({ confirm }: { confirm: WhatToConfirm }) {
 // 支払日に要るお金を、筋書きごとに並べる（#55）。窓口で上限が使える場合と使えない場合の差（いったん立て替える額）と、
 // 手元のお金との差を、表より先に読めるようにする。値はすべてサーバーの計算結果で、筋書きの名前は会話で付けたもの。
 const CERTAINTY_ORDER = ["confirmed", "estimate", "assumption"] as const;
-const REFUND_NOTE =
-  "窓口で上限が使えないときは、上限を超えた分をいったん立て替え、あとから払い戻しを受けます。協会けんぽの案内では、払い戻しは診療月から 3 か月以上あとです。[F05]";
 
 export function PayDayBlock({
   output,
