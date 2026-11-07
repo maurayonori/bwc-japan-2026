@@ -7,7 +7,8 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { chromium, devices, type Browser, type Page } from "playwright";
 import { exampleWorkspace } from "../lib/example";
-import { personaHref } from "../lib/menu";
+import { pathToFileURL } from "node:url";
+import { externalHref } from "../lib/menu";
 
 let server: ChildProcess;
 let browser: Browser;
@@ -171,11 +172,21 @@ test("会話の途中で年表やあそぶへ移って戻っても、会話・�
   await context.close();
 });
 
-test("メニューはどのページでも 1 つ。あそぶでは出さない。ペルソナは設定があるときだけ", async () => {
+test("メニューはどのページでも 1 つ。あそぶでは出さない。ペルソナとかがみは設定があるときだけ", async () => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
-  const persona = personaHref(process.env.NEXT_PUBLIC_PERSONA_URL);
-  const expected = ["話す", "見通し", "渡すもの", "年表", "あそぶ", ...(persona ? ["ペルソナ"] : [])];
+  // ビルドのときの値で決まる。npm run test:e2e は未設定、npm run test:e2e:links は両方を設定して確かめる
+  const persona = externalHref(process.env.NEXT_PUBLIC_PERSONA_URL);
+  const kagami = externalHref(process.env.NEXT_PUBLIC_KAGAMI_URL);
+  const expected = [
+    "話す",
+    "見通し",
+    "渡すもの",
+    "年表",
+    "あそぶ",
+    ...(persona ? ["ペルソナ"] : []),
+    ...(kagami ? ["かがみ"] : []),
+  ];
   for (const path of ["/", "/#outlook", "/#hand", "/roadmap"]) {
     await page.goto(`${base}${path}`);
     await page.waitForLoadState("networkidle");
@@ -187,7 +198,9 @@ test("メニューはどのページでも 1 つ。あそぶでは出さない�
     assert.equal(await nav.locator('a[href$="#outlook"]').count(), 1, path);
     assert.equal(await nav.locator('a[href$="#hand"]').count(), 1, path);
     assert.equal(await page.locator('header a[href$="#outlook"], header a[href$="#hand"]').count(), 2, path);
-    if (persona) assert.equal(await nav.locator(`a[href="${persona}"][target="_blank"]`).count(), 1);
+    for (const href of [persona, kagami].filter(Boolean))
+      assert.equal(await nav.locator(`a[href="${href}"][target="_blank"][rel="noopener noreferrer"]`).count(), 1, path);
+    assert.equal(await nav.locator('a[target="_blank"]').count(), [persona, kagami].filter(Boolean).length, path);
   }
   for (const path of ["/play", "/play/pon", "/play/baa", "/play/shabon"]) {
     await page.goto(`${base}${path}`);
@@ -195,17 +208,108 @@ test("メニューはどのページでも 1 つ。あそぶでは出さない�
     assert.equal(await page.locator('nav[aria-label="メニュー"]').count(), 0, path);
     assert.equal(await page.locator("header").count(), 0, path);
   }
-  // スマホの幅でも横にはみ出さない
+  // 320px の幅でもページは横にはみ出さない。収まらないメニューは、メニューの中で横に送って最後まで届く
   const phone = await browser.newContext({ ...devices["iPhone SE"] });
   const small = await phone.newPage();
   for (const path of ["/", "/roadmap"]) {
     await small.goto(`${base}${path}`);
     await small.waitForLoadState("networkidle");
     assert.equal(await small.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, path);
-    const nav = await small.locator('nav[aria-label="メニュー"]').boundingBox();
-    assert.ok(nav && nav.width <= 320, path);
+    const nav = small.locator('nav[aria-label="メニュー"]');
+    const box = await nav.boundingBox();
+    assert.ok(box && box.width <= 320, path);
+    assert.equal(await nav.evaluate((n) => getComputedStyle(n).overflowX), "auto", path);
+    const last = await nav.evaluate((n) => {
+      n.scrollLeft = n.scrollWidth;
+      const a = [...n.querySelectorAll("a")].at(-1)!.getBoundingClientRect();
+      return { left: a.left, right: a.right, width: window.innerWidth };
+    });
+    assert.ok(last.left >= 0 && last.right <= last.width, `${path} ${JSON.stringify(last)}`);
   }
   await phone.close();
+  await context.close();
+});
+
+// ヘッダーの中で、2 行以上に折れている文字（途中で折り返した語）
+async function wrappedHeaderText(page: Page) {
+  return page.evaluate(() => {
+    const header = document.querySelector("header.site-header");
+    if (!header) return ["ヘッダーが無い"];
+    const out: string[] = [];
+    const walker = document.createTreeWalker(header, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const el = node.parentElement;
+      if (!node.textContent?.trim() || !el || el.closest(".sr-only") || getComputedStyle(el).display === "none") continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const lines = new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top)));
+      if (lines.size > 1) out.push(node.textContent.trim());
+    }
+    return out;
+  });
+}
+
+test("ヘッダーの文字を、どの幅でも途中で折り返さない。1280px の見た目は変えない", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  const widths = [320, 375, 414, 600, 740, 741, 771, 800, 850, 900, 950, 1000, 1050, 1100, 1150, 1200, 1280, 1440];
+  for (const path of ["/", "/roadmap"]) {
+    await page.goto(`${base}${path}`);
+    await page.waitForLoadState("networkidle");
+    for (const width of widths) {
+      await page.setViewportSize({ width, height: 800 });
+      assert.deepEqual(await wrappedHeaderText(page), [], `${path} ${width}px`);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 0, `${path} ${width}px`);
+    }
+  }
+  // 1280px: 副題と「公開の試用版」を出し、製品名・メニュー・右の道具を 1 行に並べる（動画と同じ）
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${base}/`);
+  await page.waitForLoadState("networkidle");
+  assert.equal(await page.locator(".brand small").isVisible(), true);
+  assert.equal(await page.locator(".header-actions .connection").isVisible(), true);
+  const rows = await page.evaluate(() =>
+    [".brand", "nav.view-nav", ".header-actions"].map((s) => {
+      const r = document.querySelector(s)!.getBoundingClientRect();
+      return Math.round(r.top + r.height / 2);
+    }),
+  );
+  assert.ok(Math.max(...rows) - Math.min(...rows) <= 2, JSON.stringify(rows));
+  await context.close();
+});
+
+test("端末が暗い表示でも、年表はさきよみの明るいトークンのまま", async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, colorScheme: "dark" });
+  const page = await context.newPage();
+  const look = () =>
+    page.evaluate(() => {
+      const root = getComputedStyle(document.documentElement);
+      return {
+        body: getComputedStyle(document.body).backgroundColor,
+        bg: root.getPropertyValue("--bg").trim(),
+        ink: root.getPropertyValue("--ink").trim(),
+        scheme: root.colorScheme,
+        theme: document.documentElement.getAttribute("data-theme"),
+      };
+    });
+  await page.goto(`${base}/`);
+  await page.waitForLoadState("networkidle");
+  const home = await look();
+  assert.equal(await page.evaluate(() => matchMedia("(prefers-color-scheme: dark)").matches), true);
+  assert.deepEqual(home, { body: "rgb(246, 246, 238)", bg: "#f6f6ee", ink: "#293c36", scheme: "normal", theme: null });
+  await page.goto(`${base}/roadmap`);
+  await page.waitForSelector("#cond:not(:empty)");
+  assert.deepEqual(await look(), home);
+  // 設定画面に明るさの切り替えを置かない
+  await page.click("#nav-link");
+  await page.waitForSelector("#settings-view:not([hidden])");
+  assert.equal(await page.locator("[data-theme-set]").count(), 0);
+  assert.deepEqual(await look(), home);
+  // 単独で開いた HTML も同じ
+  await page.goto(`${pathToFileURL(join(process.cwd(), "docs", "prototypes", "sapporo-roadmap.html")).href}?today=2026-11-07`);
+  await page.waitForSelector("#cond:not(:empty)");
+  assert.deepEqual(await look(), home);
   await context.close();
 });
 
