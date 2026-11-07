@@ -26,6 +26,7 @@ import {
   type View,
 } from "@/lib/views";
 import { appendTranscript } from "@/lib/voice";
+import { keepWorkspace, keptWorkspace } from "@/lib/kept-workspace";
 import {
   FactText,
   MoneyDetails,
@@ -35,31 +36,7 @@ import {
   type AskQuestion,
 } from "./money-card";
 import { VoiceButton } from "./voice-button";
-
-function Mark({ small = false }: { small?: boolean }) {
-  return (
-    <svg
-      className={small ? "mark small" : "mark"}
-      viewBox="0 0 40 40"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M11 29V12c7-1 10 2 10 7v13M29 10c-7 0-10 4-10 10"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <circle cx="28" cy="10" r="4" fill="currentColor" />
-      <path
-        d="M11 29c6-2 13-2 19 0"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
+import { SiteHeader } from "./site-header";
 
 function Modal({
   title,
@@ -352,6 +329,16 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
       };
 
   useEffect(() => {
+    // 年表やあそぶから戻ったときは、このタブのメモリに置いた状態から続ける（#52、ADR 0015）。
+    const kept = keptWorkspace();
+    if (kept) {
+      setWorkspace(kept.workspace);
+      setDraft(kept.draft);
+      setRemember(kept.remember);
+      live.current = kept.live;
+      setHydrated(true);
+      return;
+    }
     try {
       const stored = readStoredWorkspace(localStorage);
       if (stored.workspace?.mode === "live") {
@@ -390,6 +377,10 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
       input.current?.focus();
     }
   }, [view]);
+  // ほかのページへ移るときに状態が消えないよう、変わるたびにメモリへ写す。サーバーにもブラウザにも保存しない。
+  useEffect(() => {
+    if (hydrated) keepWorkspace({ workspace, draft, remember, live: live.current });
+  }, [hydrated, workspace, draft, remember]);
   useEffect(() => {
     if (!hydrated || example) return;
     if (remember) {
@@ -615,33 +606,10 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
       >
         会話の入力欄に移動
       </a>
-      <header className="site-header">
-        <a className="brand" href={VIEW_HASH.talk} aria-label="さきよみ（話す）">
-          <Mark small />
-          <span>
-            さきよみ<small>家族のための準備室</small>
-          </span>
-        </a>
-        <nav className="view-nav" aria-label="表示の切り替え">
-          <a
-            href={VIEW_HASH.talk}
-            aria-current={view === "talk" ? "page" : undefined}
-          >
-            話す
-          </a>
-          <a
-            href={VIEW_HASH.outlook}
-            aria-current={view === "outlook" ? "page" : undefined}
-          >
-            見通し<span className="count">{moneyCards.length}</span>
-          </a>
-          <a
-            href={VIEW_HASH.hand}
-            aria-current={view === "hand" ? "page" : undefined}
-          >
-            渡すもの<span className="count">{handCards.length}</span>
-          </a>
-        </nav>
+      <SiteHeader
+        current={view}
+        counts={{ outlook: moneyCards.length, hand: handCards.length }}
+      >
         <div className="header-actions">
           <span className={`connection ${connected ? "ready" : ""}`}>
             {connected ? "公開の試用版" : "会話は準備中"}
@@ -650,7 +618,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
             保存とプライバシー
           </button>
         </div>
-      </header>
+      </SiteHeader>
       {view === "talk" && (
         <main className="talk" id="conversation" aria-label="話す">
           {(example || notice) && <div className="talk-notes">{notes}</div>}
