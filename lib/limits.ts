@@ -111,6 +111,6 @@ export function clientKeyFrom(headers: Headers): string {
 
 export function limitMessage(reason: "client" | "global" | "capacity"): string {
   return reason === "client"
-    ? "この端末の今日の試用回数に達しました。入力とメモは残っています。架空の体験例は引き続き試せます。"
+    ? "この接続元（回線）からの今日の試用回数に達しました。入力とメモは残っています。架空の体験例は引き続き試せます。"
     : "今日の公開版の利用上限に達しました。入力とメモは残っています。架空の体験例は引き続き試せます。";
 }

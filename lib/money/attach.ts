@@ -111,6 +111,7 @@ const BREAKDOWN_TOOLS = new Set(["kougaku_gendo", "meal_cost"]);
 // - その回で、内訳の計算が成功したあとに simulate_cashflow が無いか失敗した（時間切れを含む）なら、印を付ける
 // - その回で、最後の内訳のあとに simulate_cashflow が成功したなら、印を外す
 // - その回に内訳も見通しも成功しなければ、前の回の印をそのまま引き継ぐ（日付だけの計算では外さない）
+// - その回の前の内訳と同じ入力の内訳は、条件を変えないので数えない（見通しのあとの呼び直し。11/8 の実 API の評価）
 // どの場合も、表に見通しが残っていなければ印は要らない。
 export function cashflowIsStale(
   events: readonly ToolEvent[],
@@ -121,7 +122,15 @@ export function cashflowIsStale(
     return false;
   const lastOk = (match: (name: string) => boolean) =>
     events.findLastIndex((event) => event.ok && match(event.name));
-  const breakdown = lastOk((name) => BREAKDOWN_TOOLS.has(name));
+  const key = (event: ToolEvent) => `${event.name} ${JSON.stringify(event.input)}`;
+  const breakdown = events.findLastIndex(
+    (event, index) =>
+      event.ok &&
+      BREAKDOWN_TOOLS.has(event.name) &&
+      !events
+        .slice(0, index)
+        .some((before) => before.ok && key(before) === key(event)),
+  );
   const cashflow = lastOk((name) => name === "simulate_cashflow");
   if (breakdown > cashflow) return true;
   if (cashflow > breakdown) return false;

@@ -172,7 +172,8 @@ export const TOOL_NAMES = [
 const toolInputSchema = z.record(z.string(), z.unknown());
 
 // 1 枚のカードに付ける計算の上限。多すぎるとカードが読めず、保存も重くなる。
-export const MAX_CALCULATIONS = 8;
+// 月をまたぐ入院で隣の区分も並べると、内訳だけで 6 件になる（11/8 の実 API の評価）。日付・食事代・見通しを足しても収まる数。
+export const MAX_CALCULATIONS = 12;
 
 export const calculationSchema = z.discriminatedUnion("name", [
   z.object({

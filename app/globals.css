@@ -611,7 +611,7 @@ summary {
 }
 .workspace-footer p {
   margin-left: auto;
-  font-size: 9px;
+  font-size: 11px;
 }
 .example-banner {
   display: flex;
@@ -1267,4 +1267,14 @@ main.page {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* 見つからない・表示できないときの画面（app/not-found.tsx・app/error.tsx） */
+.fallback-page {
+  max-width: 560px;
+  margin: 15vh auto 0;
+  padding: 0 16px;
+  display: grid;
+  gap: 12px;
+  justify-items: start;
 }

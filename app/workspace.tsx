@@ -280,6 +280,11 @@ function errorMessageOf(data: unknown, status: number): string {
     : "接続できませんでした。入力とメモは残っています。少し待って、もう一度試してください。";
 }
 
+// 画面に出してよい文の失敗。ブラウザの通信の例外（Failed to fetch など）は英語のまま出さない。
+class ChatError extends Error {}
+const CONNECTION_LOST =
+  "接続が切れました。入力とメモは残っています。もう一度試すか、架空の体験例を開いてください。";
+
 export function FamilyWorkspace({ connected }: { connected: boolean }) {
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
   const [draft, setDraft] = useState("");
@@ -297,7 +302,8 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
   const [modal, setModal] = useState<"privacy" | "export" | "reset" | null>(
     null,
   );
-  const [copied, setCopied] = useState(false);
+  // 渡す前の確認画面のコピー。失敗はダイアログの中に出す（背面の案内は見えない）。
+  const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
   const abort = useRef<AbortController | null>(null);
   const live = useRef<{ workspace: Workspace; draft: string } | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -399,7 +405,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
       } catch {
         setNotice(
-          "このブラウザに保存できません。必要なメモをダウンロードしてください。",
+          "このブラウザに保存できません。必要なメモは「テキストで保存」で持ち出してください。",
         );
       }
     }
@@ -459,8 +465,10 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
       });
       // 上限やゲートウェイの応答は JSON とは限らない。読めなくても入力は残す。
       const data: unknown = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(errorMessageOf(data, res.status));
-      const reply = replySchema.parse(data);
+      if (!res.ok) throw new ChatError(errorMessageOf(data, res.status));
+      const parsed = replySchema.safeParse(data);
+      if (!parsed.success) throw new ChatError(CONNECTION_LOST);
+      const reply = parsed.data;
       setWorkspace((prev) => ({
         ...prev,
         messages: [
@@ -483,9 +491,11 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
       setError(
         controller.signal.aborted
           ? "整理を中止しました。入力とメモは残っています。"
-          : e instanceof Error && e.name !== "TimeoutError"
-            ? e.message
-            : "時間がかかっているため中断しました。入力は残っています。もう一度試してください。",
+          : e instanceof Error && e.name === "TimeoutError"
+            ? "時間がかかっているため中断しました。入力は残っています。もう一度試してください。"
+            : e instanceof ChatError
+              ? e.message
+              : CONNECTION_LOST,
       );
     } finally {
       setBusy(false);
@@ -916,7 +926,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                   className="primary"
                   disabled={selected === 0 || busy}
                   onClick={() => {
-                    setCopied(false);
+                    setCopied("idle");
                     setModal("export");
                   }}
                 >
@@ -951,7 +961,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
             </p>
             <h3>公開の試用版です</h3>
             <p>
-              ログインなしで試せるように公開しています。Claudeとの会話は、1台あたり1日20回までなどの上限があります。架空の体験例は回数の制限なく試せます。実名、病名、連絡先は書かないでください。
+              ログインなしで試せるように公開しています。Claudeとの会話は、同じ接続元（回線）から1日20回までなどの上限があります。架空の体験例は回数の制限なく試せます。実名、病名、連絡先は書かないでください。
             </p>
             <h3>保存する場所を自分で選べます</h3>
             <p>
@@ -960,7 +970,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
             <div className="privacy-controls">{saveControls}</div>
             <h3>渡す前に、中身を確かめられます</h3>
             <p>
-              選んだメモだけをコピー・ダウンロードできます。家族や窓口へ自動で送ることはありません。持ち出したファイルは、この画面の消去では削除されません。
+              選んだメモだけを、コピーするかテキストで保存できます。家族や窓口へ自動で送ることはありません。持ち出したファイルは、この画面の消去では削除されません。
             </p>
             {!connected && (
               <details>
@@ -992,24 +1002,24 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(memo);
-                  setCopied(true);
+                  setCopied("copied");
                 } catch {
-                  setNotice(
-                    "コピーできませんでした。ダウンロードをご利用ください。",
-                  );
+                  setCopied("failed");
                 }
               }}
             >
-              {copied ? "✓ コピーしました" : "文章をコピー"}
+              {copied === "copied" ? "✓ コピーしました" : "文章をコピー"}
             </button>
             <button className="primary" onClick={download}>
               テキストで保存 ↓
             </button>
           </div>
           <p className="muted" role="status">
-            {copied
+            {copied === "copied"
               ? "渡したい相手へのメッセージなどに貼り付けられます。"
-              : "内容を読んでから、渡す相手を自分で選んでください。"}
+              : copied === "failed"
+                ? "コピーできませんでした。「テキストで保存」を使うか、上の文章を選んでコピーしてください。"
+                : "内容を読んでから、渡す相手を自分で選んでください。"}
           </p>
         </Modal>
       )}
