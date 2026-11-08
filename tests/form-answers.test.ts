@@ -213,3 +213,40 @@ test("ページは前の版の下書きのキーを消さずに読み、新し�
   // 前の下書きで「その他」の文だけ直した場合も見えるようにする。
   assert.ok(PAGE.includes('["claude_other", '));
 });
+
+test("設問 8 の環境と設問 10 の止まった時刻（11/7 と 11/8 の区間）は同じ", () => {
+  const span = (text: string, day: string): string => {
+    const match = text.match(new RegExp(`${day} (\\d{1,2}:\\d{2}〜\\d{1,2}:\\d{2})`));
+    assert.ok(match, `${day} の区間が無い`);
+    return match[1];
+  };
+  for (const day of ["11/7", "11/8"])
+    assert.equal(span(answerOf(FORM, 8), day), span(answerOf(FORM, 10), day), day);
+});
+
+test("設問 2 の表示文と設問 4 の URL は、form.md とページの初期値で同じ", () => {
+  const firstLine = (number: number): string | undefined =>
+    sectionOf(FORM, number)
+      .split("\n")
+      .slice(2)
+      .find((line) => line.trim() !== "");
+  const theme = PAGE.match(
+    new RegExp(`<option value="${pageDefault("theme")}"(?: selected)?>([^<]*)</option>`),
+  );
+  assert.ok(theme, "ページの初期値のテーマの選択肢が無い");
+  assert.equal(theme[1], firstLine(2));
+  assert.equal(pageDefault("github"), firstLine(4));
+});
+
+test("設問 11 の回数の上限は、docs/deployment.md の回数と同じ", () => {
+  const deployment = read("docs/deployment.md").match(
+    /接続元（回線）ごとに 1 日 (\d+) 回、全体で 1 日 (\d+) 回、IP ごとに 1 時間 (\d+) 回/,
+  );
+  assert.ok(deployment, "docs/deployment.md に回数の上限の文が無い");
+  const answer = answerOf(FORM, 11).match(
+    /接続元（回線）ごとに 1 日 (\d+) 回、IP アドレスごとに 1 時間 (\d+) 回、全体で 1 日 (\d+) 回/,
+  );
+  assert.ok(answer, "設問 11 に回数の上限の文が無い");
+  const [, perClientDay, totalDay, perIpHour] = deployment;
+  assert.deepEqual(answer.slice(1), [perClientDay, perIpHour, totalDay]);
+});
