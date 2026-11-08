@@ -12,7 +12,9 @@ import { limitConfigFromEnv } from "../lib/limits";
 const ROOT = join(__dirname, "..");
 const read = (path: string): string => readFileSync(join(ROOT, path), "utf8");
 const FORM = read("docs/submission/form.md");
-const MAX_OVERVIEW = 500;
+// フォームの上限は 500 字。改行を 2 字と数えるフォームでも収まるよう、下書きは 480 字・改行 2 つまでにする。
+const MAX_OVERVIEW = 480;
+const MAX_OVERVIEW_BREAKS = 2;
 
 // 「## n. 」の見出しのあとの最初の text の枠の中を返す。
 function answerOf(form: string, number: number): string {
@@ -41,7 +43,7 @@ test("設問の見出しは 1 から 11 まで、この順に並ぶ", () => {
   );
 });
 
-test("設問 3 の概要は指定の 1 文で始まり、500 字以内で、書いてある字数と一致する", () => {
+test("設問 3 の概要は指定の 1 文で始まり、480 字以内・改行 2 つまでで、書いてある字数と一致する", () => {
   const overview = answerOf(FORM, 3);
   const [first] = overview.split("\n");
   // 「このプロジェクトは、〔誰〕の〔課題〕を〔どう変える〕〔形〕です。」の 1 文。〔課題〕は名詞句で閉じてから「を」に入る。
@@ -55,12 +57,16 @@ test("設問 3 の概要は指定の 1 文で始まり、500 字以内で、書�
   const all = countOf(overview);
   const withoutBreaks = countOf(overview.replace(/\n/g, ""));
   const withoutSpaces = countOf(overview.replace(/\s/g, ""));
+  const breaks = all - withoutBreaks;
   assert.ok(all <= MAX_OVERVIEW, `${all} 字`);
+  assert.ok(breaks <= MAX_OVERVIEW_BREAKS, `改行 ${breaks} つ`);
+  // 改行を 2 字と数えても、フォームの 500 字に収まる。
+  assert.ok(all + breaks <= 500, `改行を 2 字と数えると ${all + breaks} 字`);
   assert.ok(
     FORM.includes(
-      `字数: 空白と改行を含めて ${all} 字（改行を除くと ${withoutBreaks} 字、空白も除くと ${withoutSpaces} 字）。`,
+      `字数: 空白と改行を含めて ${all} 字（改行を除くと ${withoutBreaks} 字、空白も除くと ${withoutSpaces} 字）。改行は ${breaks} つ。`,
     ),
-    `書いてある字数が実際（${all}・${withoutBreaks}・${withoutSpaces}）と違う`,
+    `書いてある字数が実際（${all}・${withoutBreaks}・${withoutSpaces}・改行 ${breaks}）と違う`,
   );
 });
 
