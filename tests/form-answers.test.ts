@@ -102,19 +102,12 @@ function pageDefault(key: string): string {
   return match[1];
 }
 
-// 「## チーム名（必須）」の見出しの下の最初の行。告知の 11 問には無く、番号を付けない。
-function teamName(): string | undefined {
+// チーム名は屋号なので、値をリポジトリに置かない。作者が提出ページで入れる（告知の 11 問には無く、番号を付けない）。
+test("チーム名は form.md で 1 より前に節があり、ページの初期値は空", () => {
   const start = FORM.indexOf("\n## チーム名（必須）\n");
   assert.ok(start >= 0, "チーム名の見出しが無い");
   assert.ok(start < FORM.indexOf("\n## 1. "), "チーム名は 1 より前に置く");
-  return FORM.slice(start)
-    .split("\n")
-    .slice(2)
-    .find((line) => line.trim() !== "");
-}
-
-test("チーム名は form.md とページの初期値で同じ", () => {
-  assert.equal(pageDefault("team_name"), teamName());
+  assert.equal(pageDefault("team_name"), "");
 });
 
 test("設問 3・7・10・11 の写す本文が、ページにそのまま入っている", () => {
@@ -331,7 +324,7 @@ test("保存の無いときの全文コピーは、【…】ごとに form.md �
       .slice(2)
       .find((line) => line.trim() !== "");
   const expected: [string, string | undefined][] = [
-    ["チーム名", teamName()],
+    ["チーム名", ""],
     ["プロジェクト名", firstLine(1)],
     ["テーマ", firstLine(2)],
     ["概要", answerOf(FORM, 3)],
