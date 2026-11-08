@@ -649,8 +649,8 @@ test("想定外のエラーの計算は表に入れず、注意を出す（理�
   assert.equal(warnings[0].kind, "calc");
 });
 
-test("計算が多すぎるときは最後の 8 件だけにして、注意を出す", () => {
-  const events = Array.from({ length: 10 }, (_, index) => {
+test("計算が多すぎるときは最後の 12 件だけにして、注意を出す", () => {
+  const events = Array.from({ length: 14 }, (_, index) => {
     const input = { days_low: index + 1, days_high: index + 1 };
     return {
       name: "meal_cost",
@@ -666,10 +666,10 @@ test("計算が多すぎるときは最後の 8 件だけにして、注意を�
     prior: new Map<string, Calculation[]>(),
     messages: INPUT.messages,
   });
-  assert.equal(cards[0].money?.calculations.length, 8);
-  assert.deepEqual(cards[0].money?.calculations[7].input, {
-    days_low: 10,
-    days_high: 10,
+  assert.equal(cards[0].money?.calculations.length, 12);
+  assert.deepEqual(cards[0].money?.calculations[11].input, {
+    days_low: 14,
+    days_high: 14,
   });
   assert.equal(warnings[0].kind, "calc");
 });

@@ -16,7 +16,7 @@
 デモ動画: https://youtu.be/c-3mh5sisec（v1。v2 を 11/8 午前に差し替える）
 
 - 「まず、架空の体験例を見る」は回数の制限なく試せます。Claude を呼びません
-- Claude との会話には上限があります。端末ごとに 1 日 20 回、全体で 1 日 150 回、短時間の連打は 1 時間 20 回までです。日本時間の 0 時に切り替わります。上限に達しても、入力とメモは画面に残ります（[ADR 0012](docs/adr/0012-open-production-with-usage-limits.md)）
+- Claude との会話には上限があります。接続元（回線）ごとに 1 日 20 回、全体で 1 日 150 回、短時間の連打は 1 時間 20 回までです。日本時間の 0 時に切り替わります。上限に達しても、入力とメモは画面に残ります（[ADR 0012](docs/adr/0012-open-production-with-usage-limits.md)）
 - **実名や病名を書かず、架空の内容で試してください。** 送った内容はサーバーを経由して Anthropic へ送られます。アプリは本文を保存もログ出力もしません
 - 回数はメモリの中で数えるので、厳密な上限ではありません。API の残高が尽きると会話は失敗し、体験例だけが動きます
 
@@ -37,7 +37,7 @@
 | 見通し   | 計算の記録                                     | お金の出入り、高額療養費の上限、食事代、日付と営業日、出典と確認日                                                                                         | —                                                |
 | 渡すもの | 暮らしの引き継ぎ、確かめる・頼む、残しておく言葉 | 朝の支度などの手順。窓口や身近な人にそのまま見せられる質問文と依頼文。本人が残したいと話した言葉の原文                                                     | 担当する人の了承、給付の可否と額、相手の回答と同意 |
 
-自分で直したカード、「準備できた」にしたカード、渡すと選んだカードは、話を続けても上書きされません。「渡すメモに含める」を選んだものだけを確認画面で読み、コピーかテキストで保存します。会話の全文は入りません。送るのは本人です。
+自分で直したカード、「準備できた」にしたカード、渡すと選んだカードは、話を続けても上書きされません。「渡すものに含める」を選んだものだけを確認画面で読み、コピーかテキストで保存します。会話の全文は入りません。送るのは本人です。
 
 メニューは 1 つで、主役は「話す・見通し・渡すもの」です。区切りのあとに「年表・あそぶ・かがみ」を小さく並べます。年表は札幌の子育て年表、あそぶは 1〜2 歳向けの画面の文字が 0 のあそび、かがみはこの端末で撮って見るだけの撮影とプレビューです（映像はサーバーへ送らず、ブラウザの保存領域にも書きません。残すときは本人が端末に保存します）。3 つとも入院のお金の計算とデータを共有せず、Claude も呼ばない補助です（[ADR 0015](docs/adr/0015-one-menu-for-sakiyomi-roadmap-and-play.md)、[ADR 0017](docs/adr/0017-kagami-recording-on-this-device-only.md)）。あそぶではメニューを出さず、隅の家の絵を約 1.5 秒押し続けると戻ります。
 
@@ -143,10 +143,10 @@ Codex には、仕様への批判レビューと 11/5 の課題の比較も任�
 ## テスト
 
 ```sh
-npm test               # 本体（425 件。Node 24）
+npm test               # 本体（427 件。Node 24）
 npm run typecheck
 npm run build
-npm run test:e2e       # ブラウザの通し（Playwright、Chromium。ビルドしてから 40 件。Claude には送らない）
+npm run test:e2e       # ブラウザの通し（Playwright、Chromium。ビルドしてから 40 件。Claude には送らない。初回は npx playwright install chromium）
 npm run test:roadmap   # 年表
 npm run check:public   # 公開前の検査（鍵の形、.env、.vercel など）
 ```
@@ -168,6 +168,7 @@ CI（GitHub Actions、Node 24）は push と PR のたびに typecheck・test・
 - 課題の比較: [problem.md](docs/problem.md)
 - 調査: [入院前後のお金と手続き](docs/research/hospital-money-facts-20261105.md)
 - 試作: [会話で試す検証用の試作](docs/prototypes/hospital-conversation/README.md)
+- 実 API の評価: [架空の会話 16 件・31 回](docs/validation/live-eval-20261108.md)（伏せ字 0、言ってはいけないことの違反 0。見つかった 2 件を直した）
 - 提出物: [docs/submission/](docs/submission/README.md)、[大会の要項](docs/hackathon.md)
 - [GitHub Issues](https://github.com/maurayonori/bwc-japan-2026/issues)
 

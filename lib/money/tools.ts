@@ -51,7 +51,7 @@ export const TOOLS = deepFreeze([
       income_category: {
         type: 'string',
         enum: ['ア', 'イ', 'ウ', 'エ', 'オ', '不明'],
-        description: '高額療養費の所得区分。利用者が区分を言っていないときは「不明」にする。推測で決めない。',
+        description: '高額療養費の所得区分。利用者が区分を言っていないときは「不明」にする。ただし月の給料が話されているときは、給料から当てはまる区分を仮定として選んでよい（年収しか分からないときは「不明」）。',
       },
       amount_basis: {
         type: 'string',
@@ -72,7 +72,7 @@ export const TOOLS = deepFreeze([
     description: [
       '入院中の食事代（1 食ごとに決まっている自己負担）を、入院日数から多めに見積もる。',
       '入院日数が分かったとき、または仮の日数を置いたときに呼ぶ。食事代を自分で掛け算しない。',
-      '一般の区分の額だけを持っている。食事代は高額療養費の対象外なので、kougaku_gendo の結果とは別に足す。',
+      '一般の区分の額だけを持っている。食事代は高額療養費の対象外なので、kougaku_gendo の結果と自分で足し合わせず、simulate_cashflow に別の入出金として置く。',
     ].join(''),
     strict: true,
     input_schema: objectSchema({
