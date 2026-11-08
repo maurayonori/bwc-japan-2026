@@ -211,10 +211,10 @@ function certaintyText(...paths: LedgerPath[]): string {
 
 export const WITHOUT_UNCONFIRMED_INCOME = "確かめていない入金を数えない場合";
 
-export function paydayTable(output: CashflowOutput): {
-  headers: string[];
-  rows: string[][];
-} {
+// 支払日の表の行を作る関数。筋書きの名前を受け取り、その筋書きの行（確かめていない入金を数えない場合の行を含む）を返す。
+function paydayRowsBuilder(
+  output: CashflowOutput,
+): (name: string, scenario: CashflowScenario) => string[][] {
   const cash = output.cash_on_hand;
   const baseYear = Number(output.start_date.slice(0, 4));
   const row = (name: string, low: LedgerPath, high: LedgerPath) => [
@@ -224,8 +224,8 @@ export function paydayTable(output: CashflowOutput): {
     ...(cash === null ? [] : [cashGapText(cash, low.need, high.need)]),
     certaintyText(low, high),
   ];
-  const rows = output.scenarios.flatMap((scenario) => {
-    const counted = row(scenario.name, scenario.low_case, scenario.high_case);
+  return (name, scenario) => {
+    const counted = row(name, scenario.low_case, scenario.high_case);
     // 確かめていない入金がある筋書きは、すぐ下に、その入金が入らない場合を並べる（CLAUDE.md、#77）。
     if (scenario.totals.unconfirmed_in_high <= 0) return [counted];
     const without = scenario.high_case_without_unconfirmed_income;
@@ -238,15 +238,58 @@ export function paydayTable(output: CashflowOutput): {
       return [counted];
     return [
       counted,
-      row(`${scenario.name}・${WITHOUT_UNCONFIRMED_INCOME}`, without, without),
+      row(`${name}・${WITHOUT_UNCONFIRMED_INCOME}`, without, without),
     ];
+  };
+}
+
+interface PaydayGroup {
+  // 「／」でつないだ筋書きの名前
+  name: string;
+  // 組の最初の筋書きの位置（output.scenarios の添字）
+  first: number;
+}
+
+// 支払日の表で 1 行にまとめる筋書きの組（#74）。要る額・いつ・手元のお金との差・確かさ（数えない場合の行も含む）が
+// すべて同じ筋書きを、最初に出た順にまとめる。月をまたぐ入院で、Claude が額の変わらない筋書きを分けたときに、
+// 同じ行が並ばないようにする。計算の記録（お金の出入りの表）は筋書きごとに残す。
+function paydayGroups(
+  output: CashflowOutput,
+  rowsOf: (name: string, scenario: CashflowScenario) => string[][],
+): PaydayGroup[] {
+  const groups = new Map<string, { names: string[]; first: number }>();
+  output.scenarios.forEach((scenario, index) => {
+    const key = JSON.stringify(
+      rowsOf("", scenario).map((cells) => cells.slice(1)),
+    );
+    const group = groups.get(key);
+    groups.set(
+      key,
+      group
+        ? { ...group, names: [...group.names, scenario.name] }
+        : { names: [scenario.name], first: index },
+    );
   });
+  return [...groups.values()].map(({ names, first }) => ({
+    name: names.join("／"),
+    first,
+  }));
+}
+
+export function paydayTable(output: CashflowOutput): {
+  headers: string[];
+  rows: string[][];
+} {
+  const rowsOf = paydayRowsBuilder(output);
+  const rows = paydayGroups(output, rowsOf).flatMap((group) =>
+    rowsOf(group.name, output.scenarios[group.first]),
+  );
   return {
     headers: [
       "筋書き",
       "要る額",
       "いつ",
-      ...(cash === null ? [] : ["手元のお金との差"]),
+      ...(output.cash_on_hand === null ? [] : ["手元のお金との差"]),
       "確かさ",
     ],
     rows,
@@ -271,13 +314,20 @@ export function needDifferenceText(
 
 // 支払日の表の下に置く、一番上の筋書きと比べた差の文。筋書きが 3 つ以上でも、どの筋書きの差かが分かるように名前を付ける。
 // 少なめ・多めで差が違う筋書きがあるときは「、」が重なるので、筋書きの区切りを「。」にする。
+// 支払日の表の下に置く、先頭の行と比べた差。まとめた筋書き（#74）は 1 回だけ書き、先頭と同じ行は書かない。
 export function paydayGapText(output: CashflowOutput): string {
-  const items = output.comparison_with_first;
-  if (items.length === 0) return "";
-  const differences = items.map((item) => needDifferenceText(item));
-  const separator = differences.some((text) => text.includes("、")) ? "。" : "、";
-  const parts = items.map((item, index) => `「${item.name}」は ${differences[index]}`);
-  return `「${output.scenarios[0].name}」と比べると、${parts.join(separator)}。`;
+  const [base, ...others] = paydayGroups(output, paydayRowsBuilder(output));
+  const compared = others.flatMap((group) => {
+    // comparison_with_first は 2 つ目以降の筋書きと同じ順に並ぶ。
+    const item = output.comparison_with_first[group.first - 1];
+    return item ? [{ name: group.name, text: needDifferenceText(item) }] : [];
+  });
+  if (!base || compared.length === 0) return "";
+  const separator = compared.some(({ text }) => text.includes("、"))
+    ? "。"
+    : "、";
+  const parts = compared.map(({ name, text }) => `「${name}」は ${text}`);
+  return `「${base.name}」と比べると、${parts.join(separator)}。`;
 }
 
 const uniqueSources = (sources: readonly Source[]): Source[] => [
