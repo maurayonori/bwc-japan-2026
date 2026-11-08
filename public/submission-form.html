@@ -263,11 +263,11 @@
 
   <script>
     const STORAGE_KEY = "sakiyomi-bwc2026-submission-form-v3";
-    // 前の版が使っていたキー（新しい順。v2 は 11/8 17:36 の提出ページに合わせる前の版、無印は 11/8 12:15 の版）。
-    // 作者の編集が残っているかもしれないので、消さずに読むだけにする。
+    // 前の版が使っていたキーと、見せるときの名前（新しい順）。
+    // 作者の編集が残っているかもしれないので、どれも消さずに、残っているものをすべて読むだけで見せる。
     const OLD_STORAGE_KEYS = [
-      "sakiyomi-bwc2026-submission-form-v2",
-      "sakiyomi-bwc2026-submission-form",
+      ["sakiyomi-bwc2026-submission-form-v2", "11/8 17:36 の提出ページに合わせる前の版"],
+      ["sakiyomi-bwc2026-submission-form", "11/8 12:15 の版"],
     ];
     const DEADLINE = new Date("2026-11-08T20:00:00+09:00");
 
@@ -514,14 +514,15 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
       });
     }
 
-    function loadOldDraft() {
-      for (const key of OLD_STORAGE_KEYS) {
+    function loadOldDrafts() {
+      const drafts = [];
+      for (const [key, name] of OLD_STORAGE_KEYS) {
         try {
           const raw = JSON.parse(localStorage.getItem(key) || "null");
-          if (raw && typeof raw === "object") return raw;
+          if (raw && typeof raw === "object") drafts.push({ name, data: raw });
         } catch (_) {}
       }
-      return null;
+      return drafts;
     }
 
     function oldValueText(key, value) {
@@ -535,14 +536,16 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
     }
 
     // 前の版の下書きは今の欄に入れず、項目ごとに読んでコピーできるようにだけする。
-    function renderOldDraft(old) {
+    function renderOldDraft(old, name) {
       const root = $("#old-draft");
+      // 説明の段落は、最初の下書きのときだけ置く。
       const lead = document.createElement("p");
+      if (root.hidden) root.appendChild(lead);
       lead.innerHTML =
         "<strong>前の下書きがこのブラウザに残っています。</strong> 今の欄は form.md と同じ新しい初期値で、前の下書きは自動では入れません。前に直した文を使うときは、下から項目ごとにコピーしてください。";
       const details = document.createElement("details");
       const summary = document.createElement("summary");
-      summary.textContent = "前の下書きを見る（読むだけ）";
+      summary.textContent = `前の下書きを見る（読むだけ。${name}）`;
       details.appendChild(summary);
       OLD_FIELDS.forEach(([key, label]) => {
         const text = oldValueText(key, old[key]);
@@ -565,7 +568,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
         item.append(name, body, btn);
         details.appendChild(item);
       });
-      root.append(lead, details);
+      root.appendChild(details);
       root.hidden = false;
     }
 
@@ -596,8 +599,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
       applyState(saved || DEFAULTS);
       if (!saved) $("#stuck_meta").value = buildStuckMeta();
 
-      const old = loadOldDraft();
-      if (old) renderOldDraft(old);
+      for (const old of loadOldDrafts()) renderOldDraft(old.data, old.name);
 
       updateDeadlineBanner();
       setInterval(updateDeadlineBanner, 60000);

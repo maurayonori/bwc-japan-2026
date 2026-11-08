@@ -218,14 +218,26 @@ test("ページは前の版の下書きのキーを消さずに読み、新し�
   assert.ok(
     PAGE.includes('const STORAGE_KEY = "sakiyomi-bwc2026-submission-form-v3";'),
   );
-  // 前の版のキーは新しい順に読むだけにする（v2 は 11/8 17:36 の提出ページに合わせる前、無印は 11/8 12:15 の版）。
-  const old = PAGE.match(/const OLD_STORAGE_KEYS = (\[[^\]]*\]);/);
-  assert.ok(old, "ページに OLD_STORAGE_KEYS が無い");
-  assert.deepEqual(JSON.parse(old[1].replace(/,\s*\]$/, "]")), [
-    "sakiyomi-bwc2026-submission-form-v2",
-    "sakiyomi-bwc2026-submission-form",
-  ]);
   assert.ok(!/(?:removeItem|setItem)\((?!STORAGE_KEY\b)/.test(PAGE));
+  // 前の版の v2 と無印が両方残っていれば、両方を新しい順に読み、どちらも見せる（壊れた値は飛ばす）。
+  const keys = PAGE.match(/const OLD_STORAGE_KEYS = \[[\s\S]*?\n    \];/);
+  assert.ok(keys, "ページに OLD_STORAGE_KEYS が無い");
+  const stored: Record<string, string> = {
+    "sakiyomi-bwc2026-submission-form-v2": JSON.stringify({ reviewer: "v2 の文" }),
+    "sakiyomi-bwc2026-submission-form": JSON.stringify({ reviewer: "無印の文" }),
+  };
+  const localStorage = { getItem: (key: string) => stored[key] ?? null };
+  const load = new Function("localStorage", `${keys[0]}\n${pageFunction("loadOldDrafts")}\nreturn loadOldDrafts();`);
+  assert.deepEqual(
+    load(localStorage).map((draft: { data: { reviewer: string } }) => draft.data.reviewer),
+    ["v2 の文", "無印の文"],
+  );
+  stored["sakiyomi-bwc2026-submission-form-v2"] = "{壊れた値";
+  assert.deepEqual(
+    load(localStorage).map((draft: { data: { reviewer: string } }) => draft.data.reviewer),
+    ["無印の文"],
+  );
+  assert.ok(PAGE.includes("for (const old of loadOldDrafts()) renderOldDraft(old.data, old.name);"));
   // 前の下書きで「その他」の文だけ直した場合も見えるようにする。
   assert.ok(PAGE.includes('["claude_other", '));
 });
