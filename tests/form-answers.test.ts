@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 // 提出フォームの下書き（docs/submission/form.md）が、告知された 11 問の形に合っていることを確かめる（#92）。
 // 送信後は直せないので、字数・冒頭の形・動画の URL の食い違いを送る前に落とす。
+// 11/8 17:36 に開いた提出ページに合わせ、チーム名を足し、8 は写さない印を付け、11 は 150 字に収めた（#7）。
 
 const ROOT = join(__dirname, "..");
 const read = (path: string): string => readFileSync(join(ROOT, path), "utf8");
@@ -100,6 +101,21 @@ function pageDefault(key: string): string {
   assert.ok(match, `ページの初期値に ${key} が無い`);
   return match[1];
 }
+
+// 「## チーム名（必須）」の見出しの下の最初の行。告知の 11 問には無く、番号を付けない。
+function teamName(): string | undefined {
+  const start = FORM.indexOf("\n## チーム名（必須）\n");
+  assert.ok(start >= 0, "チーム名の見出しが無い");
+  assert.ok(start < FORM.indexOf("\n## 1. "), "チーム名は 1 より前に置く");
+  return FORM.slice(start)
+    .split("\n")
+    .slice(2)
+    .find((line) => line.trim() !== "");
+}
+
+test("チーム名は form.md とページの初期値で同じ", () => {
+  assert.equal(pageDefault("team_name"), teamName());
+});
 
 test("設問 3・7・10・11 の写す本文が、ページにそのまま入っている", () => {
   for (const number of [3, 7, 10, 11]) {
@@ -200,16 +216,16 @@ test("ページのプロジェクト名は form.md の 1 と同じ", () => {
 
 test("ページは前の版の下書きのキーを消さずに読み、新しい版のキーに保存する", () => {
   assert.ok(
-    PAGE.includes('const STORAGE_KEY = "sakiyomi-bwc2026-submission-form-v2";'),
+    PAGE.includes('const STORAGE_KEY = "sakiyomi-bwc2026-submission-form-v3";'),
   );
-  assert.ok(
-    PAGE.includes(
-      'const OLD_STORAGE_KEY = "sakiyomi-bwc2026-submission-form";',
-    ),
-  );
-  assert.ok(
-    !/removeItem\(OLD_STORAGE_KEY\)|setItem\(OLD_STORAGE_KEY/.test(PAGE),
-  );
+  // 前の版のキーは新しい順に読むだけにする（v2 は 11/8 17:36 の提出ページに合わせる前、無印は 11/8 12:15 の版）。
+  const old = PAGE.match(/const OLD_STORAGE_KEYS = (\[[^\]]*\]);/);
+  assert.ok(old, "ページに OLD_STORAGE_KEYS が無い");
+  assert.deepEqual(JSON.parse(old[1].replace(/,\s*\]$/, "]")), [
+    "sakiyomi-bwc2026-submission-form-v2",
+    "sakiyomi-bwc2026-submission-form",
+  ]);
+  assert.ok(!/(?:removeItem|setItem)\((?!STORAGE_KEY\b)/.test(PAGE));
   // 前の下書きで「その他」の文だけ直した場合も見えるようにする。
   assert.ok(PAGE.includes('["claude_other", '));
 });
@@ -238,17 +254,31 @@ test("設問 2 の表示文と設問 4 の URL は、form.md とページの初�
   assert.equal(pageDefault("github"), firstLine(4));
 });
 
-test("設問 11 の回数の上限は、docs/deployment.md の回数と同じ", () => {
+test("設問 11 の回数の上限は、docs/deployment.md の接続元ごとの 1 日の回数と同じ", () => {
   const deployment = read("docs/deployment.md").match(
     /接続元（回線）ごとに 1 日 (\d+) 回、全体で 1 日 (\d+) 回、IP ごとに 1 時間 (\d+) 回/,
   );
   assert.ok(deployment, "docs/deployment.md に回数の上限の文が無い");
-  const answer = answerOf(FORM, 11).match(
-    /接続元（回線）ごとに 1 日 (\d+) 回、IP アドレスごとに 1 時間 (\d+) 回、全体で 1 日 (\d+) 回/,
-  );
+  // 11 は 150 字に収めるため、接続元ごとの 1 日の回数だけを書く（作者が 11/8 17:42 に決めた）。
+  const answer = answerOf(FORM, 11).match(/接続元（回線）ごとに 1 日 (\d+) 回/);
   assert.ok(answer, "設問 11 に回数の上限の文が無い");
-  const [, perClientDay, totalDay, perIpHour] = deployment;
-  assert.deepEqual(answer.slice(1), [perClientDay, perIpHour, totalDay]);
+  assert.equal(answer[1], deployment[1]);
+});
+
+test("設問 11 は提出ページの上限の 150 字以内で、1 行にする", () => {
+  const answer = answerOf(FORM, 11);
+  assert.ok(countOf(answer) <= 150, `${countOf(answer)} 字`);
+  assert.ok(!answer.includes("\n"));
+});
+
+test("設問 8 は提出ページに欄が無いので、見出しとページの欄に写さない印があり、全文コピーに入れない", () => {
+  assert.ok(sectionOf(FORM, 8).split("\n")[1].includes("写さない"));
+  assert.ok(
+    PAGE.includes(
+      "<legend>その問題が起きた製品・環境・原因（提出ページに欄が無いので写さない）</legend>",
+    ),
+  );
+  assert.ok(!pageFunction("buildAllText").includes("stuck_meta"));
 });
 
 // ページのソースから、名前の付いた関数（4 字下げの閉じ括弧まで）を取り出す。
@@ -289,6 +319,7 @@ test("保存の無いときの全文コピーは、【…】ごとに form.md �
       .slice(2)
       .find((line) => line.trim() !== "");
   const expected: [string, string | undefined][] = [
+    ["チーム名", teamName()],
     ["プロジェクト名", firstLine(1)],
     ["テーマ", firstLine(2)],
     ["概要", answerOf(FORM, 3)],
@@ -297,7 +328,6 @@ test("保存の無いときの全文コピーは、【…】ごとに form.md �
     ["使用した Claude", DEFAULTS.claude_products.join(", ")],
     ["その他に書く文", answerOf(FORM, 6)],
     ["詰まった場面", answerOf(FORM, 7)],
-    ["製品・環境・原因", answerOf(FORM, 8)],
     ["公式情報", DEFAULTS.docs_found],
     ["感想", answerOf(FORM, 10)],
     ["審査員用", answerOf(FORM, 11)],
