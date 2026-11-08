@@ -219,15 +219,9 @@ function amountsIn(text: string): { value: number; shown: string }[] {
   return amountsAt(text).map(({ value, shown }) => ({ value, shown }));
 }
 
-// 英語の発言の額（「350,000 yen」「JPY 200,000」）。利用者の発言だけに使い、返答の検査には使わない（11/8 の実 API の評価）。
-const ENGLISH_YEN = /(\d[\d,]*)\s*(?:yen|jpy)\b|\bjpy\s*(\d[\d,]*)/gi;
-
 // 利用者の発言から、利用者が言った額を取り出す。返答と同じく額の全体ごとに取り出し、途中まで重ねない（#61 の指摘 9）。
 function userAmountsIn(text: string): number[] {
-  const english = [...normalize(text).matchAll(ENGLISH_YEN)].map((match) =>
-    Number((match[1] ?? match[2]).replace(/,/g, "")),
-  );
-  return [...amountsIn(text).map((amount) => amount.value), ...english];
+  return amountsIn(text).map((amount) => amount.value);
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -288,33 +282,6 @@ function datesAt(text: string): DateFound[] {
   }
   // 書き方ごと（年のある日付 → 月/日 → 月日）に並べる。注意の並びをこれまでと同じにするため。
   return found;
-}
-
-// 発言の「12月5日から15日まで」「12月14日に入院して、28日に退院」の後ろの日は、同じ文の直前の「M月D日」の月を借りて月日として読む。
-// 後ろの日が前の日より小さければ、次の月とも読む（「12月24日から5日まで」）。「15日間」は日数なので読まない（11/8 の実 API の評価）。
-const MONTH_DAY_OR_DAY = /(\d{1,2})月(\d{1,2})日|(?<![\d月/])(\d{1,2})日(?!間)/g;
-
-function borrowedMonthDays(text: string): string[] {
-  return normalize(text)
-    .split(/[。\n]/)
-    .flatMap((sentence) => {
-      let anchor: { month: number; day: number } | null = null;
-      const found: string[] = [];
-      for (const [, month, day, bare] of sentence.matchAll(MONTH_DAY_OR_DAY)) {
-        if (month) {
-          anchor = { month: Number(month), day: Number(day) };
-          continue;
-        }
-        if (!anchor) continue;
-        const value = Number(bare);
-        const months =
-          value < anchor.day ? [anchor.month, (anchor.month % 12) + 1] : [anchor.month];
-        found.push(
-          ...months.filter((m) => validMonthDay(m, value)).map((m) => `${m}/${value}`),
-        );
-      }
-      return found;
-    });
 }
 
 // 月日だけの日付を、今年と来年の年月日に広げる。
@@ -396,7 +363,6 @@ function allowedValues({
   // 「前は ◯ 円でした」と書けるように根拠に残す（#61 の指摘 2）。
   const strings = [...toolStrings, ...userTexts, ...earlierReplies, ...FACT_TEXTS, today];
   const mentions = strings.flatMap(datesAt);
-  const borrowed = userTexts.flatMap(borrowedMonthDays);
   return {
     amounts: new Set([
       // 累計や差額は、結果では負の値。返答では「◯円少ない」のように符号なしで書くので、大きさで照らす。
@@ -406,16 +372,15 @@ function allowedValues({
         amountsIn(text).map((amount) => amount.value),
       ),
       ...userTexts.flatMap(userAmountsIn),
-      ...earlierReplies.flatMap((text) => amountsIn(text).map((amount) => amount.value)),
+      ...earlierReplies.flatMap(userAmountsIn),
     ]),
-    monthDays: new Set([...mentions.map((mention) => mention.monthDay), ...borrowed]),
+    monthDays: new Set(mentions.map((mention) => mention.monthDay)),
     // 年のある日付はそのまま。年の無い日付（発言の「11/9」など）は、今年と来年のどちらとも読む。
-    dates: new Set([
-      ...mentions.flatMap((mention) =>
+    dates: new Set(
+      mentions.flatMap((mention) =>
         mention.date ? [mention.date] : withYears(mention.monthDay, today),
       ),
-      ...borrowed.flatMap((monthDay) => withYears(monthDay, today)),
-    ]),
+    ),
   };
 }
 
