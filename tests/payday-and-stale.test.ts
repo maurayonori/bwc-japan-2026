@@ -304,3 +304,36 @@ test("見通しのあとに、違う入力の内訳を呼んだときは、印�
   ]);
   assert.equal(cards[0]?.money?.stale_cashflow, true);
 });
+
+// 11/8 のデモと同じ 3 往復（退院が 1/4 に延びる）で、Claude が見通しのあとに「12 月に 80 万円」の内訳を呼び、
+// 印が付いた。その内訳の窓口負担（90,940 円）は、見通しの入出金にすでに入っていた。
+test("見通しのあとに呼んだ内訳でも、その額が見通しの入出金に入っていれば、印を付けない", () => {
+  const { cards, warnings } = staleCase((calc) => [
+    { name: "simulate_cashflow", input: calc.newCashflowInput, ok: true, output: calc.newCashflow },
+    { name: "kougaku_gendo", input: KOUGAKU_INPUT(1_600_000), ok: true, output: calc.newKougaku },
+  ]);
+  assert.equal(cards[0]?.money?.stale_cashflow, undefined);
+  assert.ok(!warnings.some((warning) => warning.message.includes("前の条件")));
+});
+
+test("見通しのあとに呼んだ食事代でも、保険診療分との合計が見通しに入っていれば、印を付けない", () => {
+  const { cards } = staleCase((calc) => {
+    const combined = cashflowInput(0, 0);
+    combined.scenarios[0].events = [
+      {
+        date: "2026-12-28",
+        label: "入院費（保険診療分と食事代）",
+        direction: "out",
+        amount_low: calc.newKougaku.cases[0].low.pay_with_cap + calc.meals.low.cost_max,
+        amount_high: calc.newKougaku.cases[0].low.pay_with_cap + calc.meals.low.cost_max,
+        certainty: "estimate",
+      },
+    ];
+    return [
+      { name: "kougaku_gendo", input: KOUGAKU_INPUT(1_600_000), ok: true, output: calc.newKougaku },
+      { name: "simulate_cashflow", input: combined, ok: true, output: simulateCashflow(combined as never) },
+      { name: "meal_cost", input: MEAL_INPUT, ok: true, output: calc.meals },
+    ];
+  });
+  assert.equal(cards[0]?.money?.stale_cashflow, undefined);
+});

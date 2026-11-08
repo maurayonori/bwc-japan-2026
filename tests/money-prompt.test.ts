@@ -85,3 +85,9 @@ test("事実は、番号が重ならず、出典の URL と確認日を持つ", 
     assert.ok(["primary", "transcribed"].includes(fact.verified), fact.id);
   }
 });
+
+// 11/8 の実 API の評価で、「来月の3日」を Claude が自分で「12/3」に直して書き、照らせない日付として伏せられた回があった。
+test("相対の言い方を日付に直すときは calc_date で求める", () => {
+  const text = buildSystem("2026-11-08")[0].content;
+  assert.ok(text.includes("「来月の3日」「2週間後」のような言い方を日付に直すときは calc_date で求める"));
+});

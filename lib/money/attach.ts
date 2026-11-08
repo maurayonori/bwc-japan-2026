@@ -1,6 +1,10 @@
 import type { Card, Message, Proposal } from "../workspace";
 import { asMemory, validateEvidence } from "../workspace";
-import { withMainCashflowLast } from "./main-cashflow";
+import {
+  breakdownAmounts,
+  cashflowAmounts,
+  withMainCashflowLast,
+} from "./main-cashflow";
 import {
   MAX_CALCULATIONS,
   calculationSchema,
@@ -112,6 +116,7 @@ const BREAKDOWN_TOOLS = new Set(["kougaku_gendo", "meal_cost"]);
 // - その回で、最後の内訳のあとに simulate_cashflow が成功したなら、印を外す
 // - その回に内訳も見通しも成功しなければ、前の回の印をそのまま引き継ぐ（日付だけの計算では外さない）
 // - その回の前の内訳と同じ入力の内訳は、条件を変えないので数えない（見通しのあとの呼び直し。11/8 の実 API の評価）
+// - 見通しのあとの内訳でも、その額（食事代は保険診療分との合計も）が見通しの入出金に入っていれば数えない（11/8 のデモと同じ 3 往復）
 // どの場合も、表に見通しが残っていなければ印は要らない。
 export function cashflowIsStale(
   events: readonly ToolEvent[],
@@ -123,15 +128,29 @@ export function cashflowIsStale(
   const lastOk = (match: (name: string) => boolean) =>
     events.findLastIndex((event) => event.ok && match(event.name));
   const key = (event: ToolEvent) => `${event.name} ${JSON.stringify(event.input)}`;
+  const cashflow = lastOk((name) => name === "simulate_cashflow");
+  const breakdowns = events.filter(
+    (event) => event.ok && BREAKDOWN_TOOLS.has(event.name),
+  );
+  const reflected = (event: ToolEvent) => {
+    if (cashflow < 0) return false;
+    const used = new Set(cashflowAmounts(events[cashflow].input));
+    const others = breakdownAmounts(breakdowns.filter((other) => other !== event));
+    const withEvent = breakdownAmounts(breakdowns);
+    const own = breakdownAmounts([event]);
+    return [...withEvent].some(
+      (amount) => used.has(amount) && (own.has(amount) || !others.has(amount)),
+    );
+  };
   const breakdown = events.findLastIndex(
     (event, index) =>
       event.ok &&
       BREAKDOWN_TOOLS.has(event.name) &&
       !events
         .slice(0, index)
-        .some((before) => before.ok && key(before) === key(event)),
+        .some((before) => before.ok && key(before) === key(event)) &&
+      !(index > cashflow && reflected(event)),
   );
-  const cashflow = lastOk((name) => name === "simulate_cashflow");
   if (breakdown > cashflow) return true;
   if (cashflow > breakdown) return false;
   return inherited;
