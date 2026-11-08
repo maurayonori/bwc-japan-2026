@@ -212,6 +212,8 @@ test("ページは前の版の下書きのキーを消さずに読み、新し�
     PAGE.includes('const STORAGE_KEY = "sakiyomi-bwc2026-submission-form-v3";'),
   );
   assert.ok(!/(?:removeItem|setItem)\((?!STORAGE_KEY\b)/.test(PAGE));
+  assert.ok(!/localStorage\.clear\(/.test(PAGE));
+  assert.ok(PAGE.includes("localStorage.setItem(STORAGE_KEY, JSON.stringify(gatherState()));"));
   // 前の版の v2 と無印が両方残っていれば、両方を新しい順に読み、どちらも見せる（壊れた値は飛ばす）。
   const keys = PAGE.match(/const OLD_STORAGE_KEYS = \[[\s\S]*?\n    \];/);
   assert.ok(keys, "ページに OLD_STORAGE_KEYS が無い");
@@ -302,6 +304,47 @@ test("ページの init は、今の版の保存か初期値だけを欄に入�
   const render = pageFunction("renderOldDraft");
   assert.ok(!render.includes("applyState"));
   assert.ok(render.includes("body.readOnly = true;"));
+});
+
+// 前の下書きには、786 字の 11 や v1 の動画の URL が残っている。写すと提出を誤るので、印を付けてコピーの釦を外す（#7）。
+test("前の下書きの項目は、8 と今と違う動画の URL にコピーの釦を付けず、上限を超える字数に印を付ける", () => {
+  const defaults = PAGE.match(/const DEFAULTS = \{[\s\S]*?\n    \};/);
+  const limits = PAGE.match(/const OLD_LIMITS = \{[^}]*\};/);
+  const overview = PAGE.match(/const OVERVIEW = `[\s\S]*?`;/);
+  assert.ok(defaults && limits && overview, "ページに DEFAULTS か OLD_LIMITS が無い");
+  const note = new Function(
+    `${overview[0]}\n${defaults[0]}\n${limits[0]}\n${pageFunction("charCountJa")}\n${pageFunction("oldFieldNote")}\nreturn oldFieldNote;`,
+  )();
+  assert.deepEqual(note("stuck_meta", "製品：その他"), { note: "", copy: false });
+  assert.equal(note("demo_video", "https://youtu.be/c-3mh5sisec").copy, false);
+  assert.deepEqual(note("demo_video", pageDefault("demo_video")), { note: "", copy: true });
+  assert.deepEqual(note("reviewer", "あ".repeat(786)), {
+    note: "（786 字。提出ページの上限 150 字を超える）",
+    copy: true,
+  });
+  assert.deepEqual(note("reviewer", answerOf(FORM, 11)), { note: "", copy: true });
+  assert.ok(note("overview_full", "あ".repeat(501)).note.includes("上限 500 字"));
+  assert.ok(pageFunction("renderOldDraft").includes("if (copy) {"));
+});
+
+test("ページの 8 の欄はコピーの釦を持たず、11 に字数の表示がある", () => {
+  assert.ok(!PAGE.includes('data-copy="stuck_meta"'));
+  assert.ok(PAGE.includes("上記 3 点をまとめた本文（記録用。写さない）"));
+  assert.ok(PAGE.includes('<div class="count" id="count-reviewer"></div>'));
+});
+
+// 保存は id ごと。前の版で保存したチェックが別の項目に付かないよう、既存の pc-0〜pc-7 を残す。
+test("提出前チェックは id が重ならず、前の版の id を残し、チーム名・8・11 の確かめを含む", () => {
+  const list = PAGE.match(/const PRECHECK = (\[[\s\S]*?\n    \]);/);
+  assert.ok(list, "ページに PRECHECK が無い");
+  const items: [string, string, boolean][] = new Function(`return ${list[1]};`)();
+  const ids = items.map(([id]) => id);
+  assert.equal(new Set(ids).size, ids.length);
+  for (let i = 0; i < 8; i++) assert.ok(ids.includes(`pc-${i}`), `pc-${i}`);
+  const labels = items.map(([, label]) => label).join("\n");
+  assert.ok(labels.includes("チーム名"));
+  assert.ok(labels.includes("8（製品・環境・原因）は写さない"));
+  assert.ok(labels.includes("11 が 150 字以内"));
 });
 
 test("保存の無いときの全文コピーは、【…】ごとに form.md の写す枠（6 と 9 は初期値）と同じ", () => {
