@@ -518,7 +518,8 @@ function OtherFactors({ confirm }: { confirm: WhatToConfirm }) {
       ))}
       {hidden > 0 && (
         <p className="money-muted">
-          ほかに {hidden} 件の不明点があります。幅の縮み方が小さいか、組み合わせが多くなるので、ここには並べていません。
+          ほかに {hidden}{" "}
+          件の不明点があります。幅の縮み方が小さいか、組み合わせが多くなるので、ここには並べていません。
         </p>
       )}
     </details>
@@ -537,13 +538,13 @@ export function PayDayBlock({
   stale?: boolean;
 }) {
   const { headers, rows } = paydayTable(output);
+  // 同じ額の筋書きを 1 行にまとめると、比べる相手が無いことがある（#74）。そのときは差の文を出さない。
+  const gap = paydayGapText(output);
   return (
     <section className="money-block money-payday decision">
       <h4>支払日に要るお金{stale ? STALE_SUFFIX : ""}</h4>
       <Table headers={headers} rows={rows} />
-      {output.comparison_with_first.length > 0 && (
-        <p className="money-muted payday-gap">{paydayGapText(output)}</p>
-      )}
+      {gap && <p className="money-muted payday-gap">{gap}</p>}
       {refundNote && output.scenarios.length >= 2 && (
         <p className="payday-note">
           <FactText text={REFUND_NOTE} />
@@ -683,7 +684,8 @@ export function ConfirmBlock({
           )}
           <p className="money-muted">
             この順位は前の条件での計算です。計算し直すまで、質問文は作りません。
-            {onAsk && "会話の入力欄に下書きを入れます。送るかどうかは自分で決められます。"}
+            {onAsk &&
+              "会話の入力欄に下書きを入れます。送るかどうかは自分で決められます。"}
           </p>
         </div>
       )}
