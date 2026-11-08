@@ -44,7 +44,14 @@ test("設問の見出しは 1 から 11 まで、この順に並ぶ", () => {
 test("設問 3 の概要は指定の 1 文で始まり、500 字以内で、書いてある字数と一致する", () => {
   const overview = answerOf(FORM, 3);
   const [first] = overview.split("\n");
-  assert.match(first, /^このプロジェクトは、.+の.+を.+です。$/);
+  // 「このプロジェクトは、〔誰〕の〔課題〕を〔どう変える〕〔形〕です。」の 1 文。〔課題〕は名詞句で閉じてから「を」に入る。
+  const template = first.match(
+    /^このプロジェクトは、(.+?)(?:の|が抱える)(「[^」]+」課題)を、([^。]+?変える) ([^。]+)です。$/,
+  );
+  assert.ok(template, first);
+  const [, who, , , form] = template;
+  assert.ok(who.includes("本人と家族"), who);
+  assert.equal(form, "Web アプリ");
   const all = countOf(overview);
   const withoutBreaks = countOf(overview.replace(/\n/g, ""));
   const withoutSpaces = countOf(overview.replace(/\s/g, ""));
@@ -67,18 +74,56 @@ test("設問 3 の概要の金額は、体験例の計算関数の結果と一�
   const expected = [
     `上限が使えれば ${yen(withCap.low_case.need)}`,
     `使えなければ ${yen(withoutCap.low_case.need)}`,
-    `差は ${yen(first.cashflow.comparison_with_first[0].need_low_difference)}`,
-    `手元が ${yen(withoutCap.low_case.need - cash)}足りません`,
-    `答えを話すと ${yen(confirmed.low_case.need)}に絞られます`,
+    `後者は ${yen(withoutCap.low_case.need - cash)}足りません`,
+    `話すと ${yen(confirmed.low_case.need)}に絞られます`,
   ];
   for (const text of expected) assert.ok(overview.includes(text), text);
+  // 枠の中の円の額は、体験例の計算から出る額だけにする。手で書いた額を混ぜない。
+  const computed = new Set(
+    [
+      withCap.low_case.need,
+      withoutCap.low_case.need,
+      first.cashflow.comparison_with_first[0].need_low_difference,
+      cash - withCap.low_case.need,
+      withoutCap.low_case.need - cash,
+      confirmed.low_case.need,
+    ].map(yen),
+  );
+  const amounts = [...overview.matchAll(/[\d,]+ 円/g)].map((match) => match[0]);
+  assert.ok(amounts.length > 0);
+  for (const amount of amounts) assert.ok(computed.has(amount), amount);
 });
 
-test("作者の体験に触れる一文は、提出フォームの下書きの中で 1 回だけ出る", () => {
+test("設問 3 の概要は、製品の骨格を入力欄 1 つ → 見通し → 渡すもの の順に書く", () => {
+  const overview = answerOf(FORM, 3);
+  const steps = [
+    "入力欄 1 つ",
+    "「見通し」",
+    "上限が窓口で使える場合と使えない場合",
+    "まず確かめる 1 つ",
+    "「渡すもの」",
+    "選んで渡せます",
+  ];
+  const positions = steps.map((step) => overview.indexOf(step));
+  positions.forEach((position, index) =>
+    assert.ok(position >= 0, steps[index]),
+  );
+  assert.deepEqual(
+    [...positions].sort((a, b) => a - b),
+    positions,
+  );
+});
+
+test("作者の体験に触れる一文は、提出フォームの下書きの中で 1 回だけ出て、README には無い", () => {
   const sentence =
     "作者自身が入院の準備で、いくら要るのか、誰に何を頼むのかを整理しようとしたことが出発点です。";
   assert.equal(FORM.split(sentence).length - 1, 1);
   assert.equal(FORM.split("作者自身").length - 1, 1);
+  assert.ok(answerOf(FORM, 3).includes(sentence));
+  // 提出文書で作者の体験に触れるのは一文だけ（CLAUDE.md）。README の経緯の「作者自身が『この形では使わない』」は開発の判断で、体験ではない。
+  const readme = read("README.md");
+  assert.ok(!readme.includes("作者自身が入院"));
+  assert.ok(!readme.includes("入院の準備で"));
 });
 
 test("設問 11 の回数の上限は、既定の上限と同じ", () => {
