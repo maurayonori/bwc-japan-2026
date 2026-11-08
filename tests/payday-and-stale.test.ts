@@ -283,3 +283,24 @@ test("内訳のあとに見通しも計算し直したときは、印を付け�
   assert.ok(!warnings.some((warning) => warning.message.includes("前の条件")));
   assert.deepEqual(needRangeOf({ ...card, edited: false, done: false, included: false }), { low: 123_690, high: 123_690 });
 });
+
+// 11/8 の実 API の評価（scripts/eval-live.ts）で、見通しのあとに同じ入力の kougaku_gendo をもう一度呼ぶ回が
+// 31 回中 2 回あった。条件は変わっていないのに「前の条件での計算」と出ていた。
+test("見通しのあとに、同じ回で同じ入力の内訳をもう一度呼んだだけなら、印を付けない", () => {
+  const { cards, warnings } = staleCase((calc) => [
+    { name: "kougaku_gendo", input: KOUGAKU_INPUT(1_600_000), ok: true, output: calc.newKougaku },
+    { name: "simulate_cashflow", input: calc.newCashflowInput, ok: true, output: calc.newCashflow },
+    { name: "kougaku_gendo", input: KOUGAKU_INPUT(1_600_000), ok: true, output: calc.newKougaku },
+  ]);
+  assert.equal(cards[0]?.money?.stale_cashflow, undefined);
+  assert.ok(!warnings.some((warning) => warning.message.includes("前の条件")));
+});
+
+test("見通しのあとに、違う入力の内訳を呼んだときは、印を付ける", () => {
+  const { cards } = staleCase((calc) => [
+    { name: "kougaku_gendo", input: KOUGAKU_INPUT(1_600_000), ok: true, output: calc.newKougaku },
+    { name: "simulate_cashflow", input: calc.newCashflowInput, ok: true, output: calc.newCashflow },
+    { name: "kougaku_gendo", input: KOUGAKU_INPUT(2_000_000), ok: true, output: kougakuGendo(KOUGAKU_INPUT(2_000_000)) },
+  ]);
+  assert.equal(cards[0]?.money?.stale_cashflow, true);
+});

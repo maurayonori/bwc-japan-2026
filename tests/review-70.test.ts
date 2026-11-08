@@ -66,7 +66,7 @@ test("3: 支払日のカードの払い戻しの注記は、見込みとして�
 
 test("4: 計算表の行名も、あとで戻る額を見込みとして書く", () => {
   const labels = KOUGAKU_ROWS.map(([label]) => label);
-  assert.ok(labels.includes("いったん全額を払ったとき、あとで戻る見込みの額"));
+  assert.ok(labels.includes("窓口で上限が使えなかったとき、あとで戻る見込みの額"));
   assert.ok(!labels.some((label) => label.endsWith("あとで戻る額")));
 });
 

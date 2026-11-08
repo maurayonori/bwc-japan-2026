@@ -157,7 +157,7 @@ export function exampleWorkspace(): Workspace {
     ].join("\n"),
     nextStep: "見積もりに入っていない費用（食事代や差額ベッド代）を、病院の会計に聞く。",
     uncertainty:
-      "入院費は病院の概算です。保険の給付金が出るか、いつ入るかは、契約先への確認が必要です。",
+      "入院費は病院の概算です。区分ウは、話してもらった給料から仮に置いた区分です。加入している健康保険（協会けんぽ）に確かめてください。保険の給付金が出るか、いつ入るかは、契約先への確認が必要です。",
     evidence: [
       { messageId: "example-1", quote: MONEY_QUOTE },
       { messageId: "example-3", quote: ANSWER_QUOTE },
@@ -192,7 +192,7 @@ export function exampleWorkspace(): Workspace {
         id: "example-reply-2",
         role: "assistant",
         text: [
-          `窓口で上限が使えると分かったので、その筋書きだけで計算し直しました。${showDate(DISCHARGE)}に手元に要る額は ${yenRange(confirmed.low_case.need, confirmed.high_case.need)}に決まり、手元の ${yen(CASH_ON_HAND)}から ${cashGapText(CASH_ON_HAND, confirmed.low_case.need, confirmed.high_case.need)}見込みです。確かめたのは窓口で上限が使えることで、入院費の総額と食事代は見積もりのままです。`,
+          `窓口で上限が使えると分かったので、その筋書きだけで計算し直しました。${showDate(DISCHARGE)}に手元に要る額は ${yenRange(confirmed.low_case.need, confirmed.high_case.need)}に決まり、手元の ${yen(CASH_ON_HAND)}から ${cashGapText(CASH_ON_HAND, confirmed.low_case.need, confirmed.high_case.need)}見込みです。確かめたのは窓口で上限が使えることで、入院費の総額と食事代は見積もりのままです。区分ウは、話してもらった給料から仮に置いた区分です。加入している健康保険（協会けんぽ）に確かめてください。`,
           "病院の会計への質問文は、聞いた答えを添えて残しました。次に聞くなら、見積もりに入っていない費用です。",
         ].join("\n"),
         tools: ["simulate_cashflow"],
