@@ -15,7 +15,7 @@
 
 **https://sakiyomi-bwc2026.vercel.app** （ログインも API キーも要りません）
 
-デモ動画: https://youtu.be/c-3mh5sisec （11/6 に録り、11/7 に上げた版で、画面は今より前のものです）
+デモ動画: https://youtu.be/LyFInK_e32M
 
 - 「まず、架空の体験例を見る」は回数の制限なく試せます。Claude を呼びません
 - Claude との会話には上限があります。接続元（回線）ごとに 1 日 20 回、全体で 1 日 150 回、短時間の連打は 1 時間 20 回までです。1 日の回数は日本時間の 0 時に切り替わります。上限に達しても、入力とメモは画面に残ります（[ADR 0012](docs/adr/0012-open-production-with-usage-limits.md)）
