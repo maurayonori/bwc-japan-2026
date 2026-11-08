@@ -250,3 +250,63 @@ test("設問 11 の回数の上限は、docs/deployment.md の回数と同じ", 
   const [, perClientDay, totalDay, perIpHour] = deployment;
   assert.deepEqual(answer.slice(1), [perClientDay, perIpHour, totalDay]);
 });
+
+// ページのソースから、名前の付いた関数（4 字下げの閉じ括弧まで）を取り出す。
+function pageFunction(name: string): string {
+  const source = PAGE.match(new RegExp(`function ${name}\\([^)]*\\) \\{[\\s\\S]*?\\n    \\}`));
+  assert.ok(source, `ページに ${name} が無い`);
+  return source[0];
+}
+
+test("保存の無いときの全文コピーは、【…】ごとに form.md の写す枠（6 と 9 は初期値）と同じ", () => {
+  const overview = PAGE.match(/const OVERVIEW = `[\s\S]*?`;/);
+  const defaults = PAGE.match(/const DEFAULTS = \{[\s\S]*?\n    \};/);
+  assert.ok(overview && defaults, "ページに OVERVIEW か DEFAULTS が無い");
+  const DEFAULTS = new Function(`${overview[0]}\n${defaults[0]}\nreturn DEFAULTS;`)();
+  const fields: Record<string, { value: string }> = {
+    "#stuck_product": { value: DEFAULTS.stuck_product },
+    "#stuck_env": { value: DEFAULTS.stuck_env },
+    "#stuck_cause": { value: DEFAULTS.stuck_cause },
+  };
+  const joinOverview = new Function(`${pageFunction("joinOverview")}\nreturn joinOverview;`)();
+  const buildStuckMeta = new Function("$", `${pageFunction("buildStuckMeta")}\nreturn buildStuckMeta;`)(
+    (selector: string) => fields[selector],
+  );
+  const buildAllText = new Function(`${pageFunction("buildAllText")}\nreturn buildAllText;`)();
+  // applyState(DEFAULTS) と同じ: 概要全文は冒頭と続きをつなぎ、8 の本文は buildStuckMeta で組む。
+  const state = {
+    ...DEFAULTS,
+    overview_full: joinOverview(DEFAULTS.overview_lead, DEFAULTS.overview_body),
+    stuck_meta: buildStuckMeta(),
+  };
+  const theme = PAGE.match(new RegExp(`<option value="${DEFAULTS.theme}"(?: selected)?>([^<]*)</option>`));
+  assert.ok(theme);
+  const text: string = buildAllText(state, theme[1]);
+
+  const firstLine = (number: number): string | undefined =>
+    sectionOf(FORM, number)
+      .split("\n")
+      .slice(2)
+      .find((line) => line.trim() !== "");
+  const expected: [string, string | undefined][] = [
+    ["プロジェクト名", firstLine(1)],
+    ["テーマ", firstLine(2)],
+    ["概要", answerOf(FORM, 3)],
+    ["GitHub", firstLine(4)],
+    ["デモ動画", sectionOf(FORM, 5).split("\n").find((line) => /^https:\/\/\S+$/.test(line))],
+    ["使用した Claude", DEFAULTS.claude_products.join(", ")],
+    ["その他に書く文", answerOf(FORM, 6)],
+    ["詰まった場面", answerOf(FORM, 7)],
+    ["製品・環境・原因", answerOf(FORM, 8)],
+    ["公式情報", DEFAULTS.docs_found],
+    ["感想", answerOf(FORM, 10)],
+    ["審査員用", answerOf(FORM, 11)],
+  ];
+  const parts = text.split(/\n\n(?=【[^】\n]+】\n)/).map((part) => {
+    const match = part.match(/^【([^】\n]+)】\n([\s\S]*)$/);
+    assert.ok(match, part.slice(0, 40));
+    return [match[1], match[2]];
+  });
+  assert.deepEqual(parts, expected);
+  assert.equal(DEFAULTS.docs_found, answerOf(FORM, 9));
+});

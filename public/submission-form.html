@@ -374,6 +374,25 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
       ].join("\n");
     }
 
+    // 全文コピーの本文。保存した状態とテーマの表示文だけから組み立てる（tests/form-answers.test.ts が動かして照らす）。
+    function buildAllText(s, themeLabel) {
+      return [
+        "【プロジェクト名】\n" + s.project_name,
+        "【テーマ】\n" + themeLabel,
+        "【概要】\n" + s.overview_full,
+        "【GitHub】\n" + s.github,
+        "【デモ動画】\n" + s.demo_video,
+        "【使用した Claude】\n" + (s.claude_products || []).join(", "),
+        "【その他に書く文】\n" + s.claude_other,
+        "【詰まった場面】\n" + s.stuck,
+        "【製品・環境・原因】\n" + s.stuck_meta,
+        "【公式情報】\n" +
+          [s.docs_found, s.docs_comment].filter(Boolean).join("\n"),
+        "【感想】\n" + s.impressions,
+        "【審査員用】\n" + s.reviewer,
+      ].join("\n\n");
+    }
+
     async function copyText(text, btn, label) {
       try {
         await navigator.clipboard.writeText(text);
@@ -605,23 +624,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
       });
 
       $("#copy-all").addEventListener("click", async () => {
-        const s = gatherState();
-        const themeLabel = $("#theme").selectedOptions[0].textContent;
-        const block = [
-          "【プロジェクト名】\n" + s.project_name,
-          "【テーマ】\n" + themeLabel,
-          "【概要】\n" + s.overview_full,
-          "【GitHub】\n" + s.github,
-          "【デモ動画】\n" + s.demo_video,
-          "【使用した Claude】\n" + (s.claude_products || []).join(", "),
-          "【その他に書く文】\n" + s.claude_other,
-          "【詰まった場面】\n" + s.stuck,
-          "【製品・環境・原因】\n" + s.stuck_meta,
-          "【公式情報】\n" +
-            [s.docs_found, s.docs_comment].filter(Boolean).join("\n"),
-          "【感想】\n" + s.impressions,
-          "【審査員用】\n" + s.reviewer,
-        ].join("\n\n");
+        const block = buildAllText(gatherState(), $("#theme").selectedOptions[0].textContent);
         try {
           await navigator.clipboard.writeText(block);
           $("#copy-all").textContent = "全文コピー済み";

@@ -149,6 +149,7 @@ Codex には、仕様への批判レビューと 11/5 の課題の比較も任�
 
 - [#94](https://github.com/maurayonori/bwc-japan-2026/issues/94): 発言で足した費用を含む最新の見通しより、古い見通しが本線に選ばれ、正しい幅が伏せられる場合があります。実 API の評価の「足した場面」の 9 回では出ていません（[評価の記録](docs/validation/live-eval-20261108.md)）。直し（PR #94）は本線の選び方を変えるので、提出のあとに確かめて判断します
 - [#96](https://github.com/maurayonori/bwc-japan-2026/issues/96): Claude が付ける筋書きの名前と入出金の名前（計算表に出ます）には、給付の断定と代行の完了の検査を通していません。評価で出た名前 157 種には、その言い方は 0 件でした（[評価の記録](docs/validation/live-eval-20261108.md)）。直し（PR #96）は提出のあとに回します
+- [#107](https://github.com/maurayonori/bwc-japan-2026/issues/107): 見通しのあとに、範囲の上限だけが増えた内訳が来ると、表が古い額のままで「前の条件での計算」の印も付かない場合があります。ほかに、区分を並べたとき、2 つの内訳に同時に幅があるとき、試しの見通しのあとにも、印が付かない形があります（[ADR 0019](docs/adr/0019-payday-without-unconfirmed-income-and-stale-cashflow.md)）。直し（PR #108）は、提出のあとに確かめて判断します
 
 ## データ
 
