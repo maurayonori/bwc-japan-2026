@@ -150,7 +150,7 @@ Codex には、仕様への批判レビューと 11/5 の課題の比較も任�
 - [#94](https://github.com/maurayonori/bwc-japan-2026/issues/94): 発言で足した費用を含む最新の見通しより、古い見通しが本線に選ばれ、正しい幅が伏せられる場合があります。実 API の評価の「足した場面」の 9 回では出ていません（[評価の記録](docs/validation/live-eval-20261108.md)）。直し（PR #94）は本線の選び方を変えるので、提出のあとに確かめて判断します
 - [#96](https://github.com/maurayonori/bwc-japan-2026/issues/96): Claude が付ける筋書きの名前と入出金の名前（計算表に出ます）には、給付の断定と代行の完了の検査を通していません。評価で出た名前 157 種には、その言い方は 0 件でした（[評価の記録](docs/validation/live-eval-20261108.md)）。直し（PR #96）は提出のあとに回します
 - [#112](https://github.com/maurayonori/bwc-japan-2026/issues/112): 見通しのあとに条件の違う内訳が来ても、「前の条件での計算」の印が付かない形が残っています。区分を並べたとき、2 つの内訳に同時に幅があるとき、試しの見通しのあとに印が外れるときです（[ADR 0019](docs/adr/0019-payday-without-unconfirmed-income-and-stale-cashflow.md)）。範囲の上限だけが増えた内訳で印が付かない形（#107）は、PR #108 で直しました（11/8）。残りは提出のあとに確かめて判断します
-- 英語の「350,000 yen」や、「12月5日から15日まで」の「15日」のように月を省いた日を、Claude が「35万円」「12/15」と言い換えると、照らせない値として伏せられることがあります（安全側）。照合を緩める直し（[#110](https://github.com/maurayonori/bwc-japan-2026/pull/110)）は、話していない日付を通す形が見つかったので外しました（[#114](https://github.com/maurayonori/bwc-japan-2026/pull/114)、[評価の記録](docs/validation/live-eval-20261108.md)）
+- 英語の「350,000 yen」や、「12月5日から15日まで」の「15日」のように月を省いた日を、Claude が「35万円」「12/15」と言い換えると、照らせない値として伏せられることがあります（安全側）。照合を緩める直し（[#110](https://github.com/maurayonori/bwc-japan-2026/pull/110)）は、話していない日付を通す形が見つかったので外しました（[#114](https://github.com/maurayonori/bwc-japan-2026/pull/114)、[評価の記録](docs/validation/live-eval-20261108.md)）。また、返答に「350,000 yen」のように yen のまま書かれた額は、照合で額として取り出さないので伏せません
 
 ## データ
 
@@ -188,7 +188,7 @@ CI（GitHub Actions、Node 24）は push と PR のたびに typecheck・test・
 - 課題の比較: [problem.md](docs/problem.md)
 - 調査: [入院前後のお金と手続き](docs/research/hospital-money-facts-20261105.md)
 - 試作: [会話で試す検証用の試作](docs/prototypes/hospital-conversation/README.md)
-- 実 API の評価: [架空の会話 16 件・31 回と、直したあとの 25 回、費用を足す場面の 9 回](docs/validation/live-eval-20261108.md)（伏せ字 0、言ってはいけないことの違反 0。見つかった 4 件を直した）。審査員が打ちそうな文 9 件では、伏せ字の出る形を 3 つ見つけ、話し方の例の額はプロンプトで直した。英語の yen と月を省いた日付は、照合を緩めると話していない値が通る形が見つかったので、伏せたままにしている
+- 実 API の評価: [架空の会話 16 件・31 回と、直したあとの 25 回、費用を足す場面の 9 回](docs/validation/live-eval-20261108.md)（伏せ字 0、言ってはいけないことの違反 0。見つかった 4 件を直した）。審査員が打ちそうな文 9 件では、伏せ字の出る形を 3 つ見つけ、話し方の例の額はプロンプトで直した。英語の yen と月を省いた日付は、照合を緩めると話していない値が通る形が見つかったので、伏せたままにしている。月末締めで Claude が締めの日を道具を通さずに書いた「12/31」は、照らせない日付として 1 回伏せた
 - 提出物: [docs/submission/](docs/submission/README.md)、[大会の要項](docs/hackathon.md)
 - [GitHub Issues](https://github.com/maurayonori/bwc-japan-2026/issues)
 
