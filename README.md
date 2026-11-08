@@ -143,7 +143,7 @@ Codex には、仕様への批判レビューと 11/5 の課題の比較も任�
 ## テスト
 
 ```sh
-npm test               # 本体（427 件。Node 24）
+npm test               # 本体（430 件。Node 24）
 npm run typecheck
 npm run build
 npm run test:e2e       # ブラウザの通し（Playwright、Chromium。ビルドしてから 40 件。Claude には送らない。初回は npx playwright install chromium）
@@ -168,7 +168,7 @@ CI（GitHub Actions、Node 24）は push と PR のたびに typecheck・test・
 - 課題の比較: [problem.md](docs/problem.md)
 - 調査: [入院前後のお金と手続き](docs/research/hospital-money-facts-20261105.md)
 - 試作: [会話で試す検証用の試作](docs/prototypes/hospital-conversation/README.md)
-- 実 API の評価: [架空の会話 16 件・31 回](docs/validation/live-eval-20261108.md)（伏せ字 0、言ってはいけないことの違反 0。見つかった 2 件を直した）
+- 実 API の評価: [架空の会話 16 件・31 回と、直したあとの 25 回](docs/validation/live-eval-20261108.md)（伏せ字 0、言ってはいけないことの違反 0。見つかった 4 件を直した）
 - 提出物: [docs/submission/](docs/submission/README.md)、[大会の要項](docs/hackathon.md)
 - [GitHub Issues](https://github.com/maurayonori/bwc-japan-2026/issues)
 
