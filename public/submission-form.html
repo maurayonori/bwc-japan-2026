@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>提出フォーム下書き — さきよみ</title>
+  <meta name="robots" content="noindex">
+  <style>
+    :root {
+      --ink: #2a3328;
+      --muted: #5c6658;
+      --line: #d8ddd3;
+      --paper: #fafaf7;
+      --bg: #f3f2ec;
+      --green: #3d6b4f;
+      --amber: #a0782a;
+      --danger: #a8392d;
+      --ok: #3d7650;
+      --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--ink);
+      background: var(--bg);
+    }
+    .wrap { max-width: 820px; margin: 0 auto; padding: 16px 20px 48px; }
+    h1 { font-size: 1.35rem; margin: 0 0 4px; font-weight: 600; }
+    .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+    .banner {
+      background: #fff8e8;
+      border: 1px solid #e8d4a8;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .banner strong { color: var(--amber); }
+    .banner a { color: var(--green); }
+    fieldset {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper);
+      margin: 0 0 16px;
+      padding: 14px 16px 18px;
+    }
+    legend {
+      font-weight: 600;
+      padding: 0 6px;
+      font-size: 14px;
+    }
+    .req::after { content: "必須"; font-size: 11px; color: #fff; background: var(--danger); padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 600; vertical-align: middle; }
+    .hint { font-size: 13px; color: var(--muted); margin: 4px 0 10px; }
+    label.block { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 6px; }
+    label.block:first-child { margin-top: 0; }
+    input[type="text"], input[type="url"], select, textarea {
+      width: 100%;
+      font: inherit;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+    textarea { min-height: 100px; resize: vertical; }
+    textarea.tall { min-height: 200px; }
+    .count { font-size: 12px; text-align: right; margin-top: 4px; color: var(--muted); }
+    .count.bad { color: var(--danger); font-weight: 600; }
+    .count.good { color: var(--ok); }
+    .checks { display: grid; gap: 8px; margin-top: 8px; }
+    .checks label { font-weight: normal; font-size: 14px; display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+    .checks input { margin-top: 4px; flex: none; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+    button {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+    button:hover { border-color: var(--green); }
+    button.primary { background: var(--green); color: #fff; border-color: var(--green); }
+    button.danger { color: var(--danger); }
+    .save-note { font-size: 12px; color: var(--muted); margin-left: auto; }
+    .save-note.ok { color: var(--ok); }
+    details precheck { }
+    .precheck { margin-top: 24px; }
+    .precheck label { font-size: 14px; display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+    .precheck input { flex: none; margin-top: 4px; }
+    footer { margin-top: 32px; font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Built with Claude: Japan 2026 — 提出フォーム下書き</h1>
+    <p class="sub">プラットフォームの項目に合わせて編集し、コピーして本番フォームへ貼り付けます。編集内容はこのブラウザの localStorage に自動保存（サーバーへは送りません）。</p>
+
+    <div class="banner" id="deadline-banner"></div>
+
+    <div class="row" style="margin-bottom: 16px;">
+      <button type="button" id="copy-all">全文をクリップボードにコピー</button>
+      <button type="button" id="export-json">JSON を書き出し</button>
+      <button type="button" id="import-json">JSON を読み込み</button>
+      <input type="file" id="import-file" accept="application/json" hidden>
+      <button type="button" id="reset-defaults" class="danger">初期値に戻す</button>
+      <span class="save-note" id="save-note">未保存</span>
+    </div>
+
+    <form id="form" autocomplete="off">
+      <fieldset>
+        <legend class="req">プロジェクト名</legend>
+        <p class="hint">プラットフォーム上ではプロジェクト名を変更できません。送信前に最終確認してください。</p>
+        <input type="text" name="project_name" id="project_name">
+        <div class="row"><button type="button" data-copy="project_name">この項目をコピー</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="req">選択したテーマ</legend>
+        <select name="theme" id="theme">
+          <option value="depth">あなたにしかない深さを。</option>
+          <option value="reach" selected>本来、誰にでも届くべきものを。</option>
+        </select>
+      </fieldset>
+
+      <fieldset>
+        <legend class="req">プロジェクト概要</legend>
+        <p class="hint">はじめに「このプロジェクトは、〔誰〕の〔課題〕を〔どう変える〕〔形〕です。」と 1 文。その下に利用場面を含め 500 字以内。</p>
+        <label class="block" for="overview_lead">冒頭 1 文</label>
+        <textarea name="overview_lead" id="overview_lead" rows="2"></textarea>
+        <div class="count" id="count-lead"></div>
+        <label class="block" for="overview_body">続き（1 文の下）</label>
+        <textarea name="overview_body" id="overview_body" class="tall" rows="12"></textarea>
+        <div class="count" id="count-overview"></div>
+        <label class="block" for="overview_full">本番フォーム用に結合した全文（編集可）</label>
+        <textarea name="overview_full" id="overview_full" class="tall" rows="14"></textarea>
+        <p class="hint">「続き」を直すと結合全文を自動更新します。結合全文だけ直した場合はそのまま保存されます。</p>
+        <div class="row"><button type="button" data-copy="overview_full">概要全文をコピー</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="req">公開 GitHub リポジトリ</legend>
+        <input type="url" name="github" id="github">
+        <div class="row"><button type="button" data-copy="github">コピー</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="req">デモ動画（3 分以内）</legend>
+        <input type="url" name="demo_video" id="demo_video">
+        <p class="hint">誰にでも閲覧可能か（限定公開はリンク共有で可）。3 分以内。デモ＞プレゼン。</p>
+        <div class="row"><button type="button" data-copy="demo_video">コピー</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="req">使用した Claude の製品・機能</legend>
+        <div class="checks" id="claude-products">
+          <label><input type="checkbox" name="claude_product" value="Claude Code CLI"> Claude Code CLI</label>
+          <label><input type="checkbox" name="claude_product" value="Claude Code IDE 拡張"> Claude Code IDE 拡張</label>
+          <label><input type="checkbox" name="claude_product" value="Claude Code Desktop"> Claude Code Desktop</label>
+          <label><input type="checkbox" name="claude_product" value="Cowork"> Cowork</label>
+          <label><input type="checkbox" name="claude_product" value="Claude.ai"> Claude.ai</label>
+          <label><input type="checkbox" name="claude_product" value="Claude API"> Claude API</label>
+          <label><input type="checkbox" name="claude_product" value="Managed Agents"> Managed Agents</label>
+          <label><input type="checkbox" name="claude_product" value="Agent SDK"> Agent SDK</label>
+          <label><input type="checkbox" name="claude_product" value="その他"> その他</label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="req">開発中に一番詰まった場面</legend>
+        <p class="hint">次の順で書く：何を作ろうとしたか → Claude への指示 → 起きたこと（期待との差）→ 対処。</p>
+        <textarea name="stuck" id="stuck" class="tall" rows="16"></textarea>
+        <div class="row"><button type="button" data-copy="stuck">コピー</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="req">その問題が起きた製品・環境・原因</legend>
+        <label class="block" for="stuck_product">製品（1 つ）</label>
+        <select name="stuck_product" id="stuck_product">
+          <option value="Claude Code CLI">Claude Code CLI</option>
+          <option value="Claude Code IDE 拡張">Claude Code IDE 拡張</option>
+          <option value="Claude Code Desktop">Claude Code Desktop</option>
+          <option value="Cowork">Cowork</option>
+          <option value="Claude.ai">Claude.ai</option>
+          <option value="Claude API" selected>Claude API</option>
+          <option value="その他">その他</option>
+          <option value="不明">不明</option>
+        </select>
+        <label class="block" for="stuck_env">環境</label>
+        <textarea name="stuck_env" id="stuck_env" rows="3"></textarea>
+        <label class="block" for="stuck_cause">主な原因（1 つ）</label>
+        <select name="stuck_cause" id="stuck_cause">
+          <option value="コードの品質">コードの品質</option>
+          <option value="指示の理解" selected>指示の理解</option>
+          <option value="長い作業で文脈を失う">長い作業で文脈を失う</option>
+          <option value="日本語の入出力">日本語の入出力</option>
+          <option value="日本語の資料不足">日本語の資料不足</option>
+          <option value="日本の業務慣行">日本の業務慣行</option>
+          <option value="使用量の制限">使用量の制限</option>
+          <option value="セットアップ">セットアップ</option>
+          <option value="API・外部連携">API・外部連携</option>
+          <option value="請求・アカウント">請求・アカウント</option>
+          <option value="その他">その他</option>
+        </select>
+        <label class="block" for="stuck_cause_detail">上記 3 点をまとめた本文（フォーム用）</label>
+        <textarea name="stuck_meta" id="stuck_meta" rows="6"></textarea>
+        <div class="row"><button type="button" id="sync-stuck-meta">環境欄から本文を組み立て直す</button><button type="button" data-copy="stuck_meta">コピー</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>開発に必要な公式の情報を十分見つけられましたか？</legend>
+        <select name="docs_found" id="docs_found">
+          <option value="はい">はい</option>
+          <option value="おおむねはい">おおむねはい</option>
+          <option value="いいえ">いいえ</option>
+        </select>
+        <label class="block" for="docs_comment">補足（任意）</label>
+        <textarea name="docs_comment" id="docs_comment" rows="4"></textarea>
+      </fieldset>
+
+      <fieldset>
+        <legend class="req">Claude を使った感想と改善してほしい点</legend>
+        <textarea name="impressions" id="impressions" class="tall" rows="14"></textarea>
+        <div class="row"><button type="button" data-copy="impressions">コピー</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>審査員用リンク・アクセス用ログイン情報など（任意）</legend>
+        <textarea name="reviewer" id="reviewer" rows="4"></textarea>
+        <div class="row"><button type="button" data-copy="reviewer">コピー</button></div>
+      </fieldset>
+    </form>
+
+    <section class="precheck">
+      <h2 style="font-size:1.1rem;margin:0 0 12px;">提出前チェック（リポジトリの docs/submission/README.md）</h2>
+      <div id="precheck-list"></div>
+    </section>
+
+    <footer>
+      下書きの正本は <code>docs/submission/form.md</code>。このページは 11/8 送信用の作業用です。
+    </footer>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "sakiyomi-bwc2026-submission-form";
+    const DEADLINE = new Date("2026-11-08T20:00:00+09:00");
+
+    const DEFAULTS = {
+      project_name: "さきよみ — 入院のお金、支払日に間に合う準備",
+      theme: "reach",
+      overview_lead: "このプロジェクトは、入院が決まった人と代わりに段取りを進める家族の、支払日に要るお金が決まらない課題を、話すだけで見通しと「まず確かめる1つ」を出す Web アプリで変えるものです。",
+      overview_body: "入院費の支払日に要るお金は、窓口で高額療養費の上限が使えるかで変わります。使えないと上限を超えた分をいったん立て替え、払い戻しは診療月から 3 か月以上あとです（協会けんぽの案内、確認 2026-11-07）。さきよみでは入力欄に普通の言葉で話すと、上限が使える場合と使えない場合で要る額を並べ、幅を一番縮める確認を 1 つ出します。金額と順位はプログラムが計算し、聞く相手と質問文、家族に渡す文章を Claude が下書きします。窓口の答えを話すとその条件で計算し直します。デモは架空の条件です。効果は未評価で、確かめたのは動くことと計算が合うことまでです。",
+      github: "https://github.com/maurayonori/bwc-japan-2026",
+      demo_video: "https://youtu.be/c-3mh5sisec",
+      claude_products: ["Claude Code CLI", "Claude API"],
+      stuck_v: 2,
+      stuck: `何を作ろうとしていましたか？
+支払日に用意する額の見通しです。話した条件から、窓口で上限が使える場合と使えない場合を並べ、先に確かめることを1つに絞る。その文章が、計算結果と食い違わないようにしたかった。
+
+Claude にどのように指示しましたか？
+話の読み取りと、誰に何を聞くかの文面は Claude に任せた。金額、日付、確かめる順番は、こちらが用意した計算の道具だけが出す、と分けて書いた。カードには、プログラムが選んだ確認項目を、聞く相手と質問文として載せるよう頼んだ。
+
+何が起きましたか？期待していた結果と何が違いましたか？
+本番と同じ API で話したとき、カードは「答えによっては幅は縮みません」と正しく出た。同じ返答の本文は「病院の会計に聞くと、要る額の幅は 203,100 円に縮みます」と書いていた。幅が縮まない確認を、縮むと約束する文章になっていた。
+
+どのように対処しましたか？
+先頭の確認で幅が縮まないとき、「縮」を含む文を計算の食い違いと同じ注意として返す検査を足した。プロンプトには、そのときは答えごとに何が決まるかを書く、と足した。返答を自動では書き直させず、注意を出して人が見る形にした（#47、2026-11-07）。`,
+      stuck_product: "Claude API",
+      stuck_env: "モデル: claude-sonnet-5-5（本番の会話）。Claude Code は claude-opus-5-5 系で開発。OS: macOS。再現性: 時々（同じ条件の実 API 往復で確認）。",
+      stuck_cause: "指示の理解",
+      docs_found: "おおむねはい",
+      docs_comment: "Anthropic の tool use と Messages API は公式ドキュメントで足りた。Next.js は訓練データと異なる版になっており、`node_modules/next/dist/docs/` のガイドを読む必要があった（AGENTS.md）。日本の制度数値は厚労省・協会けんぽの一次資料を自分で当たった。",
+      impressions_v: 1,
+      impressions: `日本語や日本の業務で使う立場から気づいた欠点と利点
+利点: 質問ツールで仕様を 1 問ずつ聞き取れ、サブエージェントで公式 PDF を並列に起こせた。欠点: 返答文がカードより先に走り、制度の数字を丸めて書くことがあった。日本語の制度名を知らなくても話せる設計にしたが、検査とプログラム分担が無いと支払いに効く誤りを見逃す。
+
+他の AI ツールと比べて劣る点と優れる点
+比較なし（開発の主軸は Claude Code、Next.js 初版の実装は Codex）。
+
+一つだけ直せるとしたら何を直してほしいか、その改善で何が作れるようになるか
+計算で出た数字と、それを説明する文章を、Claude が自分で揃えた下書きにしてほしい。長い会話では、説明だけが先に進んで、計算と違うことを書いてしまう。ここが自動で揃えば、説明が数字と食い違っていないかを後から確かめる手間が減る。制度の話は文章、金額はプログラム、と分けて作る日本の手続きのアプリを、短い期間でも数字を間違えないほうに寄せて作れる。`,
+      reviewer_v: 1,
+      reviewer: "本番: https://sakiyomi-bwc2026.vercel.app （ログイン不要。API キー不要。会話は 1 日あたりの上限あり）\nデモ動画: https://youtu.be/c-3mh5sisec （限定公開。リンクを知っている人が見られる。v1、2 分 58 秒。画面は再定義の前）",
+    };
+
+    const PRECHECK = [
+      ["本番 URL をログインせず開ける", true],
+      ["GitHub リポジトリが公開", true],
+      ["デモ動画が 3 分以内で閲覧可能", true],
+      ["動画 v2 に差し替えたらリンクと金額を再確認", false],
+      ["概要が 500 字以内＋冒頭 1 文の形式", false],
+      ["form.md と README の内容が一致", false],
+      ["npm run check:public を通した", false],
+      ["プラットフォームの提出フォームを送信（20:00 前）", false],
+    ];
+
+    function $(sel) { return document.querySelector(sel); }
+    function $$(sel) { return document.querySelectorAll(sel); }
+
+    function joinOverview(lead, body) {
+      lead = (lead || "").trim();
+      body = (body || "").trim();
+      if (!lead) return body;
+      if (!body) return lead;
+      return lead + "\n\n" + body;
+    }
+
+    function charCountJa(s) {
+      return (s || "").replace(/\r\n/g, "\n").length;
+    }
+
+    function updateOverviewCounts() {
+      const full = $("#overview_full").value;
+      const n = charCountJa(full);
+      const el = $("#count-overview");
+      el.textContent = `概要全文: ${n} 字` + (n > 500 ? "（500 字超過）" : n >= 450 ? "（あと少し）" : "");
+      el.className = "count" + (n > 500 ? " bad" : n > 0 && n <= 500 ? " good" : "");
+      $("#count-lead").textContent = "冒頭 1 文: " + charCountJa($("#overview_lead").value) + " 字";
+    }
+
+    function buildStuckMeta() {
+      return [
+        "製品: " + $("#stuck_product").value,
+        "環境: " + $("#stuck_env").value.trim().replace(/\n/g, " "),
+        "主な原因: " + $("#stuck_cause").value,
+      ].join("\n");
+    }
+
+    function gatherState() {
+      const products = [];
+      $$('#claude-products input:checked').forEach((el) => products.push(el.value));
+      const pre = {};
+      $$("#precheck-list input").forEach((el) => { pre[el.dataset.id] = el.checked; });
+      return {
+        project_name: $("#project_name").value,
+        theme: $("#theme").value,
+        overview_lead: $("#overview_lead").value,
+        overview_body: $("#overview_body").value,
+        overview_full: $("#overview_full").value,
+        github: $("#github").value,
+        demo_video: $("#demo_video").value,
+        claude_products: products,
+        stuck_v: DEFAULTS.stuck_v,
+        stuck: $("#stuck").value,
+        stuck_product: $("#stuck_product").value,
+        stuck_env: $("#stuck_env").value,
+        stuck_cause: $("#stuck_cause").value,
+        stuck_meta: $("#stuck_meta").value,
+        docs_found: $("#docs_found").value,
+        docs_comment: $("#docs_comment").value,
+        impressions_v: DEFAULTS.impressions_v,
+        impressions: $("#impressions").value,
+        reviewer_v: DEFAULTS.reviewer_v,
+        reviewer: $("#reviewer").value,
+        precheck: pre,
+      };
+    }
+
+    function applyState(data) {
+      const d = { ...DEFAULTS, ...data };
+      $("#project_name").value = d.project_name || "";
+      $("#theme").value = d.theme || "reach";
+      $("#overview_lead").value = d.overview_lead || "";
+      $("#overview_body").value = d.overview_body || "";
+      $("#overview_full").value = d.overview_full || joinOverview(d.overview_lead, d.overview_body);
+      $("#github").value = d.github || "";
+      $("#demo_video").value = d.demo_video || "";
+      $$('#claude-products input').forEach((el) => {
+        el.checked = (d.claude_products || []).includes(el.value);
+      });
+      $("#stuck").value = d.stuck || "";
+      if ((data && data.stuck_v) !== DEFAULTS.stuck_v) {
+        $("#stuck").value = DEFAULTS.stuck;
+      }
+      $("#stuck_product").value = d.stuck_product || "Claude API";
+      $("#stuck_env").value = d.stuck_env || "";
+      $("#stuck_cause").value = d.stuck_cause || "指示の理解";
+      $("#stuck_meta").value = d.stuck_meta || buildStuckMeta();
+      $("#docs_found").value = d.docs_found || "おおむねはい";
+      $("#docs_comment").value = d.docs_comment || "";
+      $("#impressions").value = d.impressions || "";
+      if ((data && data.impressions_v) !== DEFAULTS.impressions_v) {
+        const oldWish = /一つだけ直せるとしたら[\s\S]*$/;
+        const nextWish = DEFAULTS.impressions.slice(DEFAULTS.impressions.indexOf("一つだけ直せるとしたら"));
+        if (oldWish.test($("#impressions").value)) {
+          $("#impressions").value = $("#impressions").value.replace(oldWish, nextWish);
+        } else {
+          $("#impressions").value = DEFAULTS.impressions;
+        }
+      }
+      $("#reviewer").value = d.reviewer || "";
+      if ((data && data.reviewer_v) !== DEFAULTS.reviewer_v && /上記 URL/.test($("#reviewer").value)) {
+        $("#reviewer").value = DEFAULTS.reviewer;
+      }
+      if (d.precheck) {
+        $$("#precheck-list input").forEach((el) => {
+          if (Object.prototype.hasOwnProperty.call(d.precheck, el.dataset.id)) {
+            el.checked = !!d.precheck[el.dataset.id];
+          }
+        });
+      }
+      updateOverviewCounts();
+    }
+
+    let saveTimer;
+    function scheduleSave() {
+      clearTimeout(saveTimer);
+      $("#save-note").textContent = "保存中…";
+      $("#save-note").className = "save-note";
+      saveTimer = setTimeout(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(gatherState()));
+          $("#save-note").textContent = "保存済み " + new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+          $("#save-note").className = "save-note ok";
+        } catch (e) {
+          $("#save-note").textContent = "保存失敗";
+        }
+      }, 400);
+    }
+
+    function initPrecheck() {
+      const root = $("#precheck-list");
+      PRECHECK.forEach(([label, defaultOn], i) => {
+        const id = "pc-" + i;
+        const lab = document.createElement("label");
+        lab.innerHTML = `<input type="checkbox" data-id="${id}"> ${label}`;
+        lab.querySelector("input").checked = defaultOn;
+        root.appendChild(lab);
+      });
+    }
+
+    function updateDeadlineBanner() {
+      const now = new Date();
+      const diff = DEADLINE - now;
+      const el = $("#deadline-banner");
+      if (diff <= 0) {
+        el.innerHTML = "<strong>締切を過ぎています。</strong> 送信済みかプラットフォームを確認してください。";
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      el.innerHTML = `⏰ 提出締切まで約 <strong>${h} 時間 ${m} 分</strong>（2026-11-08 20:00 JST）。` +
+        " GitHub 公開・動画 3 分以内・概要 500 字・<a href=\"https://cerebralvalley.ai/events/~/e/built-with-claude-japan2026\" target=\"_blank\" rel=\"noopener\">イベントページ下部の提出フォーム</a>。";
+    }
+
+    let overviewFullTouched = false;
+
+    function init() {
+      initPrecheck();
+      let saved = null;
+      try {
+        saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      } catch (_) {}
+      applyState(saved || DEFAULTS);
+      if (!saved) $("#stuck_meta").value = buildStuckMeta();
+
+      updateDeadlineBanner();
+      setInterval(updateDeadlineBanner, 60000);
+
+      $("#form").addEventListener("input", (e) => {
+        if (e.target.id === "overview_lead" || e.target.id === "overview_body") {
+          if (!overviewFullTouched) {
+            $("#overview_full").value = joinOverview($("#overview_lead").value, $("#overview_body").value);
+          }
+          updateOverviewCounts();
+        }
+        if (e.target.id === "overview_full") {
+          overviewFullTouched = true;
+          updateOverviewCounts();
+        }
+        scheduleSave();
+      });
+      $("#form").addEventListener("change", scheduleSave);
+      $("#precheck-list").addEventListener("change", scheduleSave);
+
+      $("#sync-stuck-meta").addEventListener("click", () => {
+        $("#stuck_meta").value = buildStuckMeta();
+        scheduleSave();
+      });
+
+      $$("[data-copy]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.getAttribute("data-copy");
+          const el = $("#" + id);
+          const text = el ? (el.value !== undefined ? el.value : el.textContent) : "";
+          try {
+            await navigator.clipboard.writeText(text);
+            btn.textContent = "コピーした";
+            setTimeout(() => { btn.textContent = "コピー"; }, 1200);
+          } catch (_) {
+            alert("クリップボードにコピーできませんでした");
+          }
+        });
+      });
+
+      $("#copy-all").addEventListener("click", async () => {
+        const s = gatherState();
+        const themeLabel = $("#theme").selectedOptions[0].textContent;
+        const block = [
+          "【プロジェクト名】\n" + s.project_name,
+          "【テーマ】\n" + themeLabel,
+          "【概要】\n" + s.overview_full,
+          "【GitHub】\n" + s.github,
+          "【デモ動画】\n" + s.demo_video,
+          "【使用した Claude】\n" + (s.claude_products || []).join(", "),
+          "【詰まった場面】\n" + s.stuck,
+          "【製品・環境・原因】\n" + s.stuck_meta,
+          "【公式情報】\n" + s.docs_found + "\n" + s.docs_comment,
+          "【感想】\n" + s.impressions,
+          "【審査員用】\n" + s.reviewer,
+        ].join("\n\n");
+        try {
+          await navigator.clipboard.writeText(block);
+          $("#copy-all").textContent = "全文コピー済み";
+          setTimeout(() => { $("#copy-all").textContent = "全文をクリップボードにコピー"; }, 1500);
+        } catch (_) {
+          alert("クリップボードにコピーできませんでした");
+        }
+      });
+
+      $("#export-json").addEventListener("click", () => {
+        const blob = new Blob([JSON.stringify(gatherState(), null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "sakiyomi-submission-" + new Date().toISOString().slice(0, 10) + ".json";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      $("#import-json").addEventListener("click", () => $("#import-file").click());
+      $("#import-file").addEventListener("change", (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            applyState(JSON.parse(reader.result));
+            overviewFullTouched = true;
+            scheduleSave();
+          } catch (_) {
+            alert("JSON の読み込みに失敗しました");
+          }
+        };
+        reader.readAsText(f);
+        e.target.value = "";
+      });
+
+      $("#reset-defaults").addEventListener("click", () => {
+        if (!confirm("初期値に戻します。localStorage の下書きも上書きされます。")) return;
+        overviewFullTouched = false;
+        localStorage.removeItem(STORAGE_KEY);
+        applyState(DEFAULTS);
+        $("#stuck_meta").value = buildStuckMeta();
+        scheduleSave();
+      });
+
+      scheduleSave();
+    }
+
+    init();
+  </script>
+</body>
+</html>
