@@ -192,11 +192,11 @@
         <select name="stuck_product" id="stuck_product">
           <option value="Claude Code CLI">Claude Code CLI</option>
           <option value="Claude Code IDE 拡張">Claude Code IDE 拡張</option>
-          <option value="Claude Code Desktop" selected>Claude Code Desktop</option>
+          <option value="Claude Code Desktop">Claude Code Desktop</option>
           <option value="Cowork">Cowork</option>
           <option value="Claude.ai">Claude.ai</option>
           <option value="Claude API">Claude API</option>
-          <option value="その他">その他</option>
+          <option value="その他" selected>その他</option>
           <option value="不明">不明</option>
         </select>
         <label class="block" for="stuck_env">環境</label>
@@ -275,7 +275,7 @@
       github: "https://github.com/maurayonori/bwc-japan-2026",
       demo_video: "https://youtu.be/c-3mh5sisec",
       claude_products: ["Claude Code CLI", "Claude Code Desktop", "Claude API", "その他"],
-      claude_other: "Claude Code のクラウドセッション",
+      claude_other: "Claude Code のクラウドセッション、Claude Agent SDK で動く外部のアプリ（Orca）から使う Claude Code",
       stuck: `何を作ろうとしていましたか？
 入院前のお金の見通しを、会話で試せる検証用の試作です（11/6）。状況をそのまま書くと Claude が条件を読み取り、4 つの道具（高額療養費の上限、食事代、日付と営業日、支払いと入金の見通し）が金額と日付を計算し、返答に書かれた金額と日付を道具の結果と照らします。計算に使う数値を一次資料と突き合わせる出典の照合も進めていました。
 
@@ -287,8 +287,8 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
 
 どのように対処しましたか？
 保存された会話は読み取りだけに使い、今のファイルを基準に Codex で続きを行いました。会話用の事実 16 件を公式ページと一次資料の本文で照合して直し、API のエラー本文がログに出る不具合など 2 件を、直す前に落ちるテストで再現して直しました（試作のテストは 131 件）。のちに止まっていたセッションを再開したときは、続きがすでに済んでいたのでやり直さず、テスト（11/6 15:20 の時点の件数で、本体 174 件、試作 131 件。型、公開前の検査）と出典の再照合（14 ページを開き、読めた 13 ページで矛盾 0 件）で、引き継ぎ後の状態を実測で照らしました。`,
-      stuck_product: "Claude Code Desktop",
-      stuck_env: "モデルは Claude Fable 5.1、Claude Code は 2.1.305、OS は macOS 26.6.2。再現性は時々（11/6 は 11:28 に止まり、12:15 には別のセッションも同じ上限に当たりました。11/7 21:05〜23:00 と 11/8 00:36〜04:00 にも、手元のセッションが使用量の上限で止まりました）",
+      stuck_product: "その他",
+      stuck_env: "Claude Agent SDK で動く外部のデスクトップアプリ（Orca）から使った Claude Code。モデルは Claude Fable 5.1、Claude Code は 2.1.305、OS は macOS 26.6.2。再現性は時々（11/6 は 11:28 に止まり、12:15 には別のセッションも同じ上限に当たりました。11/7 21:05〜23:00 と 11/8 00:36〜04:00 にも、手元のセッションが使用量の上限で止まりました）",
       stuck_cause: "使用量の制限",
       docs_found: "はい",
       docs_comment: "",
