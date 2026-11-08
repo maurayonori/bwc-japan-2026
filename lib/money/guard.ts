@@ -30,17 +30,32 @@ const YEAR_DATE_PATTERNS = [
   /(\d{4})-(\d{2})-(\d{2})/g,
   /(?<!\d)(\d{4})\/(\d{1,2})\/(\d{1,2})(?![\d/])/g,
   /(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,
-  // 和暦（令和）。令和元年は 2019 年（#61 の指摘 10）。
-  /令和\s*(元|\d{1,2})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,
+  // ドット区切り（「2026.12.20」）。小数の続き（「2026.12.205」）は日付にしない（#76）。
+  /(?<![\d.])(\d{4})\.(\d{1,2})\.(\d{1,2})(?!\d|\.\d)/g,
+  // 漢数字の年月日（「二〇二六年十二月二十日」）（#76）。
+  /([〇一二三四五六七八九]{4})\s*年\s*([〇一二三四五六七八九十]{1,3})\s*月\s*([〇一二三四五六七八九十]{1,3})\s*日/g,
+  // 和暦（令和）。令和元年は 2019 年（#61 の指摘 10）。漢数字も読む（#76）。
+  /令和\s*(元|\d{1,2}|[一二三四五六七八九十]{1,3})\s*年\s*(\d{1,2}|[〇一二三四五六七八九十]{1,3})\s*月\s*(\d{1,2}|[〇一二三四五六七八九十]{1,3})\s*日/g,
 ];
+// 算用数字と漢数字の月・日・年を読む。読めなければ NaN（validMonthDay で外れる）。
+const numberOf = (written: string): number =>
+  /^\d+$/.test(written) ? Number(written) : (parseNumeral(written) ?? Number.NaN);
 const yearOf = (written: string): string =>
-  /^\d{4}$/.test(written)
-    ? written
-    : String(2018 + (written === "元" ? 1 : Number(written)));
+  /^(?:\d|[〇一二三四五六七八九]){4}$/.test(written)
+    ? String(numberOf(written))
+    : String(2018 + (written === "元" ? 1 : numberOf(written)));
 const MONTH_DAY_PATTERNS = [
   /(?<![\d/])(\d{1,2})\/(\d{1,2})(?![\d/])/g,
   /(\d{1,2})\s*月\s*(\d{1,2})\s*日/g,
+  // 漢数字の月日（「十二月二十日」）（#76）。
+  /(?<![〇一二三四五六七八九十])([一二三四五六七八九十]{1,2})\s*月\s*([〇一二三四五六七八九十]{1,3})\s*日/g,
 ];
+// 日だけの日付（「支払日は21日です」）。期間（「15日間」「21日まで入院」）と区別できるよう、
+// 「◯日は」「期限は」「締め切りは」のすぐあとに書いた日だけを読む（#76）。月が無いので、どの月の同じ日とも照らす。
+const DAY_ONLY_PATTERN =
+  /(?:日|期限|締め?切り?)(?:は|が)\s*(\d{1,2})\s*日(?!間|分|以内|以上|ほど|程度|前後|後|前|目|続|連続|ぶん|か|ばかり|くらい|ぐらい|中|おき|ごと|あたり|当たり)/g;
+// 日だけの日付の monthDay の印。
+const ANY_MONTH = "*";
 // 日付のすぐあとの「（月）」「(月曜)」「（月曜日）」と、括弧の無い「月曜日」「月曜」（#61 の指摘 10）。
 const WEEKDAY_AFTER =
   /^\s*(?:[（(]\s*([日月火水木金土])(?:曜日?)?\s*[）)]|([日月火水木金土])曜日?)/;
@@ -253,13 +268,15 @@ function datesAt(text: string): DateFound[] {
   };
   for (const pattern of YEAR_DATE_PATTERNS) {
     for (const match of normalized.matchAll(pattern)) {
-      const [whole, written, month, day] = match;
-      if (!validMonthDay(Number(month), Number(day))) continue;
+      const [whole, written, monthWritten, dayWritten] = match;
+      const [month, day] = [numberOf(monthWritten), numberOf(dayWritten)];
+      if (!validMonthDay(month, day)) continue;
       const start = match.index;
-      const date = `${yearOf(written)}-${pad(Number(month))}-${pad(Number(day))}`;
+      if (overlaps(covered, start, start + whole.length)) continue;
+      const date = `${yearOf(written)}-${pad(month)}-${pad(day)}`;
       const { weekday, end } = withWeekday(start, start + whole.length);
       found.push({
-        monthDay: `${Number(month)}/${Number(day)}`,
+        monthDay: `${month}/${day}`,
         date,
         weekday,
         shown: date,
@@ -271,14 +288,24 @@ function datesAt(text: string): DateFound[] {
   }
   for (const pattern of MONTH_DAY_PATTERNS) {
     for (const match of normalized.matchAll(pattern)) {
-      const [whole, month, day] = match;
+      const [whole, monthWritten, dayWritten] = match;
+      const [month, day] = [numberOf(monthWritten), numberOf(dayWritten)];
       const start = match.index;
       if (overlaps(covered, start, start + whole.length)) continue;
-      if (!validMonthDay(Number(month), Number(day))) continue;
-      const monthDay = `${Number(month)}/${Number(day)}`;
+      if (!validMonthDay(month, day)) continue;
+      const monthDay = `${month}/${day}`;
       const { weekday, end } = withWeekday(start, start + whole.length);
       found.push({ monthDay, date: null, weekday, shown: monthDay, start, end });
+      covered.push([start, start + whole.length]);
     }
+  }
+  for (const match of normalized.matchAll(DAY_ONLY_PATTERN)) {
+    const day = Number(match[1]);
+    const start = match.index + match[0].indexOf(match[1]);
+    const end = match.index + match[0].length;
+    if (overlaps(covered, start, end) || !validMonthDay(1, day)) continue;
+    // 曜日は月が分からないので照らさない。
+    found.push({ monthDay: `${ANY_MONTH}/${day}`, date: null, weekday: null, shown: `${day}日`, start, end });
   }
   // 書き方ごと（年のある日付 → 月/日 → 月日）に並べる。注意の並びをこれまでと同じにするため。
   return found;
@@ -378,7 +405,11 @@ function allowedValues({
     // 年のある日付はそのまま。年の無い日付（発言の「11/9」など）は、今年と来年のどちらとも読む。
     dates: new Set(
       mentions.flatMap((mention) =>
-        mention.date ? [mention.date] : withYears(mention.monthDay, today),
+        mention.date
+          ? [mention.date]
+          : mention.monthDay.startsWith(ANY_MONTH)
+            ? []
+            : withYears(mention.monthDay, today),
       ),
     ),
   };
@@ -406,13 +437,19 @@ function unverifiedIn(text: string, allowed: Allowed, today: string): Unverified
       }),
     );
   const dates = datesAt(text).flatMap((mention): Unverified[] => {
-    const knownMonthDay = allowed.monthDays.has(mention.monthDay);
+    // 日だけの日付は、どの月でも同じ日が照らせればよい（取りこぼしを許し、正しい返答を伏せないほうを取る）。
+    const dayOnly = mention.monthDay.startsWith(ANY_MONTH);
+    const knownMonthDay = dayOnly
+      ? [...allowed.monthDays].some((monthDay) =>
+          monthDay.endsWith(mention.monthDay.slice(ANY_MONTH.length)),
+        )
+      : allowed.monthDays.has(mention.monthDay);
     const known = mention.date
       ? allowed.dates.has(mention.date)
       : knownMonthDay;
     if (!known) {
       // 月日がどこにも無ければ、これまでどおり「月/日」で示す。月日は合っていて年だけ違うときは、年月日で示す。
-      const shown = knownMonthDay ? mention.shown : mention.monthDay;
+      const shown = knownMonthDay || dayOnly ? mention.shown : mention.monthDay;
       return [
         {
           start: mention.start,
@@ -797,9 +834,9 @@ export function fitLength(text: string, limit: number): string {
 // このアプリは給付を判断せず、連絡も申請もしないので、出たら固定の案内に置き換える。
 // 「申請しましたか」のような問いかけや、「必ず確かめてください」のような勧めは置き換えない。
 const BENEFIT_CLAIMS = [
-  /(?:必ず|確実に|間違いなく|絶対に?)[^。！？\n]{0,24}?(?:受けられ|受け取れ|もらえ|支給され|支払われ|振り込まれ|戻ってき|戻ります|下ります|下りる|出ます|入ります)/,
-  // 強調の語が無くても、給付が出ると言い切る文。
-  /(?:給付金?|保険金|手当金?|見舞金|一時金)(?:は|が|も)[^。！？\n]{0,12}?(?:支給されます|支払われます|振り込まれます|受けられます|受け取れます|もらえます|出ます|下ります|入ります)(?!か|ように)/,
+  /(?:必ず|確実に|間違いなく|絶対に?)[^。！？\n]{0,24}?(?:受けられ|受け取れ|受給でき|もらえ|支給され|支払われ|振り込まれ|戻ってき|戻ります|下ります|下りる|出ます|入ります)/,
+  // 強調の語が無くても、給付が出ると言い切る文。「給付金を受け取れます」「給付金は受給できます」も（#76）。
+  /(?:給付金?|保険金|手当金?|見舞金|一時金)(?:は|が|も|を)[^。！？\n]{0,12}?(?:支給されます|支払われます|振り込まれます|受けられます|受け取れます|もらえます|出ます|下ります|入ります|受給できます|受給されます|受け取ることができます|受けることができます|もらうことができます)(?!か|ように)/,
   // 給付が決まっていると言い切る文（「給付は確定しています」）（#76）。
   /(?:給付金?|保険金|手当金?|見舞金|一時金|払い戻し)(?:は|が|も)[^。！？\n]{0,12}?(?:確定しています|確定しました|確定です|決まっています|決定しています|決定しました)(?!か)/,
   // 主語を書かずに「必ず支給されます」と言い切る文（#76）。
@@ -809,12 +846,16 @@ const ACTION = "申請|連絡|予約|請求|送信|送付|手続き|問い合わ
 // 「電話」「手配」は、アプリが行ったと読める形（「こちらで…電話しました」「電話しておきました」）だけを対象にし、
 // ふつうの「電話しました」は対象にしない（#78）。
 const APP_ACTION_WORDS = `${ACTION}|電話|手配`;
+// 済ませたことを言う述語。「申請は完了済みです」「連絡が済んでいます」も（#76）。
+// 「申請が済んだら」「完了しているか」のような条件や問いは、述語の形が違うので当たらない。
+const DONE_FORMS =
+  "済ませました|済ませておきました|完了済みです|済みです|完了しました|完了しています|完了です|済んでいます|しておきました|しました|行いました";
 const DONE_CLAIM = new RegExp(
-  `(${ACTION})(?:は|も|を)?(?:済ませました|済ませておきました|済みです|完了しました|しておきました|しました|行いました)(?!か)`,
+  `(${ACTION})(?:は|も|を|が)?(?:${DONE_FORMS})(?!か)`,
 );
 // 利用者の発言から済ませたことを読む側では、「電話しました」「手配しました」も報告として数える（#78 の後退の直し）。
 const USER_DONE_CLAIM = new RegExp(
-  `(${APP_ACTION_WORDS})(?:は|も|を)?(?:済ませました|済ませておきました|済みです|完了しました|しておきました|しました|行いました)(?!か)`,
+  `(${APP_ACTION_WORDS})(?:は|も|を|が)?(?:${DONE_FORMS})(?!か)`,
 );
 // アプリが行ったと読める文。「あなたが」などがあっても置き換える（3 回目の指摘 2）。
 const APP_ACTIONS = [
@@ -901,6 +942,15 @@ function reportsIn(userTexts: readonly string[]): Set<string> {
 export const SOFTENED_CLAIM =
   "（給付が受けられるか、手続きが済んだかは、ここでは確かめられません。加入先や窓口に確かめてください。このアプリは、連絡や申請を代わりに行いません。）";
 export const SOFTENED_TITLE = "給付と手続きは、加入先や窓口で確かめる";
+export const SOFTENED_MEDICAL =
+  "（治療や薬、入院の進め方は、このアプリでは助言しません。主治医や病院に相談してください。）";
+export const SOFTENED_MEDICAL_TITLE = "治療の進め方は、主治医や病院に相談する";
+
+// 治療・薬・入院の進め方を指示する文（「治療を中止してください」）（#76）。このアプリは医療の助言をしないので、
+// 出たら固定の案内に置き換える。「中止するかは主治医と相談してください」「やめてよいかは確かめましょう」のような、
+// 相談を勧める文は、指示の形（〜してください・〜しましょう・〜べき）が続かないので当たらない。
+const MEDICAL_ORDER =
+  /(?:治療|投薬|服薬|お?薬|手術|透析|抗がん剤|化学療法|放射線治療|リハビリ|通院|入院|検査)(?:を|は)?(?:中止|中断|延期|先延ばし|やめ|止め|控え|減ら|遅ら|早め)(?:して|する|し|て)?(?:ください|下さい|ましょう|べき|たほうが|た方が|てもいい|ても大丈夫|て構いません)/;
 
 export interface SoftenOptions {
   // reply: アプリの返答。card: 本人がそのまま使う下書き。
@@ -963,23 +1013,32 @@ function overclaims(
 export function softenClaims(
   text: string,
   options: SoftenOptions = {},
-): { text: string; replaced: number } {
+): { text: string; replaced: number; medical: number } {
   let replaced = 0;
+  let medical = 0;
   const sentences = text.match(/[^。！？\n]+[。！？]?|\n/g) ?? [];
   const softened = sentences.map((sentence) => {
+    // 「」『』の中（引用）は、医療の指示の検査から外す。
+    if (MEDICAL_ORDER.test(unquoted(sentence))) {
+      replaced += 1;
+      medical += 1;
+      return medical === 1 ? SOFTENED_MEDICAL : "";
+    }
     if (!overclaims(sentence, options)) return sentence;
     replaced += 1;
     // 続けて置き換えるときは、案内を 1 回だけにする。
-    return replaced === 1 ? SOFTENED_CLAIM : "";
+    return replaced - medical === 1 ? SOFTENED_CLAIM : "";
   });
-  return replaced === 0 ? { text, replaced } : { text: softened.join(""), replaced };
+  return replaced === 0
+    ? { text, replaced, medical }
+    : { text: softened.join(""), replaced, medical };
 }
 
 // カードの見出しは短いので、断定があれば見出しごと決まった短い文にする（#61 の指摘 6）。
 export function softenTitle(title: string, options: SoftenOptions = {}): string {
-  return softenClaims(title, { voice: "card", ...options }).replaced > 0
-    ? SOFTENED_TITLE
-    : title;
+  const result = softenClaims(title, { voice: "card", ...options });
+  if (result.replaced === 0) return title;
+  return result.medical === result.replaced ? SOFTENED_MEDICAL_TITLE : SOFTENED_TITLE;
 }
 
 // 足りない額を「足ります」、残る額を「足りません」のように、向きを逆に書いた文を見つけて、

@@ -10,6 +10,7 @@ import {
 } from "ai";
 import { attachMoney, type ToolEvent } from "./money/attach";
 import { todayInJapan } from "./money/dates";
+import { neutralizeToolInput } from "./money/free-text";
 import { monthSplitError } from "./money/month-split";
 import {
   checkReply,
@@ -89,10 +90,12 @@ type Precheck = (name: string, input: unknown) => string | null;
 
 function runRecorded(
   name: string,
-  input: unknown,
+  rawInput: unknown,
   record: (event: ToolEvent) => void,
   precheck: Precheck,
 ): unknown {
+  // 筋書きの名前や label に給付の断定・代行の完了・医療の指示があれば、中立の名前にしてから計算する（#76）。
+  const input = neutralizeToolInput(rawInput);
   const rejected = precheck(name, input);
   if (rejected) {
     record({ name, input, ok: false, error: rejected });
@@ -146,7 +149,9 @@ function recalculate(cards: ChatRequest["cards"]): {
     // 前の条件での計算の見通しは、表には残すが、今の額の照合の根拠にはしない（#77）。
     const staleCard = card.money?.stale_cashflow === true;
     if (staleCard) stale.add(card.id);
-    for (const { name, input } of card.money?.calculations ?? []) {
+    for (const { name, input: savedInput } of card.money?.calculations ?? []) {
+      // 保存された入力の名前も、今回の計算と同じく検査する（#76）。
+      const input = neutralizeToolInput(savedInput);
       try {
         const result = executeTool(name, input);
         if (!result.ok) continue;
