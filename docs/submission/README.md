@@ -2,6 +2,15 @@
 
 提出に要るものの置き場所と状態です。締切は **11/8（日）20:00 JST** で、送信したあとは変更できません。目標は 17:00 の送信です。発表する製品は「さきよみ — 入院のお金、支払日に間に合う準備」です（[ADR 0011](../adr/0011-confirm-sakiyomi-and-include-money.md)、[ADR 0016](../adr/0016-pay-day-story-display-and-example.md)）。
 
+## 写すためのページ
+
+[public/submission-form.html](../../public/submission-form.html) で 11 問を編集し、項目ごとにコピーできます。編集はこのブラウザの localStorage に残り、サーバーへは送りません。写す本文の正本は [form.md](form.md) です。
+
+| 開き方                       | URL                                                      |
+| ---------------------------- | -------------------------------------------------------- |
+| 手元（`npm run dev` のあと） | http://127.0.0.1:3000/submission-form.html               |
+| 本番（main に入ったあと）    | https://sakiyomi-bwc2026.vercel.app/submission-form.html |
+
 ## 一覧
 
 提出フォームは 11 問です（11/8 朝の告知）。下書きは [form.md](form.md) に、設問の順で置いています。
@@ -11,7 +20,7 @@
 | 1. プロジェクト名               | [form.md](form.md#1-プロジェクト名必須)                                                              | 確定（さきよみ — 入院のお金、支払日に間に合う準備。ADR 0016）                                                | #29     |
 | 2. 選択したテーマ               | [form.md](form.md#2-選択したテーマ必須)                                                              | 確定（本来、誰にでも届くべきものを。ADR 0011）                                                               | #29     |
 | 3. プロジェクト概要             | [form.md](form.md#3-プロジェクト概要解決する課題と誰のためのものか必須)                              | 下書き（指定の 1 文で始め、494 字・改行 3 つ。500 字以内と冒頭の形は `tests/form-answers.test.ts` で照らす） | #3、#92 |
-| 4. 公開 GitHub リポジトリ       | [form.md](form.md#4-プロジェクトの公開-github-リポジトリ必須)                                        | 済（https://github.com/maurayonori/bwc-japan-2026 ）。改名は未実施                                            | #2      |
+| 4. 公開 GitHub リポジトリ       | [form.md](form.md#4-プロジェクトの公開-github-リポジトリ必須)                                        | 済（https://github.com/maurayonori/bwc-japan-2026 ）。改名は未実施                                           | #2      |
 | 5. デモ動画                     | 台本: [demo-script.md](demo-script.md) / リンク: [form.md](form.md#5-デモ動画3-分以内アクセス可必須) | v2 は書き出し済み（2 分 57.5 秒）で、まだ上げていない。いまの URL は v1。**作者が上げて URL を差し替える**   | #5      |
 | 6. 使用した Claude の製品・機能 | [form.md](form.md#6-使用した-claude-の製品機能複数選択必須)                                          | 下書き（CLI、API、その他＝クラウドセッション）。クラウドセッションの選び方は作者が決める                     | #4、#92 |
 | 7. 一番詰まった場面             | [form.md](form.md#7-開発中に一番詰まった場面必須)                                                    | 下書き（製品の中の Claude で起きた場面と、別の候補）。どれを選ぶかは作者が決める                             | #4、#92 |
