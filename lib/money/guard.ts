@@ -224,7 +224,7 @@ const ENGLISH_YEN = /(\d[\d,]*)\s*(?:yen|jpy)\b|\bjpy\s*(\d[\d,]*)/gi;
 
 // 利用者の発言から、利用者が言った額を取り出す。返答と同じく額の全体ごとに取り出し、途中まで重ねない（#61 の指摘 9）。
 function userAmountsIn(text: string): number[] {
-  const english = [...text.matchAll(ENGLISH_YEN)].map((match) =>
+  const english = [...normalize(text).matchAll(ENGLISH_YEN)].map((match) =>
     Number((match[1] ?? match[2]).replace(/,/g, "")),
   );
   return [...amountsIn(text).map((amount) => amount.value), ...english];
@@ -290,18 +290,31 @@ function datesAt(text: string): DateFound[] {
   return found;
 }
 
-// 発言の「12月5日から15日まで」「12月14日に入院して、28日に退院」の後ろの日は、前の月を借りて月日として読む。
+// 発言の「12月5日から15日まで」「12月14日に入院して、28日に退院」の後ろの日は、同じ文の直前の「M月D日」の月を借りて月日として読む。
 // 後ろの日が前の日より小さければ、次の月とも読む（「12月24日から5日まで」）。「15日間」は日数なので読まない（11/8 の実 API の評価）。
-const BORROWED_DAY = /(\d{1,2})月(\d{1,2})日[^。\n]*?(?<![\d月/])(\d{1,2})日(?!間)/g;
+const MONTH_DAY_OR_DAY = /(\d{1,2})月(\d{1,2})日|(?<![\d月/])(\d{1,2})日(?!間)/g;
 
 function borrowedMonthDays(text: string): string[] {
-  return [...normalize(text).matchAll(BORROWED_DAY)].flatMap(([, month, first, day]) => {
-    const months =
-      Number(day) < Number(first) ? [Number(month), (Number(month) % 12) + 1] : [Number(month)];
-    return months
-      .filter((value) => validMonthDay(value, Number(day)))
-      .map((value) => `${value}/${Number(day)}`);
-  });
+  return normalize(text)
+    .split(/[。\n]/)
+    .flatMap((sentence) => {
+      let anchor: { month: number; day: number } | null = null;
+      const found: string[] = [];
+      for (const [, month, day, bare] of sentence.matchAll(MONTH_DAY_OR_DAY)) {
+        if (month) {
+          anchor = { month: Number(month), day: Number(day) };
+          continue;
+        }
+        if (!anchor) continue;
+        const value = Number(bare);
+        const months =
+          value < anchor.day ? [anchor.month, (anchor.month % 12) + 1] : [anchor.month];
+        found.push(
+          ...months.filter((m) => validMonthDay(m, value)).map((m) => `${m}/${value}`),
+        );
+      }
+      return found;
+    });
 }
 
 // 月日だけの日付を、今年と来年の年月日に広げる。
@@ -393,7 +406,7 @@ function allowedValues({
         amountsIn(text).map((amount) => amount.value),
       ),
       ...userTexts.flatMap(userAmountsIn),
-      ...earlierReplies.flatMap(userAmountsIn),
+      ...earlierReplies.flatMap((text) => amountsIn(text).map((amount) => amount.value)),
     ]),
     monthDays: new Set([...mentions.map((mention) => mention.monthDay), ...borrowed]),
     // 年のある日付はそのまま。年の無い日付（発言の「11/9」など）は、今年と来年のどちらとも読む。
