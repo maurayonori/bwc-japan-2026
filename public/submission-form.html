@@ -119,6 +119,12 @@
 
     <form id="form" autocomplete="off">
       <fieldset>
+        <legend class="req">チーム名</legend>
+        <input type="text" name="team_name" id="team_name">
+        <div class="row"><button type="button" data-copy="team_name">この項目をコピー</button></div>
+      </fieldset>
+
+      <fieldset>
         <legend class="req">プロジェクト名</legend>
         <p class="hint">プラットフォーム上ではプロジェクト名を変更できません。送信前に最終確認してください。</p>
         <input type="text" name="project_name" id="project_name">
@@ -187,7 +193,7 @@
       </fieldset>
 
       <fieldset>
-        <legend class="req">その問題が起きた製品・環境・原因</legend>
+        <legend>その問題が起きた製品・環境・原因（提出ページに欄が無いので写さない）</legend>
         <label class="block" for="stuck_product">製品（1 つ）</label>
         <select name="stuck_product" id="stuck_product">
           <option value="Claude Code CLI">Claude Code CLI</option>
@@ -239,7 +245,7 @@
       </fieldset>
 
       <fieldset>
-        <legend>審査員用リンク・アクセス用ログイン情報など（任意）</legend>
+        <legend>審査員用リンク・アクセス用ログイン情報など（任意・150 字以内）</legend>
         <textarea name="reviewer" id="reviewer" rows="4"></textarea>
         <div class="row"><button type="button" data-copy="reviewer">コピー</button></div>
       </fieldset>
@@ -256,9 +262,13 @@
   </div>
 
   <script>
-    const STORAGE_KEY = "sakiyomi-bwc2026-submission-form-v2";
-    // 11/8 12:15 の版が使っていたキー。作者の編集が残っているかもしれないので、消さずに読むだけにする。
-    const OLD_STORAGE_KEY = "sakiyomi-bwc2026-submission-form";
+    const STORAGE_KEY = "sakiyomi-bwc2026-submission-form-v3";
+    // 前の版が使っていたキーと、見せるときの名前（新しい順）。
+    // 作者の編集が残っているかもしれないので、どれも消さずに、残っているものをすべて読むだけで見せる。
+    const OLD_STORAGE_KEYS = [
+      ["sakiyomi-bwc2026-submission-form-v2", "11/8 17:36 の提出ページに合わせる前の版"],
+      ["sakiyomi-bwc2026-submission-form", "11/8 12:15 の版"],
+    ];
     const DEADLINE = new Date("2026-11-08T20:00:00+09:00");
 
     // 初期値は docs/submission/form.md の写す本文（text の枠）と一字一句同じにする。tests/form-answers.test.ts が照らす。
@@ -268,6 +278,7 @@
 金額と確かめる順番はプログラムが計算し、Claude は話の読み取りと、病院や家族に渡す文の下書きを担います。数値には出典と確認日を付け、医療の助言や給付の断定はしません。`;
 
     const DEFAULTS = {
+      team_name: "",
       project_name: "さきよみ — 入院のお金、支払日に間に合う準備",
       theme: "reach",
       overview_lead: OVERVIEW.slice(0, OVERVIEW.indexOf("\n")),
@@ -300,10 +311,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
 
 一つだけ直せるとしたら何を直してほしいか、その改善で何が作れるようになるか
 使用量の上限に達する前に知らせ、途中の作業を別のセッションへそのまま引き継げるようにしてほしいです。手元のセッションが統括し、クラウドのセッションが実装する進め方を、止まらずに一晩回せるようになり、締切前の確かめと配置を人が起きて待たずに済みます。`,
-      reviewer: `アプリ: https://sakiyomi-bwc2026.vercel.app （ログインは不要です。スマートフォンでも開けます）
-使い方: 最初の画面に、入院の予定とお金のことを普通の言葉で書き、「ここから整理する」を押してください。動画と同じ例:「12月14日に入院して、28日に退院する予定です。病院の見積もりだと、医療費は総額で80万円くらい。協会けんぽで、給料は月35万円くらいです。すぐ使えるお金は20万円。保険にも入っていて書類は青いファイルにあるけど、給付金がいつ入るのか分かりません。朝はいつも私が子どもの支度をしています。7時に起こして、着替えは寝室の白い棚、水筒はかばんの横、8時10分に家を出ます。夫に頼みたいけど、何をどう伝えればいいか。」続けて「病院に聞いたら、マイナ保険証で窓口の上限は使えると言われました。」「入院が1週間延びて、退院が1月4日になったら？」と話すと、動画と同じ順に進みます。「見通し」に支払日に要る額の表とまず確かめる1つが、「渡すもの」に病院・保険会社・家族に渡す文の下書きが並びます（文は Claude の下書きなので、回によって変わります。3 回目の筋書きの数と額も、Claude が置く月の内訳によって変わることがあります）。
-上限: 費用を抑えるため、Claude との会話には上限があります（接続元（回線）ごとに 1 日 20 回、IP アドレスごとに 1 時間 20 回、全体で 1 日 150 回。1 日の回数は日本時間の 0 時に切り替わります）。同じネットワークから複数の方が試すと、回数を分け合うことになります。上限に達したときや接続できないときは「架空の体験例を見る」から、動画と同じ条件の 2 往復を API を使わずに見られます。
-お願い: 実名や病名は入力せず、架空の内容でお試しください。`,
+      reviewer: `アプリ: https://sakiyomi-bwc2026.vercel.app （ログイン不要）。入院の予定とお金のことを普通の言葉で書き、「ここから整理する」を押してください。会話は接続元（回線）ごとに 1 日 20 回まで。実名や病名は入力しないでください。`,
     };
 
     // 前の版の下書きで、読むだけで見せる項目。
@@ -377,6 +385,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
     // 全文コピーの本文。保存した状態とテーマの表示文だけから組み立てる（tests/form-answers.test.ts が動かして照らす）。
     function buildAllText(s, themeLabel) {
       return [
+        "【チーム名】\n" + s.team_name,
         "【プロジェクト名】\n" + s.project_name,
         "【テーマ】\n" + themeLabel,
         "【概要】\n" + s.overview_full,
@@ -385,7 +394,6 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
         "【使用した Claude】\n" + (s.claude_products || []).join(", "),
         "【その他に書く文】\n" + s.claude_other,
         "【詰まった場面】\n" + s.stuck,
-        "【製品・環境・原因】\n" + s.stuck_meta,
         "【公式情報】\n" +
           [s.docs_found, s.docs_comment].filter(Boolean).join("\n"),
         "【感想】\n" + s.impressions,
@@ -413,6 +421,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
         pre[el.dataset.id] = el.checked;
       });
       return {
+        team_name: $("#team_name").value,
         project_name: $("#project_name").value,
         theme: $("#theme").value,
         overview_lead: $("#overview_lead").value,
@@ -437,6 +446,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
 
     function applyState(data) {
       const d = { ...DEFAULTS, ...data };
+      $("#team_name").value = d.team_name || "";
       $("#project_name").value = d.project_name || "";
       $("#theme").value = d.theme || DEFAULTS.theme;
       $("#overview_lead").value = d.overview_lead || "";
@@ -504,13 +514,15 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
       });
     }
 
-    function loadOldDraft() {
-      try {
-        const raw = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY) || "null");
-        return raw && typeof raw === "object" ? raw : null;
-      } catch (_) {
-        return null;
+    function loadOldDrafts() {
+      const drafts = [];
+      for (const [key, name] of OLD_STORAGE_KEYS) {
+        try {
+          const raw = JSON.parse(localStorage.getItem(key) || "null");
+          if (raw && typeof raw === "object") drafts.push({ name, data: raw });
+        } catch (_) {}
       }
+      return drafts;
     }
 
     function oldValueText(key, value) {
@@ -524,14 +536,16 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
     }
 
     // 前の版の下書きは今の欄に入れず、項目ごとに読んでコピーできるようにだけする。
-    function renderOldDraft(old) {
+    function renderOldDraft(old, name) {
       const root = $("#old-draft");
+      // 説明の段落は、最初の下書きのときだけ置く。
       const lead = document.createElement("p");
+      if (root.hidden) root.appendChild(lead);
       lead.innerHTML =
         "<strong>前の下書きがこのブラウザに残っています。</strong> 今の欄は form.md と同じ新しい初期値で、前の下書きは自動では入れません。前に直した文を使うときは、下から項目ごとにコピーしてください。";
       const details = document.createElement("details");
       const summary = document.createElement("summary");
-      summary.textContent = "前の下書きを見る（読むだけ）";
+      summary.textContent = `前の下書きを見る（読むだけ。${name}）`;
       details.appendChild(summary);
       OLD_FIELDS.forEach(([key, label]) => {
         const text = oldValueText(key, old[key]);
@@ -554,7 +568,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
         item.append(name, body, btn);
         details.appendChild(item);
       });
-      root.append(lead, details);
+      root.appendChild(details);
       root.hidden = false;
     }
 
@@ -585,8 +599,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
       applyState(saved || DEFAULTS);
       if (!saved) $("#stuck_meta").value = buildStuckMeta();
 
-      const old = loadOldDraft();
-      if (old) renderOldDraft(old);
+      for (const old of loadOldDrafts()) renderOldDraft(old.data, old.name);
 
       updateDeadlineBanner();
       setInterval(updateDeadlineBanner, 60000);
