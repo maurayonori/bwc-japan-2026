@@ -181,6 +181,7 @@
           <label><input type="checkbox" name="claude_product" value="その他"> その他</label>
         </div>
         <label class="block" for="claude_other">「その他」に書く文</label>
+        <p class="hint">提出ページで「その他」を選んで文の欄が出たときだけ写します。</p>
         <input type="text" name="claude_other" id="claude_other">
         <div class="row"><button type="button" data-copy="claude_other">この項目をコピー</button></div>
       </fieldset>
@@ -221,9 +222,9 @@
           <option value="請求・アカウント">請求・アカウント</option>
           <option value="その他">その他</option>
         </select>
-        <label class="block" for="stuck_cause_detail">上記 3 点をまとめた本文（フォーム用）</label>
+        <label class="block" for="stuck_cause_detail">上記 3 点をまとめた本文（記録用。写さない）</label>
         <textarea name="stuck_meta" id="stuck_meta" rows="6"></textarea>
-        <div class="row"><button type="button" id="sync-stuck-meta">環境欄から本文を組み立て直す</button><button type="button" data-copy="stuck_meta">コピー</button></div>
+        <div class="row"><button type="button" id="sync-stuck-meta">環境欄から本文を組み立て直す</button></div>
       </fieldset>
 
       <fieldset>
@@ -247,6 +248,7 @@
       <fieldset>
         <legend>審査員用リンク・アクセス用ログイン情報など（任意・150 字以内）</legend>
         <textarea name="reviewer" id="reviewer" rows="4"></textarea>
+        <div class="count" id="count-reviewer"></div>
         <div class="row"><button type="button" data-copy="reviewer">コピー</button></div>
       </fieldset>
     </form>
@@ -324,22 +326,29 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
       ["claude_products", "6. 使用した Claude"],
       ["claude_other", "6. その他に書く文"],
       ["stuck", "7. 詰まった場面"],
-      ["stuck_meta", "8. 製品・環境・原因"],
+      ["stuck_meta", "8. 製品・環境・原因（提出ページに欄が無い。写さない）"],
       ["docs_found", "9. 公式の情報"],
       ["docs_comment", "9. 補足"],
       ["impressions", "10. 感想"],
       ["reviewer", "11. 審査員用"],
     ];
 
+    // 11/8 17:36 の提出ページの字数の上限（前の下書きの項目に、超えていることを出す）。
+    const OLD_LIMITS = { project_name: 150, overview_full: 500, docs_comment: 150, reviewer: 150 };
+
+    // 保存は id ごと。前の版で保存したチェックが別の項目に付かないよう、既存の id は変えない。
     const PRECHECK = [
-      ["本番 URL をログインせず開ける", true],
-      ["GitHub リポジトリが公開", true],
-      ["デモ動画が 3 分以内で閲覧可能", true],
-      ["動画 v2 に差し替えたらリンクと金額を再確認", false],
-      ["概要が 500 字以内＋冒頭 1 文の形式", false],
-      ["form.md と README の内容が一致", false],
-      ["npm run check:public を通した", false],
-      ["プラットフォームの提出フォームを送信（20:00 前）", false],
+      ["pc-0", "本番 URL をログインせず開ける", true],
+      ["pc-1", "GitHub リポジトリが公開", true],
+      ["pc-2", "デモ動画が 3 分以内で閲覧可能", true],
+      ["pc-3", "動画 v2 に差し替え、リンクと金額を確かめた", true],
+      ["pc-team", "チーム名を提出ページで入れた（このページには値を置かない）", false],
+      ["pc-4", "概要が 500 字以内＋冒頭 1 文の形式", false],
+      ["pc-8", "8（製品・環境・原因）は写さない（提出ページに欄が無い）", false],
+      ["pc-11", "11 が 150 字以内", false],
+      ["pc-5", "form.md と README の内容が一致", false],
+      ["pc-6", "npm run check:public を通した", false],
+      ["pc-7", "プラットフォームの提出フォームを送信（20:00 前）", false],
     ];
 
     function $(sel) {
@@ -372,6 +381,13 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
         "count" + (n > 500 ? " bad" : n > 0 && n <= 500 ? " good" : "");
       $("#count-lead").textContent =
         "冒頭 1 文: " + charCountJa($("#overview_lead").value) + " 字";
+    }
+
+    function updateReviewerCount() {
+      const n = charCountJa($("#reviewer").value);
+      const el = $("#count-reviewer");
+      el.textContent = `${n} 字` + (n > 150 ? "（150 字超過）" : "");
+      el.className = "count" + (n > 150 ? " bad" : n > 0 ? " good" : "");
     }
 
     function buildStuckMeta() {
@@ -480,6 +496,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
         $("#overview_full").value !==
         joinOverview($("#overview_lead").value, $("#overview_body").value);
       updateOverviewCounts();
+      updateReviewerCount();
     }
 
     let saveTimer;
@@ -505,8 +522,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
 
     function initPrecheck() {
       const root = $("#precheck-list");
-      PRECHECK.forEach(([label, defaultOn], i) => {
-        const id = "pc-" + i;
+      PRECHECK.forEach(([id, label, defaultOn]) => {
         const lab = document.createElement("label");
         lab.innerHTML = `<input type="checkbox" data-id="${id}"> ${label}`;
         lab.querySelector("input").checked = defaultOn;
@@ -535,6 +551,20 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
       return value;
     }
 
+    // 前の下書きの項目に付ける注意。8 と、今と違う動画の URL は写さないので、コピーの釦を付けない。
+    function oldFieldNote(key, text) {
+      if (key === "stuck_meta") return { note: "", copy: false };
+      if (key === "demo_video" && text !== DEFAULTS.demo_video) {
+        return { note: "（今の動画と違う URL。写さない）", copy: false };
+      }
+      const limit = OLD_LIMITS[key];
+      const n = charCountJa(text);
+      if (limit && n > limit) {
+        return { note: `（${n} 字。提出ページの上限 ${limit} 字を超える）`, copy: true };
+      }
+      return { note: "", copy: true };
+    }
+
     // 前の版の下書きは今の欄に入れず、項目ごとに読んでコピーできるようにだけする。
     function renderOldDraft(old, name) {
       const root = $("#old-draft");
@@ -542,7 +572,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
       const lead = document.createElement("p");
       if (root.hidden) root.appendChild(lead);
       lead.innerHTML =
-        "<strong>前の下書きがこのブラウザに残っています。</strong> 今の欄は form.md と同じ新しい初期値で、前の下書きは自動では入れません。前に直した文を使うときは、下から項目ごとにコピーしてください。";
+        "<strong>前の下書きがこのブラウザに残っています。</strong> 今の欄は、このページで直した下書き（無ければ form.md と同じ初期値）で、前の下書きは自動では入れません。前に直した文を使うときは、下から項目ごとにコピーしてください。字数の上限を超える項目と、写さない項目には印を付けています。";
       const details = document.createElement("details");
       const summary = document.createElement("summary");
       summary.textContent = `前の下書きを見る（読むだけ。${name}）`;
@@ -552,20 +582,24 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
         if (!text) return;
         const item = document.createElement("div");
         item.className = "old-item";
+        const { note, copy } = oldFieldNote(key, text);
         const name = document.createElement("div");
         name.className = "old-label";
-        name.textContent = label;
+        name.textContent = label + note;
         const body = document.createElement("textarea");
         body.readOnly = true;
         body.value = text;
         body.rows = Math.min(12, text.split("\n").length + 1);
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.textContent = "この項目をコピー";
-        btn.addEventListener("click", () =>
-          copyText(text, btn, "この項目をコピー"),
-        );
-        item.append(name, body, btn);
+        item.append(name, body);
+        if (copy) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = "この項目をコピー";
+          btn.addEventListener("click", () =>
+            copyText(text, btn, "この項目をコピー"),
+          );
+          item.append(btn);
+        }
         details.appendChild(item);
       });
       root.appendChild(details);
@@ -618,6 +652,7 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
           overviewFullTouched = true;
           updateOverviewCounts();
         }
+        if (e.target.id === "reviewer") updateReviewerCount();
         scheduleSave();
       });
       $("#form").addEventListener("change", scheduleSave);
@@ -685,7 +720,9 @@ Claude Code の 1 つのセッションに、4 つの計算を道具にした会
           )
         )
           return;
-        localStorage.removeItem(STORAGE_KEY);
+        try {
+          localStorage.removeItem(STORAGE_KEY);
+        } catch (_) {}
         applyState(DEFAULTS);
         $("#stuck_meta").value = buildStuckMeta();
         scheduleSave();
