@@ -886,7 +886,7 @@ export function FamilyWorkspace({ connected }: { connected: boolean }) {
                   </span>
                   <p>全部を一度に進めなくても。ひとつ選ぶところから。</p>
                 </div>
-                <div className="filters" aria-label="渡すものの絞り込み">
+                <div className="filters" role="group" aria-label="渡すものの絞り込み">
                   <button
                     aria-pressed={filter === "all"}
                     onClick={() => setFilter("all")}
