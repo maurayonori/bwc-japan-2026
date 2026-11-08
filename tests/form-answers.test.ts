@@ -300,6 +300,17 @@ function pageFunction(name: string): string {
   return source[0];
 }
 
+test("ページの init は、今の版の保存か初期値だけを欄に入れ、前の下書きは読むだけの形でしか出さない", () => {
+  const init = pageFunction("init");
+  assert.equal((init.match(/localStorage\.getItem\(/g) ?? []).length, 1);
+  assert.ok(init.includes("localStorage.getItem(STORAGE_KEY)"));
+  assert.ok(init.includes("applyState(saved || DEFAULTS);"));
+  assert.ok(init.includes("for (const old of loadOldDrafts()) renderOldDraft(old.data, old.name);"));
+  const render = pageFunction("renderOldDraft");
+  assert.ok(!render.includes("applyState"));
+  assert.ok(render.includes("body.readOnly = true;"));
+});
+
 test("保存の無いときの全文コピーは、【…】ごとに form.md の写す枠（6 と 9 は初期値）と同じ", () => {
   const overview = PAGE.match(/const OVERVIEW = `[\s\S]*?`;/);
   const defaults = PAGE.match(/const DEFAULTS = \{[\s\S]*?\n    \};/);
