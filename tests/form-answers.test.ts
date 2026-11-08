@@ -340,7 +340,21 @@ test("提出前チェックは id が重ならず、前の版の id を残し、
   const items: [string, string, boolean][] = new Function(`return ${list[1]};`)();
   const ids = items.map(([id]) => id);
   assert.equal(new Set(ids).size, ids.length);
-  for (let i = 0; i < 8; i++) assert.ok(ids.includes(`pc-${i}`), `pc-${i}`);
+  // 前の版（21015f0 まで）の id と同じ意味の項目。pc-3 は文言だけ変えた。
+  const labelOf = Object.fromEntries(items.map(([id, label]) => [id, label]));
+  assert.deepEqual(
+    Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`pc-${i}`, labelOf[`pc-${i}`]])),
+    {
+      "pc-0": "本番 URL をログインせず開ける",
+      "pc-1": "GitHub リポジトリが公開",
+      "pc-2": "デモ動画が 3 分以内で閲覧可能",
+      "pc-3": "動画 v2 に差し替え、リンクと金額を確かめた",
+      "pc-4": "概要が 500 字以内＋冒頭 1 文の形式",
+      "pc-5": "form.md と README の内容が一致",
+      "pc-6": "npm run check:public を通した",
+      "pc-7": "プラットフォームの提出フォームを送信（20:00 前）",
+    },
+  );
   const labels = items.map(([, label]) => label).join("\n");
   assert.ok(labels.includes("チーム名"));
   assert.ok(labels.includes("8（製品・環境・原因）は写さない"));
