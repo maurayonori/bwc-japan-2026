@@ -120,16 +120,52 @@ test("ページの概要は、冒頭と続きを改行 1 つでつないで設�
   assert.ok(PAGE.includes('return lead + "\\n" + body;'));
 });
 
-test("ページの設問 8 の初期値は、form.md の 8 の 3 行と同じ", () => {
-  const product = pageDefault("stuck_product");
-  const env = pageDefault("stuck_env");
-  const cause = pageDefault("stuck_cause");
+test("ページの buildStuckMeta が初期値から組み立てる本文は、form.md の 8 の枠と同じ", () => {
+  const source = PAGE.match(/function buildStuckMeta\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(source, "ページに buildStuckMeta が無い");
+  const fields: Record<string, { value: string }> = {
+    "#stuck_product": { value: pageDefault("stuck_product") },
+    "#stuck_env": { value: pageDefault("stuck_env") },
+    "#stuck_cause": { value: pageDefault("stuck_cause") },
+  };
+  const build = new Function("$", `${source[0]}\nreturn buildStuckMeta();`);
   assert.equal(
-    `製品：${product}\n環境：${env}\n主な原因：${cause}`,
+    build((selector: string) => fields[selector]),
     answerOf(FORM, 8),
   );
-  for (const label of ['"製品："', '"環境："', '"主な原因："'])
-    assert.ok(PAGE.includes(label), `本文の組み立てに ${label} が無い`);
+});
+
+// <select> の素の selected（スクリプトが動く前の値）を返す。無ければ最初の選択肢。
+function selectedOf(id: string): string {
+  const select = PAGE.match(
+    new RegExp(`<select[^>]* id="${id}">([\\s\\S]*?)</select>`),
+  );
+  assert.ok(select, `ページに ${id} の選択欄が無い`);
+  const options = [
+    ...select[1].matchAll(/<option value="([^"]*)"( selected)?>/g),
+  ];
+  const selected = options.filter((option) => option[2]);
+  assert.ok(selected.length <= 1, `${id} の selected が 2 つ以上ある`);
+  return (selected[0] ?? options[0])[1];
+}
+
+test("ページの選択欄の素の selected は、初期値と同じ", () => {
+  for (const id of ["theme", "stuck_product", "stuck_cause", "docs_found"])
+    assert.equal(selectedOf(id), pageDefault(id), id);
+});
+
+test("設問 7 と 8 の下に置く写す枠は 1 つだけで、選ばなかった候補は 11 と送信前の確認より後ろの付録にある", () => {
+  for (const number of [7, 8])
+    assert.equal(
+      sectionOf(FORM, number).split("```text\n").length - 1,
+      1,
+      `設問 ${number}`,
+    );
+  const appendix = FORM.indexOf(
+    "\n## 付録: 7 に選ばなかった候補（写さない）\n",
+  );
+  assert.ok(appendix > FORM.indexOf("\n## 送信前の確認\n"));
+  assert.ok(FORM.indexOf("\n## 送信前の確認\n") > FORM.indexOf("\n## 11. "));
 });
 
 test("ページの設問 6・9・5 の初期値は form.md と同じ", () => {
@@ -174,4 +210,6 @@ test("ページは前の版の下書きのキーを消さずに読み、新し�
   assert.ok(
     !/removeItem\(OLD_STORAGE_KEY\)|setItem\(OLD_STORAGE_KEY/.test(PAGE),
   );
+  // 前の下書きで「その他」の文だけ直した場合も見えるようにする。
+  assert.ok(PAGE.includes('["claude_other", '));
 });
