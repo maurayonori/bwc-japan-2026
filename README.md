@@ -149,7 +149,7 @@ Codex には、仕様への批判レビューと 11/5 の課題の比較も任�
 
 - [#94](https://github.com/maurayonori/bwc-japan-2026/issues/94): 発言で足した費用を含む最新の見通しより、古い見通しが本線に選ばれ、正しい幅が伏せられる場合があります。実 API の評価の「足した場面」の 9 回では出ていません（[評価の記録](docs/validation/live-eval-20261108.md)）。直し（PR #94）は本線の選び方を変えるので、提出のあとに確かめて判断します
 - [#96](https://github.com/maurayonori/bwc-japan-2026/issues/96): Claude が付ける筋書きの名前と入出金の名前（計算表に出ます）には、給付の断定と代行の完了の検査を通していません。評価で出た名前 157 種には、その言い方は 0 件でした（[評価の記録](docs/validation/live-eval-20261108.md)）。直し（PR #96）は提出のあとに回します
-- [#107](https://github.com/maurayonori/bwc-japan-2026/issues/107): 見通しのあとに、範囲の上限だけが増えた内訳が来ると、表が古い額のままで「前の条件での計算」の印も付かない場合があります。ほかに、区分を並べたときと、2 つの内訳に同時に幅があるときにも印が付かない形があり、試しの見通しのあとに印が外れる形もあります（[ADR 0019](docs/adr/0019-payday-without-unconfirmed-income-and-stale-cashflow.md)）。直し（PR #108）は、提出のあとに確かめて判断します
+- [#112](https://github.com/maurayonori/bwc-japan-2026/issues/112): 見通しのあとに条件の違う内訳が来ても、「前の条件での計算」の印が付かない形が残っています。区分を並べたとき、2 つの内訳に同時に幅があるとき、試しの見通しのあとに印が外れるときです（[ADR 0019](docs/adr/0019-payday-without-unconfirmed-income-and-stale-cashflow.md)）。範囲の上限だけが増えた内訳で印が付かない形（#107）は、PR #108 で直しました（11/8）。残りは提出のあとに確かめて判断します
 
 ## データ
 
@@ -162,7 +162,7 @@ Codex には、仕様への批判レビューと 11/5 の課題の比較も任�
 ## テスト
 
 ```sh
-npm test               # 本体（447 件。Node 24）
+npm test               # 本体（460 件。Node 24）
 npm run typecheck
 npm run build
 npm run test:e2e       # ブラウザの通し（Playwright、Chromium。ビルドしてから 40 件。Claude には送らない。初回は npx playwright install chromium）
@@ -187,7 +187,7 @@ CI（GitHub Actions、Node 24）は push と PR のたびに typecheck・test・
 - 課題の比較: [problem.md](docs/problem.md)
 - 調査: [入院前後のお金と手続き](docs/research/hospital-money-facts-20261105.md)
 - 試作: [会話で試す検証用の試作](docs/prototypes/hospital-conversation/README.md)
-- 実 API の評価: [架空の会話 16 件・31 回と、直したあとの 25 回、費用を足す場面の 9 回](docs/validation/live-eval-20261108.md)（伏せ字 0、言ってはいけないことの違反 0。見つかった 4 件を直した）
+- 実 API の評価: [架空の会話 16 件・31 回と、直したあとの 25 回、費用を足す場面の 9 回](docs/validation/live-eval-20261108.md)（伏せ字 0、言ってはいけないことの違反 0。見つかった 4 件を直した）。審査員が打ちそうな文 9 件では、伏せ字の出る 3 つの形を見つけて直した（直したあとの全 27 件・31 回で伏せ字 1）
 - 提出物: [docs/submission/](docs/submission/README.md)、[大会の要項](docs/hackathon.md)
 - [GitHub Issues](https://github.com/maurayonori/bwc-japan-2026/issues)
 
