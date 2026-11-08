@@ -195,3 +195,22 @@ test('答えを反映したターンで、前の計算の幅から今の幅ま�
   const settled = eventOf('simulate_cashflow', { ...NO_SHRINK_INPUT, scenarios: [NO_SHRINK_INPUT.scenarios[1]] });
   assert.deepEqual(checkNoShrink('窓口で上限が適用されないと分かったので、要る額の幅は 203,100 円から 0 円に縮みました。', [noShrink, settled]), []);
 });
+
+// 11/8 の実 API の評価で、英語の発言の「350,000 yen」を Claude が「35万円」と書き、照らせない金額として伏せられた。
+test('英語の発言の「yen」「JPY」の額も、利用者が言った額として照らす', () => {
+  const userTexts = ['My salary is about 350,000 yen a month, and I have JPY 200,000 in cash.'];
+  assert.deepEqual(check('月給35万円で、手元は20万円です。', { userTexts }), []);
+  assert.equal(check('月給36万円です。', { userTexts }).length, 1);
+});
+
+// 11/8 の実 API の評価で、発言の「12月5日から15日まで」の「15日」を Claude が「12/15」と書き、照らせない日付としてカードが落ちた（3 回中 1 回）。
+test('発言の「12月5日から15日まで」の後ろの日は、前の月を借りて日付として照らす', () => {
+  const said = (text: string, reply: string) => check(reply, { userTexts: [text] });
+  assert.deepEqual(said('12月5日から15日まで入院です。', '12/15 の退院までに聞きます。'), []);
+  assert.deepEqual(said('12月14日に入院して、28日に退院する予定です。', '12/28 に払います。'), []);
+  // 後ろの日が小さければ、次の月とも読む
+  assert.deepEqual(said('12月24日から5日まで入院です。', '1/5 に退院します。'), []);
+  // 話していない日と、日数の「15日間」は借りない
+  assert.equal(said('12月5日から15日まで入院です。', '12/16 に払います。').length, 1);
+  assert.equal(said('12月5日から15日間入院です。', '12/15 に払います。').length, 1);
+});
