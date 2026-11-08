@@ -1,6 +1,6 @@
 # 現在の製品：さきよみ — 入院のお金、支払日に間に合う準備
 
-2026-11-07 更新。公開の URL は https://sakiyomi-bwc2026.vercel.app （ログイン不要、会話には利用上限あり）。判断の記録は [ADR 0016](adr/0016-pay-day-story-display-and-example.md)（支払日に要るお金を見通しの先頭に並べ、体験例を動画と同じ条件にし、副題を改める。採用）、[ADR 0013](adr/0013-decision-first-range-and-one-check.md)（主役を幅と確認 1 つにする。採用）、[ADR 0015](adr/0015-one-menu-for-sakiyomi-roadmap-and-play.md)（1 つのメニューと、移るあいだの会話の置き場。採用）、[ADR 0011](adr/0011-confirm-sakiyomi-and-include-money.md)（題材と金額計算）、[ADR 0012](adr/0012-open-production-with-usage-limits.md)（公開）、[ADR 0008](adr/0008-build-family-preparation-workspace.md)（会話とカード）、[ADR 0014](adr/0014-browser-speech-recognition-for-voice-input.md)（入力欄の下のマイク）。
+2026-11-08 更新。公開の URL は https://sakiyomi-bwc2026.vercel.app （ログイン不要、会話には利用上限あり）。判断の記録は [ADR 0016](adr/0016-pay-day-story-display-and-example.md)（支払日に要るお金を見通しの先頭に並べ、体験例を動画と同じ条件にし、副題を改める。採用）、[ADR 0013](adr/0013-decision-first-range-and-one-check.md)（主役を幅と確認 1 つにする。採用）、[ADR 0015](adr/0015-one-menu-for-sakiyomi-roadmap-and-play.md)（1 つのメニューと、移るあいだの会話の置き場。採用）、[ADR 0011](adr/0011-confirm-sakiyomi-and-include-money.md)（題材と金額計算）、[ADR 0012](adr/0012-open-production-with-usage-limits.md)（公開）、[ADR 0008](adr/0008-build-family-preparation-workspace.md)（会話とカード）、[ADR 0014](adr/0014-browser-speech-recognition-for-voice-input.md)（入力欄の下のマイク）。
 
 幅と確認 1 つ（ADR 0013）は 11/7 の昼に main へ入った（#31〜#34、#44）。支払日に要るお金の表（ADR 0016、#55）は表示の層だけの変更で、11/7 の夜に足した。本番に配置した版は、ワークログ（[docs/worklog/20261108.md](worklog/20261108.md)）に記録している。
 
