@@ -13,7 +13,8 @@ import {
   SOFTENED_MEDICAL,
   SOFTENED_MEDICAL_TITLE,
 } from "../lib/money/guard";
-import type { ChatRequest } from "../lib/workspace";
+import { executeTool } from "../lib/money/tools";
+import { exportMemo, parseStoredWorkspace, type ChatRequest } from "../lib/workspace";
 
 // #76 の残り: モデルが書く自由文（道具の入力の名前）と、断定・医療の指示・日付の書き方の取りこぼし。数字と会話はすべて架空。
 
@@ -266,4 +267,76 @@ test("3: デモの 3 発言の通常の返答（12 月 14 日・28 日・1 月 4
     assert.deepEqual(checkReply({ toolEvents, userTexts, today: "2026-11-30", reply: text }), [], text.slice(0, 40));
     assert.equal(softenClaims(text, { voice: "reply", userTexts }).replaced, 0, text.slice(0, 40));
   }
+});
+
+// ===== PR #96 への Codex のレビュー（中 4 件） =====
+
+test("Codex 1: 主治医への確認を勧める問いの形（〜か、〜かどうか、〜かは）は残す", () => {
+  for (const text of [
+    "薬をやめてもいいか、主治医に確かめてください。",
+    "薬をやめてもいいかどうか、主治医に聞きましょう。",
+    "治療を中止すべきかは主治医と相談してください。",
+    "薬をやめるべきか、主治医に聞いてください。",
+    "手術を延期しても大丈夫か病院に確かめましょう。",
+  ])
+    assert.equal(softenClaims(text, { voice: "reply" }).replaced, 0, text);
+});
+
+test("Codex 2: 「べき」の形の医療の指示も置き換える", () => {
+  for (const text of ["治療を中止すべきです。", "薬をやめるべきです。", "通院を控えるべきです。", "薬をやめてもいいです。"])
+    assert.equal(softenClaims(text, { voice: "reply" }).text, SOFTENED_MEDICAL, text);
+});
+
+test("Codex 3: 日数（15日あります・15日ぶり・15日間）は、日付の根拠にも照らす対象にもしない", () => {
+  const base = { toolEvents: [], today: "2026-11-08" };
+  // 見逃し: 利用者の言った日数を、支払日の根拠にしない。
+  assert.equal(checkReply({ ...base, userTexts: ["今月の休日は15日あります。"], reply: "支払日は15日です。" }).length, 1);
+  // 誤検出: 日数は伏せない。
+  for (const text of ["その日は15日ぶりに家族と会えます。", "休日は15日あります。", "その日は15日間の入院の初日です。", "今日は8日です。"]) {
+    assert.equal(checkReply({ ...base, userTexts: ["来月入院します。"], reply: text }).length, 0, text);
+    assert.equal(maskUnverified({ ...base, userTexts: ["来月入院します。"], reply: text }).masked, 0, text);
+  }
+  // 日付を言う語のすぐあとの日は、今までどおり照らす。
+  assert.equal(checkReply({ ...base, userTexts: ["12月15日に払います。"], reply: "支払日は15日です。" }).length, 0);
+  assert.equal(checkReply({ ...base, userTexts: [], reply: "入金予定日は21日です。" }).length, 1);
+});
+
+// 旧版で保存したカード: 筋書きの名前に断定があり、結果にもその名前が写っている。
+function storedWithClaim() {
+  const workspace = exampleWorkspace();
+  const cards = workspace.cards.map((card) => {
+    if (!card.money) return card;
+    const calculations = card.money.calculations.map((calculation) => {
+      if (calculation.name !== "simulate_cashflow") return calculation;
+      const input = structuredClone(calculation.input) as { scenarios: { name: string }[] };
+      input.scenarios[0].name = CLAIM_NAME;
+      const result = executeTool("simulate_cashflow", input);
+      assert.equal(result.ok, true);
+      return { ...calculation, input, output: (result as { output: unknown }).output };
+    });
+    return { ...card, included: true, money: { ...card.money, calculations } };
+  });
+  return { ...workspace, cards } as typeof workspace;
+}
+
+test("Codex 4: 保存済みのカードの名前は、読み込むときと持ち出すときにも中立の名前にする", () => {
+  const stored = storedWithClaim();
+  assert.ok(JSON.stringify(stored).includes("必ず受けられます"));
+  // 持ち出し（読み込み直さずに、そのまま持ち出す）。
+  const direct = exportMemo(stored.cards, stored.messages);
+  assert.ok(!direct.includes("必ず受けられます"), direct);
+  assert.ok(!direct.includes("連絡しました"), direct);
+  assert.ok(direct.includes("筋書き 1"), direct);
+  // 読み込み。
+  const loaded = parseStoredWorkspace(JSON.stringify(stored));
+  const saved = JSON.stringify(loaded.cards.map((card) => card.money ?? null));
+  assert.ok(!saved.includes("必ず受けられます"), saved.slice(0, 300));
+  assert.ok(saved.includes("筋書き 1"));
+  // 断定の無い保存データは、読み込んでも変わらない。
+  const plain = exampleWorkspace();
+  assert.deepEqual(
+    parseStoredWorkspace(JSON.stringify(plain)).cards.map((card) => card.money),
+    plain.cards.map((card) => card.money),
+  );
+  assert.equal(exportMemo(plain.cards.map((card) => ({ ...card, included: true })), plain.messages).includes("筋書き 1"), false);
 });

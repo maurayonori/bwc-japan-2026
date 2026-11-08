@@ -6,6 +6,7 @@ import {
   moneyToText,
   STALE_CASHFLOW_NOTE,
 } from "./money/format";
+import { neutralizeMoney } from "./money/free-text";
 import { fixGapDirection, maskProblems } from "./money/guard";
 import {
   MAX_WARNINGS,
@@ -152,7 +153,16 @@ function normalizeStoredMemory(card: Card): Card {
 // version 1（お金のカードが無かった頃）の保存データも、そのまま読む。読めないときは投げる。
 export function parseStoredWorkspace(raw: string): Workspace {
   const stored = storedWorkspaceSchema.parse(JSON.parse(raw));
-  return { ...stored, version: 2, cards: stored.cards.map(normalizeStoredMemory) };
+  return {
+    ...stored,
+    version: 2,
+    cards: stored.cards.map(normalizeStoredMemory).map(neutralizeStoredNames),
+  };
+}
+
+// 旧版で保存した計算の筋書きの名前や label に、給付の断定・代行の完了・医療の指示があれば、中立の名前にする（#76）。
+function neutralizeStoredNames<C extends { money?: z.infer<typeof moneySchema> }>(card: C): C {
+  return card.money ? { ...card, money: neutralizeMoney(card.money) } : card;
 }
 
 type WorkspaceStorage = Pick<Storage, "getItem" | "setItem">;
@@ -313,7 +323,7 @@ export function exportMemo(
         `【${kinds[card.kind].label}】${card.title}`,
         card.body,
         card.kind === "money" && card.money
-          ? moneyToText(card.money, citedText(card))
+          ? moneyToText(neutralizeMoney(card.money), citedText(card))
           : card.kind === "memory"
             ? ""
             : citationsToText(citedText(card)),
