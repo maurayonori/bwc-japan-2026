@@ -224,9 +224,36 @@ function userAmountsIn(text: string): number[] {
   return amountsIn(text).map((amount) => amount.value);
 }
 
-// 本線の見通しを選ぶときに、内訳の額に足してよい額（利用者が言った差額ベッド代など。#85 の残り）。
+// 追加の支出の語。本線の見通しを選ぶとき、内訳の額に足してよいのは、文の中でこの語に結びついた額だけ（#85 の残り）。
+const EXTRA_COST_WORDS =
+  /差額ベッド|ベッド代|個室|室料|部屋代|交通費|タクシー|駐車|日用品|雑費|寝具|衣類|パジャマ|おむつ|テレビ|洗濯|付き添い|付添|宿泊|文書料|診断書/g;
+// 手元のお金・医療費の総額・見積もり・収入・日割りの額は足さない。費用の語よりあとにこの語があれば、その額は足さない。
+const NOT_EXTRA_WORDS =
+  /手元|使える|貯金|預金|残高|総額|医療費|見積|給料|給与|収入|月収|手取り|年収|1日|一日|日額|1泊|一泊|毎日/g;
+
+const lastMatchEnd = (text: string, pattern: RegExp): number =>
+  Math.max(-1, ...[...text.matchAll(pattern)].map((match) => match.index + match[0].length));
+
+// 本線の見通しを選ぶときに、内訳の額に足してよい額（利用者が追加の支出として言った差額ベッド代など。#85 の残り）。
+// 同じ文の中で、費用の語のあとに、別の額も足さない語も挟まずに出てきた額だけを取る。判別できない額は足さない。
+// 同じ発言の重複（会話の発言と、それを引いたカードの根拠）は 1 つにし、同じ額の別々の費用は別々に数える。
 export function saidAmounts(texts: readonly string[]): number[] {
-  return texts.flatMap(userAmountsIn);
+  const distinct = [...new Set(texts)];
+  const unique = distinct.filter(
+    (text) => !distinct.some((other) => other !== text && other.includes(text)),
+  );
+  return unique.flatMap((text) => {
+    const normalized = normalize(text);
+    const amounts = amountsAt(text);
+    return amounts.flatMap((amount, index) => {
+      let start = amount.start;
+      while (start > 0 && !SENTENCE_END.test(normalized[start - 1])) start -= 1;
+      start = Math.max(start, amounts[index - 1]?.end ?? 0);
+      const before = normalized.slice(start, amount.start);
+      const cost = lastMatchEnd(before, EXTRA_COST_WORDS);
+      return cost >= 0 && cost > lastMatchEnd(before, NOT_EXTRA_WORDS) ? [amount.value] : [];
+    });
+  });
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");

@@ -74,7 +74,7 @@ export function cashflowAmounts(input: unknown): number[] {
   );
 }
 
-// 照らす基準の額。内訳の額に加え、内訳の額に利用者が言った額を 1 つか 2 つ足した額も入れる（#85 の残り）。
+// 照らす基準の額。内訳の額に加え、内訳の額に利用者が追加の支出として言った額を 1 つか 2 つ足した額も入れる（#85 の残り）。
 // 差額ベッド代 20,000 円を入院費にまとめた見通し（115,690 + 20,000 = 135,690 円）を、内訳と合う見通しとして数え、
 // それより前の古い試算を本線に選ばないため。発言の額だけの一致は数えない（内訳が無い回の選び方は変えない）。
 export function referenceAmounts(
@@ -82,7 +82,8 @@ export function referenceAmounts(
   said: readonly number[] = [],
 ): Set<number> {
   const breakdown = breakdownAmounts(items);
-  const extras = [...new Set(said.filter((amount) => amount > 0))];
+  // 同じ額の別々の費用（差額ベッド代 2 万円と交通費 2 万円）は別々に数える（多重集合）。
+  const extras = said.filter((amount) => amount > 0);
   const sums = new Set(extras);
   for (const [index, first] of extras.entries())
     for (const second of extras.slice(index + 1)) sums.add(first + second);
@@ -134,4 +135,28 @@ export function withMainCashflowLast<T extends ToolLike>(
   );
   if (main === lastCashflow) return [...items];
   return [...items.filter((_, index) => index !== main), items[main]];
+}
+
+// 画面が本線に選んだ見通し（カードの計算で最後に置いた見通し）と同じ入力の見通しを、最後に置く（#85 の残り）。
+// 画面は更新するカードの内訳だけで選び、検査はすべてのカードの内訳で選ぶので、別のカードの古い内訳と合う見通しが
+// あとに来ると、検査だけがそちらを本線にしていた。検査に渡す今回の記録を画面と同じ並びにして、本線をそろえる。
+export function withCashflowLast<T extends ToolLike>(
+  items: readonly T[],
+  input: unknown,
+): T[] {
+  if (input === undefined) return [...items];
+  const key = JSON.stringify(input);
+  const index = items.findLastIndex(
+    (item) => isCashflowOutput(item.output) && JSON.stringify(item.input) === key,
+  );
+  if (index < 0) return [...items];
+  return [...items.filter((_, other) => other !== index), items[index]];
+}
+
+// 画面と検査が本線として使う見通し。カードの計算で最後に置いた見通し（withMainCashflowLast）。
+// 本線が旧形式（what_to_confirm が無い）でも、順位のある別の見通しへは移らない（#90 の残り）。
+export function shownCashflow<T extends { name: string }>(
+  calculations: readonly T[],
+): T | undefined {
+  return calculations.findLast((calculation) => calculation.name === "simulate_cashflow");
 }

@@ -6,6 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { attachMoney, type ToolEvent } from "../lib/money/attach";
 import {
+  saidAmounts,
   checkReply,
   fixGapDirection,
   maskUnverified,
@@ -107,7 +108,8 @@ function event(name: string, input: unknown): ToolEvent {
   };
 }
 
-const said = [20_000, 800_000, 350_000, 200_000];
+// 追加の支出として言った額だけ（差額ベッド代 2 万円）。手元・総額・給料は足さない（PR #94 の Codex①）。
+const said = saidAmounts(USER_TEXTS);
 
 test("#85 の残り 1: 利用者が言った差額ベッド代を足した最新の見通しを本線にする", () => {
   const events = [

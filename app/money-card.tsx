@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FACTS } from "@/lib/money/facts";
+import { shownCashflow } from "@/lib/money/main-cashflow";
 import {
   CERTAINTY_TEXT,
   paydayTable,
@@ -712,12 +713,9 @@ export function MoneyDetails({
   disabled?: boolean;
 }) {
   const calculations = inDisplayOrder(money.calculations);
-  // 見通しが 2 つ以上あるときは、あとで計算したほうの順位を出す。
-  const latest = calculations.findLast(
-    (calculation) =>
-      calculation.name === "simulate_cashflow" &&
-      calculation.output.what_to_confirm !== undefined,
-  );
+  // 見通しが 2 つ以上あるときは、本線（カードの計算の並びで最後に置いた見通し。#82）の表と順位を出す。
+  // 本線が旧形式（what_to_confirm が無い）なら、別の見通しの順位へ移らず、順位を出さない（#90 の残り。検査と同じ見通しを使う）。
+  const latest = shownCashflow(calculations);
   const notIncluded = [
     ...new Set(
       calculations.flatMap((calculation) =>

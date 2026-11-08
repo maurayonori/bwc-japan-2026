@@ -9,6 +9,7 @@ import {
   type ToolSet,
 } from "ai";
 import { attachMoney, type ToolEvent } from "./money/attach";
+import { shownCashflow, withCashflowLast } from "./money/main-cashflow";
 import { todayInJapan } from "./money/dates";
 import { monthSplitError } from "./money/month-split";
 import {
@@ -326,8 +327,10 @@ export async function runChat({
       input.messages
         .filter((message) => message.role === role)
         .map((message) => message.text);
+    // 画面が本線に選んだ見通しを、検査でも本線にする（#85 の残り）。
+    const shown = shownCashflow(attached.cards.find((card) => card.money)?.money?.calculations ?? [])?.input;
     const checkArgs: CheckArgs = {
-      toolEvents: [...prior.events, ...events],
+      toolEvents: [...prior.events, ...withCashflowLast(events, shown)],
       userTexts: textsOf("user"),
       earlierReplies: textsOf("assistant"),
       today,
