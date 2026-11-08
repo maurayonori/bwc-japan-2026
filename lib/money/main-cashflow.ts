@@ -74,22 +74,47 @@ export function cashflowAmounts(input: unknown): number[] {
   );
 }
 
+// 照らす基準の額。内訳の額に加え、内訳の額に利用者が言った額を 1 つか 2 つ足した額も入れる（#85 の残り）。
+// 差額ベッド代 20,000 円を入院費にまとめた見通し（115,690 + 20,000 = 135,690 円）を、内訳と合う見通しとして数え、
+// それより前の古い試算を本線に選ばないため。発言の額だけの一致は数えない（内訳が無い回の選び方は変えない）。
+export function referenceAmounts(
+  items: readonly ToolLike[],
+  said: readonly number[] = [],
+): Set<number> {
+  const breakdown = breakdownAmounts(items);
+  const extras = [...new Set(said.filter((amount) => amount > 0))];
+  const sums = new Set(extras);
+  for (const [index, first] of extras.entries())
+    for (const second of extras.slice(index + 1)) sums.add(first + second);
+  const amounts = new Set(breakdown);
+  for (const base of breakdown)
+    for (const extra of sums) amounts.add(base + extra);
+  return amounts;
+}
+
 // 本線にする見通しの位置。見通しが無ければ -1。
 // from は今回の回の記録が始まる位置（#85）。今回の回に見通しがあれば今回の見通しから選び、無いときだけ
 // 前の回までさかのぼる。内訳の額（照らす基準）は、前の回の分も含めて全体から集める。
-export function mainCashflowIndex(items: readonly ToolLike[], from = 0): number {
+// said は利用者の発言にある額（差額ベッド代など）。内訳の額に足した額も、一致として扱う。
+export function mainCashflowIndex(
+  items: readonly ToolLike[],
+  from = 0,
+  said: readonly number[] = [],
+): number {
   const all = items.flatMap((item, index) =>
     isCashflowOutput(item.output) ? [index] : [],
   );
   const current = all.filter((index) => index >= from);
   const cashflows = current.length > 0 ? current : all;
   if (cashflows.length <= 1) return cashflows[0] ?? -1;
-  const reference = breakdownAmounts(items);
+  const reference = referenceAmounts(items, said);
   const consistent =
     reference.size === 0
       ? []
       : cashflows.filter((index) =>
-          cashflowAmounts(items[index].input).some((amount) => reference.has(amount)),
+          cashflowAmounts(items[index].input).some((amount) =>
+            reference.has(amount),
+          ),
         );
   const candidates = consistent.length > 0 ? consistent : cashflows;
   return candidates[candidates.length - 1];
@@ -99,8 +124,9 @@ export function mainCashflowIndex(items: readonly ToolLike[], from = 0): number 
 // 画面と持ち出しは「最後の見通し」を見るので、並びを直すだけで全部がそろう。
 export function withMainCashflowLast<T extends ToolLike>(
   items: readonly T[],
+  said: readonly number[] = [],
 ): T[] {
-  const main = mainCashflowIndex(items);
+  const main = mainCashflowIndex(items, 0, said);
   if (main < 0 || main === items.length - 1) return [...items];
   const lastCashflow = items.reduce(
     (found, item, index) => (isCashflowOutput(item.output) ? index : found),

@@ -282,7 +282,7 @@ function verifiedForExport(
   const mask = (text: string) =>
     maskProblems({
       ...args,
-      text: fixGapDirection(text, args.toolEvents, args.currentFrom).text,
+      text: fixGapDirection(text, args.toolEvents, args.currentFrom, args.userTexts).text,
     }).text;
   return {
     ...card,

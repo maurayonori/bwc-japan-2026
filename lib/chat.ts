@@ -337,7 +337,7 @@ export async function runChat({
     // 足りない額と残る額の向きを逆に書いた文は、計算から作った文に置き換え、注意で伝える（#66 の A-3）。
     const gapWarnings: MoneyWarning[] = [];
     const fixGap = (text: string) => {
-      const fixed = fixGapDirection(text, checkArgs.toolEvents, checkArgs.currentFrom);
+      const fixed = fixGapDirection(text, checkArgs.toolEvents, checkArgs.currentFrom, checkArgs.userTexts);
       for (const sentence of fixed.sentences) {
         const shown = sentence.slice(0, 120);
         gapWarnings.push({

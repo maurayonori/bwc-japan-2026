@@ -1,5 +1,6 @@
 import type { Card, Message, Proposal } from "../workspace";
 import { asMemory, validateEvidence } from "../workspace";
+import { saidAmounts } from "./guard";
 import { withMainCashflowLast } from "./main-cashflow";
 import {
   MAX_CALCULATIONS,
@@ -90,9 +91,11 @@ function replaceKey(calculation: Calculation): string {
 
 // 今回の計算を優先し、今回呼ばなかった道具（と診療月）の前回の結果は残す（出典や内訳が表から消えないように）。
 // 見通しが同じ回に複数あるときは、内訳の計算と額が合う見通しを最後（本線）に置く（#82）。
+// 内訳の額に利用者が言った額（said。差額ベッド代など）を足した額も、合う額として扱う（#85 の残り）。
 function combine(
   fresh: readonly Calculation[],
   prior: readonly Calculation[],
+  said: readonly number[],
 ): Calculation[] {
   const keys = new Set(fresh.map(replaceKey));
   const kept = fresh.slice(-MAX_CALCULATIONS);
@@ -101,6 +104,7 @@ function combine(
       ...prior.filter((calculation) => !keys.has(replaceKey(calculation))),
       ...kept,
     ].slice(-MAX_CALCULATIONS),
+    said,
   );
 }
 
@@ -188,6 +192,9 @@ export function attachMoney({
   const fresh = toCalculations(events);
   const lastUser = messages.findLast((message) => message.role === "user");
   if (!lastUser) throw new Error("no-user-message");
+  const said = saidAmounts(
+    messages.filter((message) => message.role === "user").map((message) => message.text),
+  );
 
   const usedIds = new Set(
     [...existing, ...proposals].map((card) => card.id),
@@ -229,7 +236,7 @@ export function attachMoney({
         ...repaired,
         id,
         money: moneyOf(
-          combine(fresh, prior.get(proposal.id) ?? []),
+          combine(fresh, prior.get(proposal.id) ?? [], said),
           events,
           priorStale.has(proposal.id),
         ),
@@ -250,7 +257,7 @@ export function attachMoney({
     const base = existing.findLast((card) => card.kind === "money");
     const id = base && !isProtected(base) ? base.id : unusedId(usedIds);
     const money = moneyOf(
-      combine(fresh, base ? (prior.get(base.id) ?? []) : []),
+      combine(fresh, base ? (prior.get(base.id) ?? []) : [], said),
       events,
       base ? priorStale.has(base.id) : false,
     );

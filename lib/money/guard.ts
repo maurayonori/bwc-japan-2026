@@ -224,6 +224,11 @@ function userAmountsIn(text: string): number[] {
   return amountsIn(text).map((amount) => amount.value);
 }
 
+// 本線の見通しを選ぶときに、内訳の額に足してよい額（利用者が言った差額ベッド代など。#85 の残り）。
+export function saidAmounts(texts: readonly string[]): number[] {
+  return texts.flatMap(userAmountsIn);
+}
+
 const pad = (value: number) => String(value).padStart(2, "0");
 
 interface DateFound {
@@ -553,13 +558,14 @@ interface ScenarioRange {
 }
 
 // 本線の見通し（同じ回に複数あれば、内訳の計算と額が合う最後のもの。#82）の、筋書きごとの要る額の範囲と、
-// 結び付けに使う名前と入出金の label。本線の結果が読めなければ、それより前の見通しをさかのぼる。
-function latestScenarios(toolEvents: readonly GuardToolEvent[], from = 0): {
+// 結び付けに使う名前と入出金の label。本線に順位が無い（what_to_confirm の無い旧形式の）ときは、別の見通しへ移らず
+// 「順位なし」として照らさない（#90 の残り。前の見通しの範囲で、本線の正しい額を伏せないため）。
+function latestScenarios(toolEvents: readonly GuardToolEvent[], from = 0, said: readonly number[] = []): {
   confirm: WhatToConfirm;
   scenarios: ScenarioRange[];
 } | null {
-  const main = mainCashflowIndex(toolEvents, from);
-  const ordered = main < 0 ? [...toolEvents].reverse() : [toolEvents[main], ...toolEvents.slice(0, main).reverse()];
+  const main = mainCashflowIndex(toolEvents, from, said);
+  const ordered = main < 0 ? [...toolEvents].reverse() : [toolEvents[main]];
   for (const event of ordered) {
     const output = event.output;
     if (output === null || typeof output !== "object" || !("what_to_confirm" in output))
@@ -624,8 +630,9 @@ function rangeMismatches(
   text: string,
   toolEvents: readonly GuardToolEvent[],
   from = 0,
+  said: readonly number[] = [],
 ): Unverified[] {
-  const latest = latestScenarios(toolEvents, from);
+  const latest = latestScenarios(toolEvents, from, said);
   if (!latest) return [];
   const { confirm } = latest;
   const normalized = normalize(text);
@@ -701,7 +708,7 @@ function rangeMismatches(
 // 範囲の端が、それだけで照らせない額なら、範囲の注意は重ねない。
 function problemsIn(text: string, args: CheckArgs): Unverified[] {
   const unverified = unverifiedIn(text, allowedValues(args), args.today);
-  const ranges = rangeMismatches(text, args.toolEvents, args.currentFrom).filter(
+  const ranges = rangeMismatches(text, args.toolEvents, args.currentFrom, saidAmounts(args.userTexts)).filter(
     (range) =>
       !unverified.some((item) => item.start < range.end && range.start < item.end),
   );
@@ -1010,11 +1017,10 @@ interface Gap {
   needHigh: number;
 }
 
-// 足りない額の向きも、本線の見通し（#82・#85 と同じ選び方）で照らす。本線が読めなければ、前の見通しをさかのぼる。
-function latestGaps(toolEvents: readonly GuardToolEvent[], from = 0): Gap[] {
-  const main = mainCashflowIndex(toolEvents, from);
-  const ordered =
-    main < 0 ? [...toolEvents].reverse() : [toolEvents[main], ...toolEvents.slice(0, main).reverse()];
+// 足りない額の向きも、本線の見通し（#82・#85 と同じ選び方）で照らす。別の見通しへは移らない（#90 の残り）。
+function latestGaps(toolEvents: readonly GuardToolEvent[], from = 0, said: readonly number[] = []): Gap[] {
+  const main = mainCashflowIndex(toolEvents, from, said);
+  const ordered = main < 0 ? [...toolEvents].reverse() : [toolEvents[main]];
   for (const event of ordered) {
     const parsed = cashflowOutputSchema.safeParse(event.output);
     if (!parsed.success) continue;
@@ -1034,8 +1040,10 @@ export function fixGapDirection(
   text: string,
   toolEvents: readonly GuardToolEvent[],
   from = 0,
+  // 利用者の発言。本線の見通しを選ぶとき、内訳の額に足してよい額を取り出す（#85 の残り）。
+  userTexts: readonly string[] = [],
 ): { text: string; replaced: number; sentences: string[] } {
-  const gaps = latestGaps(toolEvents, from);
+  const gaps = latestGaps(toolEvents, from, saidAmounts(userTexts));
   if (gaps.length === 0) return { text, replaced: 0, sentences: [] };
   const short = (value: number) =>
     gaps.filter((gap) => [gap.needLow, gap.needHigh].some((need) => need - gap.cash === value));
