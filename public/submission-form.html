@@ -40,6 +40,12 @@
     }
     .banner strong { color: var(--amber); }
     .banner a { color: var(--green); }
+    .old-draft p { margin: 0; }
+    .old-draft summary { cursor: pointer; color: var(--green); margin-top: 8px; }
+    .old-item { margin-top: 12px; }
+    .old-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .old-item textarea { min-height: 0; background: #fbfbf8; }
+    .old-item button { margin-top: 4px; }
     fieldset {
       border: 1px solid var(--line);
       border-radius: 12px;
@@ -100,6 +106,7 @@
     <p class="sub">プラットフォームの項目に合わせて編集し、コピーして本番フォームへ貼り付けます。編集内容はこのブラウザの localStorage に自動保存（サーバーへは送りません）。</p>
 
     <div class="banner" id="deadline-banner"></div>
+    <div class="banner old-draft" id="old-draft" hidden></div>
 
     <div class="row" style="margin-bottom: 16px;">
       <button type="button" id="copy-all">全文をクリップボードにコピー</button>
@@ -137,7 +144,7 @@
         <div class="count" id="count-overview"></div>
         <label class="block" for="overview_full">本番フォーム用に結合した全文（編集可）</label>
         <textarea name="overview_full" id="overview_full" class="tall" rows="14"></textarea>
-        <p class="hint">「続き」を直すと結合全文を自動更新します。結合全文だけ直した場合はそのまま保存されます。</p>
+        <p class="hint">冒頭と続きは改行 1 つでつなぎます。「続き」を直すと結合全文を自動更新します。結合全文を手で直したあとは、読み込み直しても、冒頭や続きを直しても作り直しません。</p>
         <div class="row"><button type="button" data-copy="overview_full">概要全文をコピー</button></div>
       </fieldset>
 
@@ -167,6 +174,9 @@
           <label><input type="checkbox" name="claude_product" value="Agent SDK"> Agent SDK</label>
           <label><input type="checkbox" name="claude_product" value="その他"> その他</label>
         </div>
+        <label class="block" for="claude_other">「その他」に書く文</label>
+        <input type="text" name="claude_other" id="claude_other">
+        <div class="row"><button type="button" data-copy="claude_other">この項目をコピー</button></div>
       </fieldset>
 
       <fieldset>
@@ -240,51 +250,76 @@
     </section>
 
     <footer>
-      下書きの正本は <code>docs/submission/form.md</code>。このページは 11/8 送信用の作業用です。
+      下書きの正本は <code>docs/submission/form.md</code>。初期値は form.md の写す本文と同じで、<code>tests/form-answers.test.ts</code> が照らしています。このページは 11/8 送信用の作業用です。
     </footer>
   </div>
 
   <script>
-    const STORAGE_KEY = "sakiyomi-bwc2026-submission-form";
+    const STORAGE_KEY = "sakiyomi-bwc2026-submission-form-v2";
+    // 11/8 12:15 の版が使っていたキー。作者の編集が残っているかもしれないので、消さずに読むだけにする。
+    const OLD_STORAGE_KEY = "sakiyomi-bwc2026-submission-form";
     const DEADLINE = new Date("2026-11-08T20:00:00+09:00");
+
+    // 初期値は docs/submission/form.md の写す本文（text の枠）と一字一句同じにする。tests/form-answers.test.ts が照らす。
+    const OVERVIEW = `このプロジェクトは、入院が決まった人と家族の「支払日にいくら要るか分からない」課題を、話すだけで要る額と最初に確かめることが分かる状態に変える Web アプリです。
+入院費は、窓口で高額療養費の上限が使えるかで変わります。使えないと上限を超えた分をいったん立て替え、払い戻しは診療月から3か月以上あとです。作者自身が入院の準備で、いくら要るのか、誰に何を頼むのかを整理しようとしたことが出発点です。
+12月14日から15日間入院する人が「総額80万円、協会けんぽで給料月35万円、手元20万円」と話すと、支払日の12月28日に要る額が、上限が使えれば115,690円、使えなければ264,750円と並びます。差の149,060円は、窓口で上限が使えれば立て替えずに済む見込みです。まず確かめる1つは「窓口で上限が使えるか」で、病院の会計への質問文が出ます。答えを話すと、要る額は115,690円の1つに絞られます。
+金額と確かめる順番はプログラムが計算し、Claude は話の読み取りと、病院や家族に渡す文の下書きを担います。数値には出典と確認日を付け、医療の助言や給付の断定はしません。`;
 
     const DEFAULTS = {
       project_name: "さきよみ — 入院のお金、支払日に間に合う準備",
       theme: "reach",
-      overview_lead: "このプロジェクトは、入院が決まった人と代わりに段取りを進める家族の、支払日に要るお金が決まらない課題を、話すだけで見通しと「まず確かめる1つ」を出す Web アプリで変えるものです。",
-      overview_body: "入院費の支払日に要るお金は、窓口で高額療養費の上限が使えるかで変わります。使えないと上限を超えた分をいったん立て替え、払い戻しは診療月から 3 か月以上あとです（協会けんぽの案内、確認 2026-11-07）。さきよみでは入力欄に普通の言葉で話すと、上限が使える場合と使えない場合で要る額を並べ、幅を一番縮める確認を 1 つ出します。金額と順位はプログラムが計算し、聞く相手と質問文、家族に渡す文章を Claude が下書きします。窓口の答えを話すとその条件で計算し直します。デモは架空の条件です。効果は未評価で、確かめたのは動くことと計算が合うことまでです。",
+      overview_lead: OVERVIEW.slice(0, OVERVIEW.indexOf("\n")),
+      overview_body: OVERVIEW.slice(OVERVIEW.indexOf("\n") + 1),
       github: "https://github.com/maurayonori/bwc-japan-2026",
       demo_video: "https://youtu.be/c-3mh5sisec",
-      claude_products: ["Claude Code CLI", "Claude API"],
-      stuck_v: 2,
+      claude_products: ["Claude Code CLI", "Claude Code Desktop", "Claude API", "その他"],
+      claude_other: "Claude Code のクラウドセッション",
       stuck: `何を作ろうとしていましたか？
-支払日に用意する額の見通しです。話した条件から、窓口で上限が使える場合と使えない場合を並べ、先に確かめることを1つに絞る。その文章が、計算結果と食い違わないようにしたかった。
+入院前のお金の見通しを、会話で試せる検証用の試作です（11/6）。状況をそのまま書くと Claude が条件を読み取り、4 つの道具（高額療養費の上限、食事代、日付と営業日、支払いと入金の見通し）が金額と日付を計算し、返答に書かれた金額と日付を道具の結果と照らします。計算に使う数値を一次資料と突き合わせる出典の照合も進めていました。
 
 Claude にどのように指示しましたか？
-話の読み取りと、誰に何を聞くかの文面は Claude に任せた。金額、日付、確かめる順番は、こちらが用意した計算の道具だけが出す、と分けて書いた。カードには、プログラムが選んだ確認項目を、聞く相手と質問文として載せるよう頼んだ。
+指示の原文は残していないので、ワークログにある任せた作業の要約です。Claude Code の 1 つのセッションに、4 つの計算を道具にした会話の試作をコード・テスト・文書まで作らせ、計算に使う数値（協会けんぽの限度額の表、健康保険法施行令 第 42 条の端数、食事代 1 食 550 円、内閣府の祝日）を一次資料と突き合わせる出典の照合まで任せました。確かめはテスト 130 件、架空の内容での実 API の 6 往復、ヘッドレス Chrome を DevTools Protocol で操作した画面の確認でした。
 
 何が起きましたか？期待していた結果と何が違いましたか？
-本番と同じ API で話したとき、カードは「答えによっては幅は縮みません」と正しく出た。同じ返答の本文は「病院の会計に聞くと、要る額の幅は 203,100 円に縮みます」と書いていた。幅が縮まない確認を、縮むと約束する文章になっていた。
+出典の照合の結果が届いた直後、指摘の反映とコードの確認が終わる前に、そのセッションが Claude Code の利用上限で止まりました。期待していたのは、同じセッションのまま照合の指摘を反映し、コードを確かめて仕上げることでした。
 
 どのように対処しましたか？
-先頭の確認で幅が縮まないとき、「縮」を含む文を計算の食い違いと同じ注意として返す検査を足した。プロンプトには、そのときは答えごとに何が決まるかを書く、と足した。返答を自動では書き直させず、注意を出して人が見る形にした（#47、2026-11-07）。`,
-      stuck_product: "Claude API",
-      stuck_env: "モデル: claude-sonnet-5-5（本番の会話）。Claude Code は claude-opus-5-5 系で開発。OS: macOS。再現性: 時々（同じ条件の実 API 往復で確認）。",
-      stuck_cause: "指示の理解",
-      docs_found: "おおむねはい",
-      docs_comment: "Anthropic の tool use と Messages API は公式ドキュメントで足りた。Next.js は訓練データと異なる版になっており、`node_modules/next/dist/docs/` のガイドを読む必要があった（AGENTS.md）。日本の制度数値は厚労省・協会けんぽの一次資料を自分で当たった。",
-      impressions_v: 1,
+保存された会話は読み取りだけに使い、今のファイルを基準に Codex で続きを行いました。会話用の事実 16 件を公式ページと一次資料の本文で照合して直し、API のエラー本文がログに出る不具合など 2 件を、直す前に落ちるテストで再現して直しました（試作のテストは 131 件）。のちに止まっていたセッションを再開したときは、続きがすでに済んでいたのでやり直さず、テスト（11/6 15:20 の時点の件数で、本体 174 件、試作 131 件。型、公開前の検査）と出典の再照合（14 ページを開き、読めた 13 ページで矛盾 0 件）で、引き継ぎ後の状態を実測で照らしました。`,
+      stuck_product: "Claude Code Desktop",
+      stuck_env: "モデルは Claude Opus 5.5 と Claude Fable 5.1 を使っていました。止まったセッションがどちらだったかは、記録から特定できません。Claude Code は 2.1.305〜2.1.317（11/2〜11/7 の記録）、OS は macOS 26.6.2。再現性は時々（11/6 午前のほか、11/7 21:10〜23:00 と 11/8 00:45〜04:00 にも手元のセッションが使用量の上限で止まりました。11/8 には週の上限の 91% に達しました）",
+      stuck_cause: "使用量の制限",
+      docs_found: "はい",
+      docs_comment: "",
       impressions: `日本語や日本の業務で使う立場から気づいた欠点と利点
-利点: 質問ツールで仕様を 1 問ずつ聞き取れ、サブエージェントで公式 PDF を並列に起こせた。欠点: 返答文がカードより先に走り、制度の数字を丸めて書くことがあった。日本語の制度名を知らなくても話せる設計にしたが、検査とプログラム分担が無いと支払いに効く誤りを見逃す。
+欠点は、日本語の文の中に、計算していない額を自然に混ぜることです。試作では「5 万円ほど」と丸めた額、自分で足した小計（175,880 円）、ツールを通していない日付（1/31）を書きました。本体でも、確かめても要る額の幅（少ない場合と多い場合の差）が変わらない場面で、「要る額の幅は 203,100 円に縮みます」と書きました。高額療養費の区分や月ごとの上限のような日本の制度の数値は、モデルに任せず、出典と確認日つきの表としてプログラムに置く必要がありました。利点は、制度の名前を知らない人の普通の話し言葉から、入院日・保険者・給料・手元のお金を読み取り、病院の会計への質問文や家族への頼みごとの文を、そのまま渡せる日本語で書けたことです。実 API で試した会話で手術の成否や再発を聞いても、答えずに主治医に聞くことだと伝え、お金の話に戻りました。
 
 他の AI ツールと比べて劣る点と優れる点
-比較なし（開発の主軸は Claude Code、Next.js 初版の実装は Codex）。
+比べたのは Codex です。Codex は Next.js アプリの初版の実装と差分の批判レビューに使い、レビューでは直し方が生んだ新しい誤りを何度も見つけました。Claude Code の優れる点は、目的ごとに機能を選び、開発の中心に置けたことです。質問ツールで作者に聞いて仕様を作り、サブエージェントで入院のお金の公式資料を調べ、制度表の鮮度点検を Skill・点検役のサブエージェント・フックにしてリポジトリの .claude/ に置き、クラウドセッションで設計から実装まで並列に進めました。劣る点は、使用量の上限で長い作業が止まったことです（11/6 午前、11/7 21:10〜23:00、11/8 00:46〜04:00）。そのたびに Codex やクラウドセッションへ引き継ぎました。
 
 一つだけ直せるとしたら何を直してほしいか、その改善で何が作れるようになるか
-計算で出た数字と、それを説明する文章を、Claude が自分で揃えた下書きにしてほしい。長い会話では、説明だけが先に進んで、計算と違うことを書いてしまう。ここが自動で揃えば、説明が数字と食い違っていないかを後から確かめる手間が減る。制度の話は文章、金額はプログラム、と分けて作る日本の手続きのアプリを、短い期間でも数字を間違えないほうに寄せて作れる。`,
-      reviewer_v: 1,
-      reviewer: "本番: https://sakiyomi-bwc2026.vercel.app （ログイン不要。API キー不要。会話は 1 日あたりの上限あり）\nデモ動画: https://youtu.be/c-3mh5sisec （限定公開。リンクを知っている人が見られる。v1、2 分 58 秒。画面は再定義の前）",
+使用量の上限に達する前に知らせ、途中の作業を別のセッションへそのまま引き継げるようにしてほしいです。手元のセッションが統括し、クラウドのセッションが実装する進め方を、止まらずに一晩回せるようになり、締切前の確かめと配置を人が起きて待たずに済みます。`,
+      reviewer: `アプリ: https://sakiyomi-bwc2026.vercel.app （ログインは不要です。スマートフォンでも開けます）
+使い方: 最初の画面に、入院の予定とお金のことを普通の言葉で書き、「ここから整理する」を押してください。動画と同じ例:「12月14日に入院して、28日に退院する予定です。病院の見積もりだと、医療費は総額で80万円くらい。協会けんぽで、給料は月35万円くらいです。すぐ使えるお金は20万円。保険にも入っていて書類は青いファイルにあるけど、給付金がいつ入るのか分かりません。朝はいつも私が子どもの支度をしています。7時に起こして、着替えは寝室の白い棚、水筒はかばんの横、8時10分に家を出ます。夫に頼みたいけど、何をどう伝えればいいか。」続けて「病院に聞いたら、マイナ保険証で窓口の上限は使えると言われました」「入院が1週間延びて、退院が1月4日になったら？」と話すと、動画と同じ順に進みます。「見通し」に支払日に要る額の表とまず確かめる1つが、「渡すもの」に病院・保険会社・家族に渡す文の下書きが並びます（文は Claude の下書きなので、回によって変わります。3 回目の筋書きの数と額も、Claude が置く月の内訳によって変わることがあります）。
+上限: 費用を抑えるため、Claude との会話には上限があります（接続元の IP アドレスごとに 1 日 20 回・1 時間 20 回、全体で 1 日 150 回。1 日の回数は日本時間の 0 時に切り替わります）。同じネットワークから複数の方が試すと、回数を分け合うことになります。上限に達したときや接続できないときは「架空の体験例を見る」から、動画と同じ条件の 2 往復を API を使わずに見られます。
+お願い: 実名や病名は入力せず、架空の内容でお試しください。`,
     };
+
+    // 前の版の下書きで、読むだけで見せる項目。
+    const OLD_FIELDS = [
+      ["project_name", "1. プロジェクト名"],
+      ["theme", "2. テーマ"],
+      ["overview_full", "3. 概要（全文）"],
+      ["github", "4. GitHub"],
+      ["demo_video", "5. デモ動画"],
+      ["claude_products", "6. 使用した Claude"],
+      ["stuck", "7. 詰まった場面"],
+      ["stuck_meta", "8. 製品・環境・原因"],
+      ["docs_found", "9. 公式の情報"],
+      ["docs_comment", "9. 補足"],
+      ["impressions", "10. 感想"],
+      ["reviewer", "11. 審査員用"],
+    ];
 
     const PRECHECK = [
       ["本番 URL をログインせず開ける", true],
@@ -297,15 +332,19 @@ Claude にどのように指示しましたか？
       ["プラットフォームの提出フォームを送信（20:00 前）", false],
     ];
 
-    function $(sel) { return document.querySelector(sel); }
-    function $$(sel) { return document.querySelectorAll(sel); }
+    function $(sel) {
+      return document.querySelector(sel);
+    }
+    function $$(sel) {
+      return document.querySelectorAll(sel);
+    }
 
     function joinOverview(lead, body) {
       lead = (lead || "").trim();
       body = (body || "").trim();
       if (!lead) return body;
       if (!body) return lead;
-      return lead + "\n\n" + body;
+      return lead + "\n" + body;
     }
 
     function charCountJa(s) {
@@ -316,24 +355,42 @@ Claude にどのように指示しましたか？
       const full = $("#overview_full").value;
       const n = charCountJa(full);
       const el = $("#count-overview");
-      el.textContent = `概要全文: ${n} 字` + (n > 500 ? "（500 字超過）" : n >= 450 ? "（あと少し）" : "");
-      el.className = "count" + (n > 500 ? " bad" : n > 0 && n <= 500 ? " good" : "");
-      $("#count-lead").textContent = "冒頭 1 文: " + charCountJa($("#overview_lead").value) + " 字";
+      el.textContent =
+        `概要全文: ${n} 字` +
+        (n > 500 ? "（500 字超過）" : n >= 450 ? "（あと少し）" : "");
+      el.className =
+        "count" + (n > 500 ? " bad" : n > 0 && n <= 500 ? " good" : "");
+      $("#count-lead").textContent =
+        "冒頭 1 文: " + charCountJa($("#overview_lead").value) + " 字";
     }
 
     function buildStuckMeta() {
       return [
-        "製品: " + $("#stuck_product").value,
-        "環境: " + $("#stuck_env").value.trim().replace(/\n/g, " "),
-        "主な原因: " + $("#stuck_cause").value,
+        "製品：" + $("#stuck_product").value,
+        "環境：" + $("#stuck_env").value.trim().replace(/\n/g, " "),
+        "主な原因：" + $("#stuck_cause").value,
       ].join("\n");
+    }
+
+    async function copyText(text, btn, label) {
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "コピーした";
+        setTimeout(() => {
+          btn.textContent = label;
+        }, 1200);
+      } catch (_) {
+        alert("クリップボードにコピーできませんでした");
+      }
     }
 
     function gatherState() {
       const products = [];
-      $$('#claude-products input:checked').forEach((el) => products.push(el.value));
+      $$("#claude-products input:checked").forEach((el) => products.push(el.value));
       const pre = {};
-      $$("#precheck-list input").forEach((el) => { pre[el.dataset.id] = el.checked; });
+      $$("#precheck-list input").forEach((el) => {
+        pre[el.dataset.id] = el.checked;
+      });
       return {
         project_name: $("#project_name").value,
         theme: $("#theme").value,
@@ -343,7 +400,7 @@ Claude にどのように指示しましたか？
         github: $("#github").value,
         demo_video: $("#demo_video").value,
         claude_products: products,
-        stuck_v: DEFAULTS.stuck_v,
+        claude_other: $("#claude_other").value,
         stuck: $("#stuck").value,
         stuck_product: $("#stuck_product").value,
         stuck_env: $("#stuck_env").value,
@@ -351,9 +408,7 @@ Claude にどのように指示しましたか？
         stuck_meta: $("#stuck_meta").value,
         docs_found: $("#docs_found").value,
         docs_comment: $("#docs_comment").value,
-        impressions_v: DEFAULTS.impressions_v,
         impressions: $("#impressions").value,
-        reviewer_v: DEFAULTS.reviewer_v,
         reviewer: $("#reviewer").value,
         precheck: pre,
       };
@@ -362,39 +417,26 @@ Claude にどのように指示しましたか？
     function applyState(data) {
       const d = { ...DEFAULTS, ...data };
       $("#project_name").value = d.project_name || "";
-      $("#theme").value = d.theme || "reach";
+      $("#theme").value = d.theme || DEFAULTS.theme;
       $("#overview_lead").value = d.overview_lead || "";
       $("#overview_body").value = d.overview_body || "";
-      $("#overview_full").value = d.overview_full || joinOverview(d.overview_lead, d.overview_body);
+      $("#overview_full").value =
+        d.overview_full || joinOverview(d.overview_lead, d.overview_body);
       $("#github").value = d.github || "";
       $("#demo_video").value = d.demo_video || "";
-      $$('#claude-products input').forEach((el) => {
+      $$("#claude-products input").forEach((el) => {
         el.checked = (d.claude_products || []).includes(el.value);
       });
+      $("#claude_other").value = d.claude_other || "";
       $("#stuck").value = d.stuck || "";
-      if ((data && data.stuck_v) !== DEFAULTS.stuck_v) {
-        $("#stuck").value = DEFAULTS.stuck;
-      }
-      $("#stuck_product").value = d.stuck_product || "Claude API";
+      $("#stuck_product").value = d.stuck_product || DEFAULTS.stuck_product;
       $("#stuck_env").value = d.stuck_env || "";
-      $("#stuck_cause").value = d.stuck_cause || "指示の理解";
+      $("#stuck_cause").value = d.stuck_cause || DEFAULTS.stuck_cause;
       $("#stuck_meta").value = d.stuck_meta || buildStuckMeta();
-      $("#docs_found").value = d.docs_found || "おおむねはい";
+      $("#docs_found").value = d.docs_found || DEFAULTS.docs_found;
       $("#docs_comment").value = d.docs_comment || "";
       $("#impressions").value = d.impressions || "";
-      if ((data && data.impressions_v) !== DEFAULTS.impressions_v) {
-        const oldWish = /一つだけ直せるとしたら[\s\S]*$/;
-        const nextWish = DEFAULTS.impressions.slice(DEFAULTS.impressions.indexOf("一つだけ直せるとしたら"));
-        if (oldWish.test($("#impressions").value)) {
-          $("#impressions").value = $("#impressions").value.replace(oldWish, nextWish);
-        } else {
-          $("#impressions").value = DEFAULTS.impressions;
-        }
-      }
       $("#reviewer").value = d.reviewer || "";
-      if ((data && data.reviewer_v) !== DEFAULTS.reviewer_v && /上記 URL/.test($("#reviewer").value)) {
-        $("#reviewer").value = DEFAULTS.reviewer;
-      }
       if (d.precheck) {
         $$("#precheck-list input").forEach((el) => {
           if (Object.prototype.hasOwnProperty.call(d.precheck, el.dataset.id)) {
@@ -402,6 +444,10 @@ Claude にどのように指示しましたか？
           }
         });
       }
+      // 保存した全文が冒頭と続きをつないだものと違えば、手で直した全文とみなし、冒頭や続きを直しても作り直さない。
+      overviewFullTouched =
+        $("#overview_full").value !==
+        joinOverview($("#overview_lead").value, $("#overview_body").value);
       updateOverviewCounts();
     }
 
@@ -413,7 +459,12 @@ Claude にどのように指示しましたか？
       saveTimer = setTimeout(() => {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(gatherState()));
-          $("#save-note").textContent = "保存済み " + new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+          $("#save-note").textContent =
+            "保存済み " +
+            new Date().toLocaleTimeString("ja-JP", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
           $("#save-note").className = "save-note ok";
         } catch (e) {
           $("#save-note").textContent = "保存失敗";
@@ -432,18 +483,74 @@ Claude にどのように指示しましたか？
       });
     }
 
+    function loadOldDraft() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY) || "null");
+        return raw && typeof raw === "object" ? raw : null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function oldValueText(key, value) {
+      if (Array.isArray(value)) return value.join(", ");
+      if (typeof value !== "string") return "";
+      if (key === "theme") {
+        const option = [...$("#theme").options].find((el) => el.value === value);
+        return option ? option.textContent : value;
+      }
+      return value;
+    }
+
+    // 前の版の下書きは今の欄に入れず、項目ごとに読んでコピーできるようにだけする。
+    function renderOldDraft(old) {
+      const root = $("#old-draft");
+      const lead = document.createElement("p");
+      lead.innerHTML =
+        "<strong>前の下書きがこのブラウザに残っています。</strong> 今の欄は form.md と同じ新しい初期値で、前の下書きは自動では入れません。前に直した文を使うときは、下から項目ごとにコピーしてください。";
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = "前の下書きを見る（読むだけ）";
+      details.appendChild(summary);
+      OLD_FIELDS.forEach(([key, label]) => {
+        const text = oldValueText(key, old[key]);
+        if (!text) return;
+        const item = document.createElement("div");
+        item.className = "old-item";
+        const name = document.createElement("div");
+        name.className = "old-label";
+        name.textContent = label;
+        const body = document.createElement("textarea");
+        body.readOnly = true;
+        body.value = text;
+        body.rows = Math.min(12, text.split("\n").length + 1);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "この項目をコピー";
+        btn.addEventListener("click", () =>
+          copyText(text, btn, "この項目をコピー"),
+        );
+        item.append(name, body, btn);
+        details.appendChild(item);
+      });
+      root.append(lead, details);
+      root.hidden = false;
+    }
+
     function updateDeadlineBanner() {
       const now = new Date();
       const diff = DEADLINE - now;
       const el = $("#deadline-banner");
       if (diff <= 0) {
-        el.innerHTML = "<strong>締切を過ぎています。</strong> 送信済みかプラットフォームを確認してください。";
+        el.innerHTML =
+          "<strong>締切を過ぎています。</strong> 送信済みかプラットフォームを確認してください。";
         return;
       }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
-      el.innerHTML = `⏰ 提出締切まで約 <strong>${h} 時間 ${m} 分</strong>（2026-11-08 20:00 JST）。` +
-        " GitHub 公開・動画 3 分以内・概要 500 字・<a href=\"https://cerebralvalley.ai/events/~/e/built-with-claude-japan2026\" target=\"_blank\" rel=\"noopener\">イベントページ下部の提出フォーム</a>。";
+      el.innerHTML =
+        `⏰ 提出締切まで約 <strong>${h} 時間 ${m} 分</strong>（2026-11-08 20:00 JST）。` +
+        ' GitHub 公開・動画 3 分以内・概要 500 字・<a href="https://cerebralvalley.ai/events/~/e/built-with-claude-japan2026" target="_blank" rel="noopener">イベントページ下部の提出フォーム</a>。';
     }
 
     let overviewFullTouched = false;
@@ -457,13 +564,19 @@ Claude にどのように指示しましたか？
       applyState(saved || DEFAULTS);
       if (!saved) $("#stuck_meta").value = buildStuckMeta();
 
+      const old = loadOldDraft();
+      if (old) renderOldDraft(old);
+
       updateDeadlineBanner();
       setInterval(updateDeadlineBanner, 60000);
 
       $("#form").addEventListener("input", (e) => {
         if (e.target.id === "overview_lead" || e.target.id === "overview_body") {
           if (!overviewFullTouched) {
-            $("#overview_full").value = joinOverview($("#overview_lead").value, $("#overview_body").value);
+            $("#overview_full").value = joinOverview(
+              $("#overview_lead").value,
+              $("#overview_body").value,
+            );
           }
           updateOverviewCounts();
         }
@@ -482,17 +595,10 @@ Claude にどのように指示しましたか？
       });
 
       $$("[data-copy]").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const id = btn.getAttribute("data-copy");
-          const el = $("#" + id);
-          const text = el ? (el.value !== undefined ? el.value : el.textContent) : "";
-          try {
-            await navigator.clipboard.writeText(text);
-            btn.textContent = "コピーした";
-            setTimeout(() => { btn.textContent = "コピー"; }, 1200);
-          } catch (_) {
-            alert("クリップボードにコピーできませんでした");
-          }
+        const label = btn.textContent;
+        btn.addEventListener("click", () => {
+          const el = $("#" + btn.getAttribute("data-copy"));
+          copyText(el ? el.value : "", btn, label);
         });
       });
 
@@ -506,26 +612,33 @@ Claude にどのように指示しましたか？
           "【GitHub】\n" + s.github,
           "【デモ動画】\n" + s.demo_video,
           "【使用した Claude】\n" + (s.claude_products || []).join(", "),
+          "【その他に書く文】\n" + s.claude_other,
           "【詰まった場面】\n" + s.stuck,
           "【製品・環境・原因】\n" + s.stuck_meta,
-          "【公式情報】\n" + s.docs_found + "\n" + s.docs_comment,
+          "【公式情報】\n" +
+            [s.docs_found, s.docs_comment].filter(Boolean).join("\n"),
           "【感想】\n" + s.impressions,
           "【審査員用】\n" + s.reviewer,
         ].join("\n\n");
         try {
           await navigator.clipboard.writeText(block);
           $("#copy-all").textContent = "全文コピー済み";
-          setTimeout(() => { $("#copy-all").textContent = "全文をクリップボードにコピー"; }, 1500);
+          setTimeout(() => {
+            $("#copy-all").textContent = "全文をクリップボードにコピー";
+          }, 1500);
         } catch (_) {
           alert("クリップボードにコピーできませんでした");
         }
       });
 
       $("#export-json").addEventListener("click", () => {
-        const blob = new Blob([JSON.stringify(gatherState(), null, 2)], { type: "application/json" });
+        const blob = new Blob([JSON.stringify(gatherState(), null, 2)], {
+          type: "application/json",
+        });
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "sakiyomi-submission-" + new Date().toISOString().slice(0, 10) + ".json";
+        a.download =
+          "sakiyomi-submission-" + new Date().toISOString().slice(0, 10) + ".json";
         a.click();
         URL.revokeObjectURL(a.href);
       });
@@ -538,7 +651,6 @@ Claude にどのように指示しましたか？
         reader.onload = () => {
           try {
             applyState(JSON.parse(reader.result));
-            overviewFullTouched = true;
             scheduleSave();
           } catch (_) {
             alert("JSON の読み込みに失敗しました");
@@ -549,8 +661,12 @@ Claude にどのように指示しましたか？
       });
 
       $("#reset-defaults").addEventListener("click", () => {
-        if (!confirm("初期値に戻します。localStorage の下書きも上書きされます。")) return;
-        overviewFullTouched = false;
+        if (
+          !confirm(
+            "初期値に戻します。このページの下書きは上書きされます（前の版の下書きは消しません）。",
+          )
+        )
+          return;
         localStorage.removeItem(STORAGE_KEY);
         applyState(DEFAULTS);
         $("#stuck_meta").value = buildStuckMeta();

@@ -89,3 +89,89 @@ test("設問 5 は URL の行が 1 つで、README のデモ動画のリンク�
   assert.ok(readmeLine, "README にデモ動画の行が無い");
   assert.ok(readmeLine.includes(urls[0]), readmeLine);
 });
+
+// 写すためのページ（public/submission-form.html）の初期値が form.md と同じであることを確かめる（#4、#7）。
+// ページから写した答えが form.md と違うまま送られるのを防ぐ。
+const PAGE = read("public/submission-form.html");
+
+// DEFAULTS の「key: "値"」を返す。
+function pageDefault(key: string): string {
+  const match = PAGE.match(new RegExp(`\\n\\s+${key}: "([^"\\n]*)",`));
+  assert.ok(match, `ページの初期値に ${key} が無い`);
+  return match[1];
+}
+
+test("設問 3・7・10・11 の写す本文が、ページにそのまま入っている", () => {
+  for (const number of [3, 7, 10, 11]) {
+    const answer = answerOf(FORM, number);
+    assert.ok(
+      !/`|\$\{/.test(answer),
+      `設問 ${number} にバッククォートか \${ がある`,
+    );
+    assert.ok(
+      PAGE.includes(`\`${answer}\``),
+      `設問 ${number} の本文がページと違う`,
+    );
+  }
+});
+
+test("ページの概要は、冒頭と続きを改行 1 つでつないで設問 3 と同じになる", () => {
+  assert.ok(PAGE.includes(`const OVERVIEW = \`${answerOf(FORM, 3)}\`;`));
+  assert.ok(PAGE.includes('return lead + "\\n" + body;'));
+});
+
+test("ページの設問 8 の初期値は、form.md の 8 の 3 行と同じ", () => {
+  const product = pageDefault("stuck_product");
+  const env = pageDefault("stuck_env");
+  const cause = pageDefault("stuck_cause");
+  assert.equal(
+    `製品：${product}\n環境：${env}\n主な原因：${cause}`,
+    answerOf(FORM, 8),
+  );
+  for (const label of ['"製品："', '"環境："', '"主な原因："'])
+    assert.ok(PAGE.includes(label), `本文の組み立てに ${label} が無い`);
+});
+
+test("ページの設問 6・9・5 の初期値は form.md と同じ", () => {
+  const listed = [
+    ...sectionOf(FORM, 6).matchAll(/^- \[x\] ([^（\n]+)（/gm),
+  ].map((match) => match[1]);
+  assert.equal(listed.length, 4, listed.join(", "));
+  const products = PAGE.match(/claude_products: (\[[^\]\n]*\]),/);
+  assert.ok(products, "ページの初期値に claude_products が無い");
+  assert.deepEqual(JSON.parse(products[1]), listed);
+  for (const name of listed)
+    assert.ok(PAGE.includes(`value="${name}"`), `${name} の選択肢が無い`);
+  assert.equal(pageDefault("claude_other"), answerOf(FORM, 6));
+
+  assert.equal(answerOf(FORM, 9), "はい");
+  assert.equal(pageDefault("docs_found"), "はい");
+  assert.equal(pageDefault("docs_comment"), "");
+
+  const url = sectionOf(FORM, 5)
+    .split("\n")
+    .find((line) => /^https:\/\/\S+$/.test(line));
+  assert.equal(pageDefault("demo_video"), url);
+});
+
+test("ページのプロジェクト名は form.md の 1 と同じ", () => {
+  const name = sectionOf(FORM, 1)
+    .split("\n")
+    .slice(2)
+    .find((line) => line.trim() !== "");
+  assert.equal(pageDefault("project_name"), name);
+});
+
+test("ページは前の版の下書きのキーを消さずに読み、新しい版のキーに保存する", () => {
+  assert.ok(
+    PAGE.includes('const STORAGE_KEY = "sakiyomi-bwc2026-submission-form-v2";'),
+  );
+  assert.ok(
+    PAGE.includes(
+      'const OLD_STORAGE_KEY = "sakiyomi-bwc2026-submission-form";',
+    ),
+  );
+  assert.ok(
+    !/removeItem\(OLD_STORAGE_KEY\)|setItem\(OLD_STORAGE_KEY/.test(PAGE),
+  );
+});
