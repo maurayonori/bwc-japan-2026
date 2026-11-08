@@ -111,12 +111,41 @@ function combine(
 // 金額の内訳を出す道具。これが成功したあとに見通しが成功していなければ、残っている見通しは前の条件での計算になる。
 const BREAKDOWN_TOOLS = new Set(["kougaku_gendo", "meal_cost"]);
 
+const field = (value: unknown, key: string): unknown =>
+  value !== null && typeof value === "object"
+    ? (value as Record<string, unknown>)[key]
+    : undefined;
+
+const amountAt = (value: unknown, key: string): number[] => {
+  const found = field(value, key);
+  return typeof found === "number" ? [found] : [];
+};
+
+// 範囲の計算（下限と上限が違う内訳）の、上限の額。範囲でなければ空（#107）。
+// 食事代は多めの合計。高額療養費は下限と上限が違う区分の、多めの側の窓口で払う額と上限の無いときの負担。
+function upperAmounts(event: ToolEvent): number[] {
+  if (event.name === "meal_cost") {
+    const [low] = amountAt(field(event.output, "low"), "cost_max");
+    const high = amountAt(field(event.output, "high"), "cost_max");
+    return high.length > 0 && high[0] !== low ? high : [];
+  }
+  const cases = field(event.output, "cases");
+  if (event.name !== "kougaku_gendo" || !Array.isArray(cases)) return [];
+  const keys = ["pay_with_cap", "copay_without_cap"];
+  return cases.flatMap((item) => {
+    const low = keys.flatMap((key) => amountAt(field(item, "low"), key));
+    const high = keys.flatMap((key) => amountAt(field(item, "high"), key));
+    return low.join() === high.join() ? [] : high;
+  });
+}
+
 // 見通しが前の条件での計算か（#77）。
 // - その回で、内訳の計算が成功したあとに simulate_cashflow が無いか失敗した（時間切れを含む）なら、印を付ける
 // - その回で、最後の内訳のあとに simulate_cashflow が成功したなら、印を外す
 // - その回に内訳も見通しも成功しなければ、前の回の印をそのまま引き継ぐ（日付だけの計算では外さない）
 // - その回の前の内訳と同じ入力の内訳は、条件を変えないので数えない（見通しのあとの呼び直し。11/8 の実 API の評価）
 // - 見通しのあとの内訳でも、その額（食事代は保険診療分との合計も）が見通しの入出金に入っていれば数えない（11/8 のデモと同じ 3 往復）
+//   ただし範囲の計算は、上限の額（その回の保険診療分か食事代との合計も）も入っていなければ数える（#107。下限だけの一致で古い額を残さない）
 // どの場合も、表に見通しが残っていなければ印は要らない。
 export function cashflowIsStale(
   events: readonly ToolEvent[],
@@ -138,8 +167,19 @@ export function cashflowIsStale(
     const others = breakdownAmounts(breakdowns.filter((other) => other !== event));
     const withEvent = breakdownAmounts(breakdowns);
     const own = breakdownAmounts([event]);
-    return [...withEvent].some(
-      (amount) => used.has(amount) && (own.has(amount) || !others.has(amount)),
+    const partners = [
+      0,
+      ...breakdownAmounts(breakdowns.filter((other) => other.name !== event.name)),
+    ];
+    const upper = upperAmounts(event);
+    const upperUsed =
+      upper.length === 0 ||
+      upper.some((amount) => partners.some((partner) => used.has(amount + partner)));
+    return (
+      upperUsed &&
+      [...withEvent].some(
+        (amount) => used.has(amount) && (own.has(amount) || !others.has(amount)),
+      )
     );
   };
   const breakdown = events.findLastIndex(
